@@ -304,7 +304,9 @@ def parseProcDiskStatLog(numCpu, fileName):
 #parseProcStatLog(sys.argv[3])
 
 
-parseProcDiskStatLog(2, sys.argv[4])
+#parseProcDiskStatLog(2, sys.argv[4])
+
+print 'Test'
 
 
 

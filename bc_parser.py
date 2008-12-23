@@ -63,7 +63,9 @@ class Process:
 			userCpuLoad = userCpuLoad / cpuLoad;
 			sysCpuLoad = sysCpuLoad / cpuLoad;
 		return (userCpuLoad, sysCpuLoad)
-			
+	
+	def getEndTime(self):
+		return self.startTime + self.duration
 
 class DiskTPutSample:
 	def __init__(self, time, read, write):

@@ -1,0 +1,7 @@
+version = 0.8+20051109-ubuntu
+title = Boot chart for anders-desktop (Thu Dec 18 14:05:52 CET 2008)
+system.uname = Linux 2.6.27-10-generic #1 SMP Fri Nov 21 12:00:22 UTC 2008 i686
+system.release = Ubuntu 8.10
+system.cpu = model name	: Intel(R) Core(TM)2 CPU          6600  @ 2.40GHz
+model name	: Intel(R) Core(TM)2 CPU          6600  @ 2.40GHz (2)
+system.kernel.options = root=UUID=a0b77e99-bc85-4045-b488-4182f8f8c6b8 ro quiet splash 

@@ -138,7 +138,7 @@ def parseProcPsLog(fileName, forkMap):
 
 	blocks = open(fileName).read().split('\n\n')
 	numSamples = len(blocks)-1
-	print 'Num blocks', numSamples
+	#print 'Num blocks', numSamples
 	ltime = 0
 	startTime = -1
 	for block in blocks:
@@ -192,7 +192,8 @@ def parseProcPsLog(fileName, forkMap):
 	
 	
 	for key in sorted(processMap.keys()):
-		print 'Pid:', key, processMap[key]
+		#print 'Pid:', key, processMap[key]
+		pass
 	
 	for process in processMap.values():
 		ppids = getPPIDs(process.pid, forkMap)
@@ -205,8 +206,7 @@ def parseProcPsLog(fileName, forkMap):
 				print ppid, 'not in processMap???'
 	
 
-	samplePeriod = (ltime - startTime)/numSamples
-	print 'Sample period' + str(samplePeriod)
+	samplePeriod = (ltime - startTime)/numSamples	
 	
 	for process in processMap.values():
 		process.calcStats(samplePeriod)

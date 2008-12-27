@@ -173,6 +173,7 @@ def parseProcPsLog(fileName, forkMap):
 
 			if processMap.has_key(pid):
 				process = processMap[pid]
+				process.cmd = cmd.replace('(', '').replace(')', '') # why rename after latest name??
 			else:
 				process = Process(pid, tokens[1], tokens[3], min(time, stime))
 				processMap[pid] = process

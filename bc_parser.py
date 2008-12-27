@@ -2,6 +2,13 @@ import sys, os, re, struct
 from collections import defaultdict
 
 
+class DiskStatSample:
+	def __init__(self):
+		self.values = [0,0,0]
+		self.changes = [0,0,0]
+	def __str__(self):
+		return 'Values ' +  str(self.values) + ", Changes " + str(self.changes);
+
 class CPUSample:
 	def __init__(self, time, user, sys, io):
 		self.time = time
@@ -72,6 +79,10 @@ class DiskTPutSample:
 		self.time = time
 		self.read = read
 		self.write = write
+
+	def __str__(self):
+		return "\t".join([str(self.time), str(self.read), str(self.write)])
+
 	
 class DiskUtilSample:
 	"""Disk utilization [0.0, 1.0] """
@@ -80,6 +91,8 @@ class DiskUtilSample:
 		self.time = time
 		self.util = util
 
+	def __str__(self):
+		return "\t".join([str(self.time), str(self.util)])
 
 	
 	
@@ -241,11 +254,11 @@ def parseProcStatLog(fileName):
 def parseProcDiskStatLog(numCpu, fileName):
 	DISK_REGEX = 'hd.|sd.'
 	
-	diskStatSamples = defaultdict(list)
+	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
 	blocks = open(fileName).read().split('\n\n')
 	numSamples = len(blocks)-1
-	print numSamples, 'blocks ready'
+	print numSamples, 'blocks ready ', len(diskStatSamples)
 	startTime = -1
 	ltime = None
 	for block in blocks:
@@ -261,8 +274,9 @@ def parseProcDiskStatLog(numCpu, fileName):
 		
 		for line in lines:
 			tokens = line.split();
-		
-			if len(tokens) != 14 or not re.match(DISK_REGEX, tokens[2]):
+
+			# take only lines with content and only look at the whole disks, eg. sda, not sda1, sda2 etc.
+			if len(tokens) != 14 or not re.match(DISK_REGEX, tokens[2]) or not len(tokens[2]) == 3:
 				continue
 			
 			disk = tokens[2]
@@ -270,26 +284,32 @@ def parseProcDiskStatLog(numCpu, fileName):
 			rsect, wsect, use = int(tokens[5]), int(tokens[9]), int(tokens[12])
 			
 			sample = diskStatSamples[disk]
-			if ltime > 0:
-				sample[3:6] = [rsect-sample[0], wsect-sample[1], use-sample[2]] 
+						
+			if ltime:				
+				sample.changes = [rsect-sample.values[0], wsect-sample.values[1], use-sample.values[2]] 
 
-			sample[0:3] = [rsect, wsect, use]
+			sample.values = [rsect, wsect, use]
 
-									
+		#print len(diskStatSamples), diskStatSamples
+		#if len(diskStatSamples) > 1:
 		if ltime:
 			interval = time - ltime
 			
 			sums = [0, 0, 0]
 			for sample in diskStatSamples.values():
-				for i in range(3):
-					sums[i] = sums[i] + sample[i+3]
-					
-			readTput = sums[0] / 2.0 * 1000.0 / interval
-			writeTput = sums[1] / 2.0 * 1000.0 / interval
-			# number of ticks (1000/s), reduced to one CPU, time is in jiffies (100/s)
-			util = float( sums[2] *10 ) / interval / numCpu
+				for i in range(3):		
+					sums[i] = sums[i] + sample.changes[i]
 			
-			print 'Util', util
+			if time == 563:
+				print [str(v) for v in diskStatSamples.values()]
+				print sums
+			
+			readTput = sums[0] / 2.0 * 100.0 / interval
+			writeTput = sums[1] / 2.0 * 100.0 / interval
+			# number of ticks (1000/s), reduced to one CPU, time is in jiffies (100/s)
+			util = float( sums[2] ) / 10 / interval / numCpu
+			
+			#print 'Util', util
 			
 			diskStats.append(DiskTPutSample(time, readTput, writeTput))
 			diskStats.append(DiskUtilSample(time, util))
@@ -308,7 +328,7 @@ def parseProcDiskStatLog(numCpu, fileName):
 
 #parseProcDiskStatLog(2, sys.argv[4])
 
-print 'Test'
+#print 'Test'
 
 
 

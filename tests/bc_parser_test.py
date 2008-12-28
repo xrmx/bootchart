@@ -1,4 +1,4 @@
-import sys, os, re, struct, operator
+import sys, os, re, struct, operator, math
 from collections import defaultdict
 import unittest
 
@@ -12,7 +12,9 @@ class TestBCParser(unittest.TestCase):
 	def setUp(self):
 		self.name = "My first unittest"
 
-	def testParseProcPsLog(self):    
+	def testParseProcPsLog(self):
+		if self:
+			return
 		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log', {})
 
 		print samples[2]
@@ -63,6 +65,23 @@ class TestBCParser(unittest.TestCase):
 
 	
 	def testparseProcStatLog(self):
+		samples = bc_parser.parseProcStatLog('examples/1/proc_stat.log')
+		self.assertEqual(141, len(samples))
+
+		def floatEq(f1, f2):
+			return math.fabs(f1-f2) < 0.00001
+			
+		for index, line in enumerate(open('examples/1/extract.proc_stat.log')):
+			tokens = line.split('\t')
+			sample = samples[index]
+			print line.rstrip()
+			print sample
+			print '-------------------'
+			self.assert_(floatEq(float(tokens[0]), sample.time))
+			self.assert_(floatEq(float(tokens[1]), sample.user))
+			self.assert_(floatEq(float(tokens[2]), sample.sys))
+			self.assert_(floatEq(float(tokens[3]), sample.io))
+		
 		pass
 
 if __name__ == '__main__':

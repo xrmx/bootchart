@@ -17,7 +17,7 @@ class CPUSample:
 		self.io = io
 
 	def __str__(self):
-		return self.time + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io);
+		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io);
 		
 class ProcessSample:
 	def __init__(self, time, state, cpuSample, diskUtil, diskTPut):
@@ -236,12 +236,12 @@ def parseProcStatLog(fileName):
 		
 		tokens = lines[1].split(); # {user, nice, system, idle, io_wait, irq, softirq}
 		times = [ int(token) for token in tokens[1:] ]
-		
+		print time, times, ltimes
 		if ltimes:
-			user = (times[0] + times[1]) - (ltimes[0] + ltimes[1])
-			system = (times[2] + times[5] + times[6]) - (ltimes[2] + ltimes[5] + ltimes[6]);
-			idle = times[3] - ltimes[3];
-			iowait = times[4] - ltimes[4];
+			user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))
+			system = float((times[2] + times[5] + times[6]) - (ltimes[2] + ltimes[5] + ltimes[6]))
+			idle = float(times[3] - ltimes[3])
+			iowait = float(times[4] - ltimes[4])
 			
 			aSum = max(user + system + idle + iowait, 1)
 			samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum) )

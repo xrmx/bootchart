@@ -43,8 +43,8 @@ class Process:
 		self.duration = 0
 		self.active = None
 		
-		self.lastUserCpuTime = 0
-		self.lastSysCpuTime = 0
+		self.lastUserCpuTime = None
+		self.lastSysCpuTime = None
 	
 	def __str__(self):
 		return " ".join([str(self.pid), self.cmd, self.ppid, '[' + ','.join([str(sample) for sample in self.samples]) + ']' ])
@@ -181,10 +181,11 @@ def parseProcPsLog(fileName, forkMap):
 			userCpu = int(tokens[13])
 			sysCpu = int(tokens[14])
 			
-			if userCpu and sysCpu and ltime:
-				userCpu, sysCpu = process.calcLoad(userCpu, sysCpu, time - ltime)
+			if process.lastUserCpuTime is not None and process.lastSysCpuTime is not None and ltime is not None:
+				userCpuLoad, sysCpuLoad = process.calcLoad(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpu, sysCpu, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample, 'null', 'null'))
+				#print 'Adding sample to process', process
 			
 			process.lastUserCpuTime = userCpu
 			process.lastSysCpuTime = sysCpu

@@ -22,15 +22,17 @@ class TestBCParser(unittest.TestCase):
 	processes = samples[0]
 	sorted_processes = sorted(processes, key=lambda p: p.pid )
 	
-	for index, line in enumerate(open('examples/1/extract.proc_ps.log')):
+	for index, line in enumerate(open('examples/1/extract2.proc_ps.log')):
 		tokens = line.split();
 		process = sorted_processes[index]
-		print tokens[0:3]
-		print process.pid, process.cmd, process.ppid
+		print tokens[0:4]
+		print process.pid, process.cmd, process.ppid, len(process.samples)
 		print '-------------------'
+		#if len(process.samples) > 0: break
 		self.assertEqual(tokens[0], str(process.pid))
 		self.assertEqual(tokens[1], str(process.cmd))
 		self.assertEqual(tokens[2], str(process.ppid))
+		self.assertEqual(tokens[3], str(len(process.samples)))
         
 
     def testparseProcStatLog(self):

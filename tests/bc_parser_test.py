@@ -41,7 +41,7 @@ class TestBCParser(unittest.TestCase):
 		if self:
 			return
 		samples = bc_parser.parseProcDiskStatLog(2, 'examples/1/proc_diskstats.log')
-		self.assertEqual(282, len(samples))
+		self.assertEqual(141, len(samples))
 	
 		sample1 = samples[0]
 		self.assertEqual(0.0, sample1.read)
@@ -51,7 +51,7 @@ class TestBCParser(unittest.TestCase):
 		for index, line in enumerate(open('examples/1/extract.proc_diskstats.log')):
 			tokens = line.split('\t')
 			sample = samples[index]
-			print line.rstrip()
+			print line.rstrip(), 
 			print sample
 			print '-------------------'
 			self.assertEqual(line.rstrip(), str(sample))

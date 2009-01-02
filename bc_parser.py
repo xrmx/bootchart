@@ -74,26 +74,15 @@ class Process:
 	def getEndTime(self):
 		return self.startTime + self.duration
 
-class DiskTPutSample:
-	def __init__(self, time, read, write):
+class DiskSample:
+	def __init__(self, time, read, write, util):
 		self.time = time
 		self.read = read
 		self.write = write
-
-	def __str__(self):
-		return "\t".join([str(self.time), str(self.read), str(self.write)])
-
-	
-class DiskUtilSample:
-	"""Disk utilization [0.0, 1.0] """
-
-	def __init__(self, time, util):
-		self.time = time
 		self.util = util
 
 	def __str__(self):
-		return "\t".join([str(self.time), str(self.util)])
-
+		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
 	
 	
 def parsePacct(fileName):
@@ -313,9 +302,7 @@ def parseProcDiskStatLog(numCpu, fileName):
 			
 			#print 'Util', util
 			
-			diskStats.append(DiskTPutSample(time, readTput, writeTput))
-			diskStats.append(DiskUtilSample(time, util))
-			
+			diskStats.append(DiskSample(time, readTput, writeTput, util))
 			
 		ltime = time
 		

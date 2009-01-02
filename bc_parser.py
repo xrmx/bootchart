@@ -120,9 +120,10 @@ def getPPIDs(pid, forkMap):
 		return []
 			
 
+def parseHeaders(fileName):        
+    return dict( (line.split('=', 1) for line in open(fileName) ) )
 
-def parseProcPsLog(fileName, forkMap):
-	
+def parseProcPsLog(fileName, forkMap):	
 	processMap = {}
 
 	blocks = open(fileName).read().split('\n\n')

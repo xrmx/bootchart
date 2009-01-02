@@ -15,6 +15,11 @@ class TestBCParser(unittest.TestCase):
     
 	def setUp(self):
 		self.name = "My first unittest"
+		
+	def testParseHeader(self):
+		headers = bc_parser.parseHeaders('examples/1/header')
+		self.assertEqual(7, len(headers))
+		print headers
 
 	def testParseProcPsLog(self):
 		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log', {})

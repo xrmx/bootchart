@@ -27,6 +27,13 @@ class ProcessSample:
 	def __str__(self):
 		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpuSample);
 
+class ProcessStats:
+    def __init__(self, process_list, sample_period, start_time, end_time):
+        self.process_list = process_list
+        self.sample_period = sample_period
+        self.start_time = start_time
+        self.end_time = end_time
+
 class Process:	
 	def __init__(self, pid, cmd, ppid, startTime):
 
@@ -144,7 +151,7 @@ def parseProcPsLog(fileName, forkMap):
 	for process in processMap.values():
 		process.calcStats(samplePeriod)
 		
-	return (processMap.values(), samplePeriod, startTime, ltime)
+	return ProcessStats(processMap.values(), samplePeriod, startTime, ltime)
 	
 def parseProcStatLog(fileName):
 	samples = []

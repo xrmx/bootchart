@@ -23,7 +23,7 @@ class TestBCParser(unittest.TestCase):
 	def testParseProcPsLog(self):
 		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log', {})
 
-		processes = samples[0]
+		processes = samples.process_list
 		sorted_processes = sorted(processes, key=lambda p: p.pid )
 		
 		for index, line in enumerate(open('examples/1/extract2.proc_ps.log')):

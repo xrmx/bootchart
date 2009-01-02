@@ -6,14 +6,15 @@ class ProcessTree:
 
 	def __init__(self, psstats, monitoredApp, prune):
 	
-		self.psstats = psstats
-		
+		self.psstats = psstats		
 		self.processList = psstats.processList
 		self.samplePeriod = psstats.samplePeriod
 		
-		self.build()
-		
-	
+		self.startTime = psstats.start_time
+		self.endTime = psstats.end_time
+		self.duration = self.endTime - self.startTime
+
+		self.build()	
 	
 	def build(self):
 		

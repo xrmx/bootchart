@@ -82,42 +82,6 @@ class DiskSample:
 
 	def __str__(self):
 		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
-	
-	
-def parsePacct(fileName):
-	forkMap = defaultdict(list)
-	try:
-		ffile = open(fileName, 'rb')
-		ffileSize = os.path.getsize(fileName)
-		while ffile.tell() < ffileSize:
-			buf = ffile.read(16)
-			bytes = struct.unpack('B'*len(buf),buf)
-			#print 'Version', bytes[1]
-		
-			pid = struct.unpack('I',ffile.read(4))[0]
-			ppid = struct.unpack('I',ffile.read(4))[0]
-			
-			forkMap[ppid].append(pid)
-			
-			ffile.read(24) # times, mem, faults, etc.
-			
-			comm = struct.unpack('c'*16,ffile.read(16))
-	
-			#print str(comm) + " (" + str(pid) + ") was forked by " + str(ppid) + " " + str(ffile.tell())
-	except EOFError:
-		print 'Reached end of file'
-	
-	return forkMap
-
-
-def getPPIDs(pid, forkMap):
-	ppids = [ ppid for (ppid, pids) in forkMap.items() if pid in pids ]
-	
-	if len(ppids) == 1 and ppid != pid:
-		return ppids + getPPIDs(ppids[0], forkMap)
-	else:
-		return []
-			
 
 def parseHeaders(fileName):        
     return dict( (line.split('=', 1) for line in open(fileName) ) )

@@ -1,5 +1,6 @@
 import sys, os, re, struct
 from collections import defaultdict
+from process_tree import ProcessTree
 
 class DiskStatSample:
 	def __init__(self):
@@ -42,6 +43,7 @@ class Process:
 		self.ppid = ppid
 		self.startTime = startTime
 		self.samples = []
+		self.parent = None
 		
 		self.duration = 0
 		self.active = None
@@ -94,7 +96,7 @@ def _parseTimedBlocks(fileName):
 	blocks = open(fileName).read().split('\n\n')
 	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
 	
-def parseProcPsLog(fileName, forkMap):	
+def parseProcPsLog(fileName):	
 	processMap = {}
 	timedBlocks = _parseTimedBlocks(fileName)
 	numSamples = len(timedBlocks)-1
@@ -172,12 +174,11 @@ def parseProcStatLog(fileName):
 		# skip the rest of statistics lines
 	return samples
 		
-def parseProcDiskStatLog(numCpu, fileName):
+def parseProcDiskStatLog(fileName, numCpu):
 	DISK_REGEX = 'hd.|sd.'
 	
 	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
-	blocks = open(fileName).read().split('\n\n')
 	startTime = -1
 	ltime = None
 	for time, block in _parseTimedBlocks(fileName):
@@ -219,3 +220,41 @@ def parseProcDiskStatLog(numCpu, fileName):
 			
 		ltime = time
 	return diskStats
+	
+	
+# Get the number of CPUs from the system.cpu header
+# property.
+def get_num_cpus(headers):
+    if headers is None:
+        return 1
+    cpu_model = headers.get("system.cpu")
+    if cpu_model is None:
+        return 1
+    mat = re.match(".*\\((\\d+)\\)", cpu_model)
+    if mat is None:
+        return 1
+    return int(mat.group(1))
+
+# Gather all the stats from a directory before rendering.
+def parse_log_dir(log_dir, prune):   
+    files = os.listdir(log_dir)
+    if "header" in files:
+        headers = parseHeaders(os.path.join(log_dir, "header"))
+        monitored_app = headers.get("profile.process")
+        num_cpu = get_num_cpus(headers)
+
+    if "proc_diskstats.log" in files:
+        # read the /proc/diskstats log file
+        disk_stats = parseProcDiskStatLog(os.path.join(log_dir, "proc_diskstats.log"), num_cpu)
+
+    if "proc_ps.log" in files:
+        # read the /proc/[PID]/stat log file
+        ps_stats = parseProcPsLog(os.path.join(log_dir, "proc_ps.log"))
+
+    if "proc_stat.log" in files:
+        # read the /proc/stat log file
+        cpu_stats = parseProcStatLog(os.path.join(log_dir, "proc_stat.log"))
+        			
+    proc_tree = ProcessTree(ps_stats, monitored_app, prune)
+
+    return (headers, cpu_stats, disk_stats, proc_tree)

@@ -2,7 +2,7 @@ import sys, os, re, struct, operator, math
 from collections import defaultdict
 import unittest
 
-print sys.path.insert(0, os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 import bc_parser
 
@@ -25,7 +25,7 @@ class TestBCParser(unittest.TestCase):
 		self.assertEqual(142, len(timedBlocks))		
 
 	def testParseProcPsLog(self):
-		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log', {})
+		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log')
 
 		processes = samples.process_list
 		sorted_processes = sorted(processes, key=lambda p: p.pid )
@@ -45,7 +45,7 @@ class TestBCParser(unittest.TestCase):
         
 
 	def testparseProcDiskStatLog(self):
-		samples = bc_parser.parseProcDiskStatLog(2, 'examples/1/proc_diskstats.log')
+		samples = bc_parser.parseProcDiskStatLog('examples/1/proc_diskstats.log', 2)
 		self.assertEqual(141, len(samples))
 	
 		for index, line in enumerate(open('examples/1/extract.proc_diskstats.log')):
@@ -76,6 +76,10 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[1]), sample.user))
 			self.assert_(floatEq(float(tokens[2]), sample.sys))
 			self.assert_(floatEq(float(tokens[3]), sample.io))
+	
+	def testParseLogDir(self):		
+		res = bc_parser.parse_log_dir('examples/1/', False)		
+		self.assertEqual(4, len(res))
 	
 if __name__ == '__main__':
     unittest.main()

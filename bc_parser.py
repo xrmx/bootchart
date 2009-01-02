@@ -19,18 +19,15 @@ class CPUSample:
 		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io);
 		
 class ProcessSample:
-	def __init__(self, time, state, cpuSample, diskUtil, diskTPut):
+	def __init__(self, time, state, cpuSample):
 		self.time = time
 		self.state = state
 		self.cpuSample = cpuSample
-		self.diskUtil = diskUtil
-		self.diskTPut = diskTPut
 		
 	def __str__(self):
-		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpuSample) + "\t" + self.diskUtil + "\t" + self.diskTPut;
+		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpuSample);
 
-class Process:
-	
+class Process:	
 	def __init__(self, pid, cmd, ppid, startTime):
 
 		self.pid = pid
@@ -136,21 +133,11 @@ def parseProcPsLog(fileName, forkMap):
 			if process.lastUserCpuTime is not None and process.lastSysCpuTime is not None and ltime is not None:
 				userCpuLoad, sysCpuLoad = process.calcLoad(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpu, sysCpu, 0.0)
-				process.samples.append(ProcessSample(time, state, cpuSample, 'null', 'null'))
+				process.samples.append(ProcessSample(time, state, cpuSample))
 			
 			process.lastUserCpuTime = userCpu
 			process.lastSysCpuTime = sysCpu
-		ltime = time	
-		
-	for process in processMap.values():
-		ppids = getPPIDs(process.pid, forkMap)
-		for ppid in ppids:
-			if processMap.has_key(ppid):
-				process.ppid = ppid
-				process.parent = processMap[process.ppid]
-				break
-			else:
-				print ppid, 'not in processMap???'
+		ltime = time
 	
 	samplePeriod = (ltime - startTime)/numSamples	
 	

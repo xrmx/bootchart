@@ -10,14 +10,13 @@ class ProcessTree:
 		self.processList = psstats.processList
 		self.samplePeriod = psstats.samplePeriod
 		
-		self.startTime = psstats.start_time
-		self.endTime = psstats.end_time
+		self.start_time = psstats.startTime
+		self.end_time = psstats.endTime
 		self.duration = self.endTime - self.startTime
 
-		self.build()	
+		self.build()
 	
-	def build(self):
-		
+	def build(self):		
 		self.processTree = []
 		for proc in processList:
 			if not proc.parent:

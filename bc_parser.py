@@ -90,24 +90,21 @@ class DiskSample:
 def parseHeaders(fileName):        
     return dict( (line.split('=', 1) for line in open(fileName) ) )
 
+def _parseTimedBlocks(fileName):
+	blocks = open(fileName).read().split('\n\n')
+	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
+	
 def parseProcPsLog(fileName, forkMap):	
 	processMap = {}
-
-	blocks = open(fileName).read().split('\n\n')
-	numSamples = len(blocks)-1
+	timedBlocks = _parseTimedBlocks(fileName)
+	numSamples = len(timedBlocks)-1
 	ltime = 0
 	startTime = -1
-	for block in blocks:
-		lines = block.split('\n')
-
-		if not lines[0].isdigit():
-			#print lines
-			continue
-	
-		time = int(lines[0])
-		
+	for time, block in timedBlocks:
+			
 		if startTime == -1: startTime = time
-		
+
+		lines = block.split('\n')
 		for line in lines[1:]:
 			tokens = line.split(' ')
 			"""
@@ -155,22 +152,12 @@ def parseProcPsLog(fileName, forkMap):
 	
 def parseProcStatLog(fileName):
 	samples = []
-	
-	# CPU times {user, nice, system, idle, io_wait, irq, softirq}
-	blocks = open(fileName).read().split('\n\n')
-	numSamples = len(blocks)-1
 	startTime = -1
 	ltimes = None
-	for block in blocks:
+	for time, block in _parseTimedBlocks(fileName):
 		lines = block.split('\n')
-		if not lines[0].isdigit():
-			print lines
-			continue	
-	
-		time = int(lines[0])
-		
-		
-		tokens = lines[1].split(); # {user, nice, system, idle, io_wait, irq, softirq}
+		# CPU times {user, nice, system, idle, io_wait, irq, softirq}		
+		tokens = lines[1].split();
 		times = [ int(token) for token in tokens[1:] ]
 		if ltimes:
 			user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))
@@ -191,20 +178,12 @@ def parseProcDiskStatLog(numCpu, fileName):
 	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
 	blocks = open(fileName).read().split('\n\n')
-	numSamples = len(blocks)-1
 	startTime = -1
 	ltime = None
-	for block in blocks:
+	for time, block in _parseTimedBlocks(fileName):
 		lines = block.split('\n')
-		if not lines[0].isdigit():
-			print lines
-			continue	
-	
-		time = int(lines[0])	
-	
-		# {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
-		
 		for line in lines:
+			# {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
 			tokens = line.split();
 
 			# take only lines with content and only look at the whole disks, eg. sda, not sda1, sda2 etc.

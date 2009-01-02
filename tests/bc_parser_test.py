@@ -20,6 +20,10 @@ class TestBCParser(unittest.TestCase):
 		headers = bc_parser.parseHeaders('examples/1/header')
 		self.assertEqual(7, len(headers))
 
+	def test_parseTimedBlocks(self):
+		timedBlocks = bc_parser._parseTimedBlocks('examples/1/proc_diskstats.log')
+		self.assertEqual(142, len(timedBlocks))		
+
 	def testParseProcPsLog(self):
 		samples = bc_parser.parseProcPsLog('examples/1/proc_ps.log', {})
 

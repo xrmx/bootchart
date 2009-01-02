@@ -1,7 +1,6 @@
 import sys, os, re, struct
 from collections import defaultdict
 
-
 class DiskStatSample:
 	def __init__(self):
 		self.values = [0,0,0]
@@ -128,7 +127,6 @@ def parseProcPsLog(fileName, forkMap):
 
 	blocks = open(fileName).read().split('\n\n')
 	numSamples = len(blocks)-1
-	#print 'Num blocks', numSamples
 	ltime = 0
 	startTime = -1
 	for block in blocks:
@@ -175,18 +173,11 @@ def parseProcPsLog(fileName, forkMap):
 				userCpuLoad, sysCpuLoad = process.calcLoad(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpu, sysCpu, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample, 'null', 'null'))
-				#print 'Adding sample to process', process
 			
 			process.lastUserCpuTime = userCpu
 			process.lastSysCpuTime = sysCpu
-			#print 'Process:', process
 		ltime = time	
-	
-	
-	for key in sorted(processMap.keys()):
-		#print 'Pid:', key, processMap[key]
-		pass
-	
+		
 	for process in processMap.values():
 		ppids = getPPIDs(process.pid, forkMap)
 		for ppid in ppids:
@@ -197,7 +188,6 @@ def parseProcPsLog(fileName, forkMap):
 			else:
 				print ppid, 'not in processMap???'
 	
-
 	samplePeriod = (ltime - startTime)/numSamples	
 	
 	for process in processMap.values():
@@ -211,12 +201,10 @@ def parseProcStatLog(fileName):
 	# CPU times {user, nice, system, idle, io_wait, irq, softirq}
 	blocks = open(fileName).read().split('\n\n')
 	numSamples = len(blocks)-1
-	print numSamples, 'blocks ready'
 	startTime = -1
 	ltimes = None
 	for block in blocks:
 		lines = block.split('\n')
-		#print lines
 		if not lines[0].isdigit():
 			print lines
 			continue	
@@ -226,7 +214,6 @@ def parseProcStatLog(fileName):
 		
 		tokens = lines[1].split(); # {user, nice, system, idle, io_wait, irq, softirq}
 		times = [ int(token) for token in tokens[1:] ]
-		print time, times, ltimes
 		if ltimes:
 			user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))
 			system = float((times[2] + times[5] + times[6]) - (ltimes[2] + ltimes[5] + ltimes[6]))
@@ -236,11 +223,8 @@ def parseProcStatLog(fileName):
 			aSum = max(user + system + idle + iowait, 1)
 			samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum) )
 		
-		ltimes = times
-		
+		ltimes = times		
 		# skip the rest of statistics lines
-		
-	print 'Parsed', len(samples), '/proc/stat samples'
 	return samples
 		
 def parseProcDiskStatLog(numCpu, fileName):
@@ -250,12 +234,10 @@ def parseProcDiskStatLog(numCpu, fileName):
 	diskStats = []
 	blocks = open(fileName).read().split('\n\n')
 	numSamples = len(blocks)-1
-	print numSamples, 'blocks ready ', len(diskStatSamples)
 	startTime = -1
 	ltime = None
 	for block in blocks:
 		lines = block.split('\n')
-		#print lines
 		if not lines[0].isdigit():
 			print lines
 			continue	
@@ -282,8 +264,6 @@ def parseProcDiskStatLog(numCpu, fileName):
 
 			sample.values = [rsect, wsect, use]
 
-		#print len(diskStatSamples), diskStatSamples
-		#if len(diskStatSamples) > 1:
 		if ltime:
 			interval = time - ltime
 			
@@ -292,37 +272,13 @@ def parseProcDiskStatLog(numCpu, fileName):
 				for i in range(3):		
 					sums[i] = sums[i] + sample.changes[i]
 			
-			if time == 563:
-				print [str(v) for v in diskStatSamples.values()]
-				print sums
 			
 			readTput = sums[0] / 2.0 * 100.0 / interval
 			writeTput = sums[1] / 2.0 * 100.0 / interval
 			# number of ticks (1000/s), reduced to one CPU, time is in jiffies (100/s)
 			util = float( sums[2] ) / 10 / interval / numCpu
 			
-			#print 'Util', util
-			
 			diskStats.append(DiskSample(time, readTput, writeTput, util))
 			
 		ltime = time
-		
-	print 'Parsed', len(diskStats)/2, 'samples'
 	return diskStats
-	
-#forkMap = parsePacct(sys.argv[1])
-#print getPPIDs(5568, forkMap)
-#print parseProcPsLog(sys.argv[2], forkMap)
-#parseProcStatLog(sys.argv[3])
-
-
-#parseProcDiskStatLog(2, sys.argv[4])
-
-#print 'Test'
-
-
-
-
-
-
-

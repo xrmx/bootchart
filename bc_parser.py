@@ -44,6 +44,7 @@ class Process:
 		self.startTime = startTime
 		self.samples = []
 		self.parent = None
+		self.child_list = []
 		
 		self.duration = 0
 		self.active = None
@@ -85,6 +86,7 @@ class DiskSample:
 		self.read = read
 		self.write = write
 		self.util = util
+	        self.tput = read + write
 
 	def __str__(self):
 		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])

@@ -4,7 +4,6 @@ import os
 import re
 import sys
 import struct
-import pdb
 
 import gobject
 import gtk
@@ -239,7 +238,6 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
 
     # draw the title and headers
     draw_header(ctx, headers, off_x, proc_tree.duration)
-    #surface.write_to_png(out_filename)	   	
 
     rect_x = off_x
     rect_y = header_h + off_y
@@ -350,52 +348,25 @@ def draw_signature(ctx, x, y):
 
 			
 def draw_header(ctx, headers, off_x, duration) :
-    ctx.set_source_rgba(*TEXT_COLOR)
-    ctx.set_font_size(TITLE_FONT_SIZE)
-    font_extents = ctx.font_extents()
-
-    header_y = font_extents[2]
-    if (headers is not None and headers.get("title") is not None) :
-        ctx.move_to(off_x, header_y)
-        ctx.show_text(headers.get("title"))
-        
-    ctx.set_font_size(TEXT_FONT_SIZE)
-    header_y = header_y + 2
-    hoff = 1
-    if (headers is not None) :
-        uname = "uname: " + headers.get("system.uname", "")
-        ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-        hoff = hoff + 1
-        ctx.show_text(uname)
-        rel = "release: " + headers.get("system.release", "")
-        ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-        hoff = hoff + 1
-        ctx.show_text(rel)
-        cpu = "CPU: " + headers.get("system.cpu", "")
-        #cpu = cpu.replace_first("model name\\s*:\\s*", "")
-        ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-        hoff = hoff + 1
-        ctx.show_text(cpu)
-        if (headers.get("profile.process") is not None) :
-            app = "application: " + headers.get("profile.process", "")
-            ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-            hoff = hoff + 1
-            ctx.show_text(app)
-        else :
-            kopt = "kernel options: " + headers.get("system.kernel.options", "")
-            ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-            hoff = hoff + 1
-            ctx.show_text(kopt)
+	ctx.set_source_rgba(*TEXT_COLOR)
+	ctx.set_font_size(TEXT_FONT_SIZE)
+	header_y = ctx.font_extents()[2]
+	header_y = header_y + 2
+	
+	for index, (headerkey, headerval) in enumerate(headers.items()):
+		txt = headerkey + ': ' + headerval.strip()
+		ctx.move_to(off_x, header_y + index * (TEXT_FONT_SIZE + 2))
+		ctx.show_text(txt)
 			
-        dur = duration/1000.0
-        boot_time = "time: %02d:%0.2f" % (math.floor(dur/60), dur - math.floor(dur/60))
-        ctx.move_to(off_x, header_y + hoff * (TEXT_FONT_SIZE + 2))
-        hoff = hoff + 1
-        ctx.show_text(boot_time)
+	dur = duration/100.0
+	boot_time = "time: %02d:%0.2f" % (math.floor(dur/60), dur - math.floor(dur/60))
+	ctx.move_to(off_x, header_y + len(headers) * (TEXT_FONT_SIZE + 2))
+	ctx.show_text(boot_time)
 	
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
+    	print proc
         off_y = proc_h
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)

@@ -4,8 +4,15 @@ import os
 import re
 import sys
 import struct
-import cairo
 import pdb
+
+import gobject
+import gtk
+import gtk.gdk
+import gtk.keysyms
+import cairo
+import pango
+import pangocairo
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -194,7 +201,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
 #
 # Render the chart.
 # 
-def render(out_filename, headers, cpu_stats, disk_stats, proc_tree):
+def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     print 'proc_tree.num_proc', proc_tree.num_proc
     header_h = 280
     bar_h = 55
@@ -218,8 +225,12 @@ def render(out_filename, headers, cpu_stats, disk_stats, proc_tree):
     w = min(w, MAX_IMG_DIM)
     h = min(h, MAX_IMG_DIM)
 
-    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
-    ctx = cairo.Context(surface)
+    if not cairoContext:
+	surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+    	ctx = cairo.Context(surface)
+    else:
+    	ctx = cairoContext
+    	
     ctx.select_font_face(FONT_NAME)
 
     ctx.set_source_rgba(*WHITE)
@@ -228,7 +239,7 @@ def render(out_filename, headers, cpu_stats, disk_stats, proc_tree):
 
     # draw the title and headers
     draw_header(ctx, headers, off_x, proc_tree.duration)
-    surface.write_to_png(out_filename)	   	
+    #surface.write_to_png(out_filename)	   	
 
     rect_x = off_x
     rect_y = header_h + off_y
@@ -328,7 +339,8 @@ def render(out_filename, headers, cpu_stats, disk_stats, proc_tree):
         draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, [rect_x, rect_y, rect_w, rect_h])
 				
     draw_signature(ctx, off_x + 5, h - off_y - 5)
-    surface.write_to_png(out_filename)	   	
+
+    #surface.write_to_png(out_filename)	   	
 
 def draw_signature(ctx, x, y):
     ctx.set_source_rgba(*SIG_COLOR)
@@ -461,7 +473,119 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
     label = proc.cmd
     draw_label_centered(ctx, label, x, y + proc_h - 2, w)
 
+
+class PyBootchartWidget(gtk.DrawingArea):
+	__gsignals__ = {
+		'expose-event': 'override',
+		'clicked' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_STRING, gtk.gdk.Event))
+	}
+
+	def __init__(self):
+		gtk.DrawingArea.__init__(self)
+
+		self.set_flags(gtk.CAN_FOCUS)
+		self.res = None
+
+	def do_expose_event(self, event):
+		cr = self.window.cairo_create()
+
+		# set a clip region for the expose event
+		cr.rectangle(
+			event.area.x, event.area.y,
+			event.area.width, event.area.height
+		)
+		cr.clip()
+		self.draw(cr, self.get_allocation())
+		
+		return False
+		
+	def draw(self, cr, rect):	
+		cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
+		cr.paint()
+		render(cr, *self.res)
+	
+	ZOOM_INCREMENT = 1.25
+
+	def on_zoom_in(self, action):
+		return
+
+	def on_zoom_out(self, action):
+		return
+
+	def on_zoom_fit(self, action):		
+		return
+
+	def on_zoom_100(self, action):
+		return
+
+class PyBootchartWindow(gtk.Window):
+
+	ui = '''
+	<ui>
+		<toolbar name="ToolBar">
+			<toolitem action="ZoomIn"/>
+			<toolitem action="ZoomOut"/>
+			<toolitem action="ZoomFit"/>
+			<toolitem action="Zoom100"/>
+		</toolbar>
+	</ui>
+	'''
+
+	def __init__(self):
+		gtk.Window.__init__(self)
+
+		window = self
+
+		window.set_title('Bootchart')
+		window.set_default_size(512, 512)
+		vbox = gtk.VBox()
+		window.add(vbox)
+
+		self.widget = PyBootchartWidget()
+		
+		# Create a UIManager instance
+		uimanager = self.uimanager = gtk.UIManager()
+		
+		# Add the accelerator group to the toplevel window
+		accelgroup = uimanager.get_accel_group()
+		window.add_accel_group(accelgroup)
+
+		# Create an ActionGroup
+		actiongroup = gtk.ActionGroup('Actions')
+		self.actiongroup = actiongroup
+
+		# Create actions
+		actiongroup.add_actions((
+			('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget.on_zoom_in),
+			('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget.on_zoom_out),
+			('ZoomFit', gtk.STOCK_ZOOM_FIT, None, None, None, self.widget.on_zoom_fit),
+			('Zoom100', gtk.STOCK_ZOOM_100, None, None, None, self.widget.on_zoom_100),
+		))
+
+		# Add the actiongroup to the uimanager
+		uimanager.insert_action_group(actiongroup, 0)
+
+
+		# Add a UI description
+		uimanager.add_ui_from_string(self.ui)
+
+		# Create a Toolbar
+		toolbar = uimanager.get_widget('/ToolBar')
+		vbox.pack_start(toolbar, False)
+		vbox.pack_start(self.widget)
+
+		self.set_focus(self.widget)
+
+		self.show_all()
+
+
+
 if __name__ == '__main__':
 	import bc_parser
 	res = bc_parser.parse_log_dir(sys.argv[1], False)
+	win = PyBootchartWindow()
+	win.connect('destroy', gtk.main_quit)
+	win.widget.res = res
+	gtk.main()
 	render('out.png', *res)
+	

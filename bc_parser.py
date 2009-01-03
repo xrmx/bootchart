@@ -92,7 +92,7 @@ class DiskSample:
 		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
 
 def parseHeaders(fileName):        
-    return dict( (line.split('=', 1) for line in open(fileName) ) )
+    return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in open(fileName) ) )
 
 def _parseTimedBlocks(fileName):
 	blocks = open(fileName).read().split('\n\n')

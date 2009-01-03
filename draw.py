@@ -347,22 +347,29 @@ def draw_signature(ctx, x, y):
     ctx.show_text(SIGNATURE)
 
 			
-def draw_header(ctx, headers, off_x, duration) :
-	ctx.set_source_rgba(*TEXT_COLOR)
-	ctx.set_font_size(TEXT_FONT_SIZE)
-	header_y = ctx.font_extents()[2]
-	header_y = header_y + 2
+def draw_header(ctx, headers, off_x, duration):
+    dur = duration / 100.0
+    toshow = [
+      ('system.uname', 'uname', lambda s: s),
+      ('system.release', 'release', lambda s: s),
+      ('system.cpu', 'CPU', lambda s: re.sub('model name\s*:\s*', '', s, 1)),
+      ('system.kernel.options', 'kernel options', lambda s: s),
+      ('pseudo.header', 'time', lambda s: '%02d:%0.2f' % (math.floor(dur/60), dur - math.floor(dur/60)))
+    ]
+
+    ctx.set_source_rgba(*TEXT_COLOR)
+    ctx.set_font_size(TITLE_FONT_SIZE)
+    header_y = ctx.font_extents()[2]
+    header_y += 2
+    ctx.move_to(off_x, header_y)
+    ctx.show_text(headers['title'])
+    ctx.set_font_size(TEXT_FONT_SIZE)
 	
-	for index, (headerkey, headerval) in enumerate(headers.items()):
-		txt = headerkey + ': ' + headerval.strip()
-		ctx.move_to(off_x, header_y + index * (TEXT_FONT_SIZE + 2))
-		ctx.show_text(txt)
-			
-	dur = duration/100.0
-	boot_time = "time: %02d:%0.2f" % (math.floor(dur/60), dur - math.floor(dur/60))
-	ctx.move_to(off_x, header_y + len(headers) * (TEXT_FONT_SIZE + 2))
-	ctx.show_text(boot_time)
-	
+    for (headerkey, headertitle, mangle) in toshow:
+        header_y += ctx.font_extents()[2]
+        txt = headertitle + ': ' + mangle(headers.get(headerkey))
+        ctx.move_to(off_x, header_y)
+        ctx.show_text(txt)
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:

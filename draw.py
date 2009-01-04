@@ -228,6 +228,8 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     	
     ctx.select_font_face(FONT_NAME)
 
+    print "rect %i x %i" % (max(w, MIN_IMG_W), h)
+
     ctx.set_source_rgba(*WHITE)
     ctx.rectangle(0, 0, max(w, MIN_IMG_W), h)
     ctx.fill()
@@ -369,16 +371,17 @@ def draw_header(ctx, headers, off_x, duration):
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
-    	print proc
+#        print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
         off_y = proc_h
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
         py2 = y + proc_h
         y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + off_y, proc_h, rect)
 		
-        return y
+    return y
 	
 def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
+#    print "drawing '%s'" % proc.cmd
     x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
     w =  ((proc.duration) * rect[2] / proc_tree.duration)
     
@@ -391,12 +394,14 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
         if (abs(px - x) < 3) :
             dep_off_x = 3
             dep_off_y = proc_h / 4
-            g.draw_line(x, y + proc_h / 2, px - dep_off_x, y + proc_h / 2)
-            g.draw_line(px - dep_off_x, y + proc_h / 2, px - dep_off_x, py - dep_off_y)
-            g.draw_line(px - dep_off_x, py - dep_off_y, px, py - dep_off_y)
+            ctx.move_to(x, y + proc_h / 2)
+            ctx.line_to(px - dep_off_x, y + proc_h / 2)
+            ctx.line_to(px - dep_off_x, py - dep_off_y)
+            ctx.line_to(px, py - dep_off_y)
         else :
-            g.draw_line(x, y + proc_h / 2, px, y + proc_h / 2)
-            g.draw_line(px, y + proc_h / 2, px, py)
+            ctx.move_to(x, y + proc_h / 2)
+            ctx.line_to(px, y + proc_h / 2)
+            ctx.line_to(px, py)
 		
     last_tx = -1
     for sample in proc.samples :

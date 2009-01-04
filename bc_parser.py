@@ -77,6 +77,11 @@ class Process:
 			sysCpuLoad = sysCpuLoad / cpuLoad;
 		return (userCpuLoad, sysCpuLoad)
 	
+	def setParent(self, processMap):
+		if self.ppid != None:
+			self.parent = processMap.get(self.ppid)
+			if self.parent == None and self.pid > 1:
+				print "warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid)
 	def getEndTime(self):
 		return self.startTime + self.duration
 
@@ -119,7 +124,8 @@ def parseProcPsLog(fileName):
 			 *  kstkesp, kstkeip}
 			"""
 			
-			pid = int(tokens[0])		
+			pid = int(tokens[0])
+			ppid = int(tokens[3])
 			cmd = tokens[1]
 			state = tokens[2]
 				
@@ -132,7 +138,7 @@ def parseProcPsLog(fileName):
 				process = processMap[pid]
 				process.cmd = cmd.replace('(', '').replace(')', '') # why rename after latest name??
 			else:
-				process = Process(pid, tokens[1], tokens[3], min(time, stime))
+				process = Process(pid, cmd, ppid, min(time, stime))
 				processMap[pid] = process
 			
 			userCpu = int(tokens[13])
@@ -148,7 +154,10 @@ def parseProcPsLog(fileName):
 		ltime = time
 	
 	samplePeriod = (ltime - startTime)/numSamples	
-	
+
+	for process in processMap.values():
+		process.setParent(processMap)
+
 	for process in processMap.values():
 		process.calcStats(samplePeriod)
 		
@@ -256,7 +265,7 @@ def parse_log_dir(log_dir, prune):
     if "proc_stat.log" in files:
         # read the /proc/stat log file
         cpu_stats = parseProcStatLog(os.path.join(log_dir, "proc_stat.log"))
-        			
+    
     proc_tree = ProcessTree(ps_stats, monitored_app, prune)
 
     return (headers, cpu_stats, disk_stats, proc_tree)

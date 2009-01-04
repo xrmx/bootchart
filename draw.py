@@ -86,10 +86,6 @@ MAX_IMG_DIM = 4096
 # Process description date format.
 DESC_TIME_FORMAT = "mm:ss.SSS"
 
-DEFAULT_FORMAT="png"
-
-DISK_REGEX = "hd.*|sd.*"
-
 # Process states
 STATE_UNDEFINED = 0
 STATE_RUNNING   = 1
@@ -565,5 +561,5 @@ if __name__ == '__main__':
 	win.connect('destroy', gtk.main_quit)
 	win.widget.res = res
 	gtk.main()
-	render('out.png', *res)
+	#render('out.png', *res)
 	

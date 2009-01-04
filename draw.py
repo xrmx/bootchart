@@ -108,6 +108,11 @@ MAX_UPTIME =  1072911600000L # 30 years+ uptime
 
 WHITE = (1.0, 1.0, 1.0, 1.0)
 
+def draw_text(ctx, text, color, x, y):
+	ctx.set_source_rgba(*color)
+	ctx.move_to(x, y)
+	ctx.show_text(text)
+
 def draw_legend_box(ctx, label, fill_color, leg_x, leg_y, leg_s):
     ctx.set_source_rgba(*fill_color)
     ctx.rectangle(leg_x, leg_y - leg_s, leg_s, leg_s)
@@ -115,30 +120,19 @@ def draw_legend_box(ctx, label, fill_color, leg_x, leg_y, leg_s):
     ctx.set_source_rgba(*PROC_BORDER_COLOR)
     ctx.rectangle(leg_x, leg_y - leg_s, leg_s, leg_s)
     ctx.stroke()
-    ctx.set_source_rgba(*TEXT_COLOR)
-    ctx.move_to(leg_x + leg_s + 5, leg_y)
-    ctx.show_text(label)
-
+    draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
+     
 def draw_legend_line(ctx, label, fill_color, leg_x, leg_y, leg_s):
     ctx.set_source_rgba(*fill_color)
     ctx.rectangle(leg_x, leg_y - leg_s/2, leg_s + 1, 3)
     ctx.fill()
     ctx.arc(leg_x + (leg_s + 1)/2.0, leg_y - (leg_s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
     ctx.fill()
-    ctx.set_source_rgba(*TEXT_COLOR)
-    ctx.move_to(leg_x + leg_s + 5, leg_y)
-    ctx.show_text(label)
+    draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
 
 def draw_label_centered(ctx, label, x, y, w):
     label_w = ctx.text_extents(label)[2]
-
     label_x = (x + w - label_w) / 2
-    #if label_w + 10 > w:
-    #    label_x = x + w + 5
-		
-    #if label_x + label_w > x + w:
-    #    label_x = x - label_w - 5
-		
     ctx.move_to(label_x, y)	   	
     ctx.show_text(label)	   	
 
@@ -152,11 +146,9 @@ def draw_box_ticks(ctx, rect, sec_w, labels):
     for i in range(0, rect[2] + 1, sec_w):
         if ((i / sec_w) % 5 == 0) :
             if labels:
-                ctx.set_source_rgba(*TEXT_COLOR)
                 label = "%ds" % (i / sec_w)
                 label_width = ctx.text_extents(label)[2]
-                ctx.move_to(rect[0] + i - label_width/2, rect[1] - 2)
-                ctx.show_text(label)	   	
+                draw_text(ctx, label, TEXT_COLOR, rect[0] + i - label_width/2, rect[1] - 2)
             ctx.set_source_rgba(*TICK_COLOR_BOLD)
         else :
             ctx.set_source_rgba(*TICK_COLOR)
@@ -319,9 +311,8 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
                     pos_x = pos_x + 30
 					
                 label = "%dMB/s" % round((sample.tput) / 1024.0)
-                ctx.set_source_rgba(*DISK_TPUT_COLOR)
-                ctx.move_to(pos_x - 20, pos_y - 3)
-                ctx.show_text(label)
+                draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
+		
                 break
 												
     if (proc_tree.process_tree is not None) :
@@ -355,19 +346,16 @@ def draw_header(ctx, headers, off_x, duration):
       ('pseudo.header', 'time', lambda s: '%02d:%0.2f' % (math.floor(dur/60), dur - math.floor(dur/60)))
     ]
 
-    ctx.set_source_rgba(*TEXT_COLOR)
-    ctx.set_font_size(TITLE_FONT_SIZE)
     header_y = ctx.font_extents()[2]
     header_y += 2
-    ctx.move_to(off_x, header_y)
-    ctx.show_text(headers['title'])
+    ctx.set_font_size(TITLE_FONT_SIZE)
+    draw_text(ctx, headers['title'], TEXT_COLOR, off_x, header_y)
     ctx.set_font_size(TEXT_FONT_SIZE)
 	
     for (headerkey, headertitle, mangle) in toshow:
         header_y += ctx.font_extents()[2]
         txt = headertitle + ': ' + mangle(headers.get(headerkey))
-        ctx.move_to(off_x, header_y)
-        ctx.show_text(txt)
+        draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:

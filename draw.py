@@ -345,11 +345,10 @@ def draw_header(ctx, headers, off_x, duration):
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
 #        print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
-        off_y = proc_h
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
         py2 = y + proc_h
-        y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + off_y, proc_h, rect)
+        y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + proc_h, proc_h, rect)
 		
     return y
 	
@@ -387,33 +386,24 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
             tx = last_tx
              
         last_tx = tx + tw
-        state = sample.state
-        cpu = sample.cpuSample.user + sample.cpuSample.sys
-                       
+        state = get_proc_state( sample.state )
+                   
         fill_rect = False
-        if state == STATE_WAITING:
-            ctx.set_source_rgba(*PROC_COLOR_D)
+        if state in [STATE_WAITING, STATE_STOPPED, STATE_ZOMBIE]:
+            color = STATE_COLORS[state]
             fill_rect = True
         elif state == STATE_RUNNING:
+            cpu = sample.cpuSample.user + sample.cpuSample.sys
             alpha = (cpu * 255)
             alpha = max(0, min(alpha, 255))
-            c = (PROC_COLOR_R[0],
-                                PROC_COLOR_R[1], PROC_COLOR_R[2], alpha)
-            ctx.set_source_rgba(*c)
-            fill_rect = True
-        elif state == STATE_STOPPED:
-            ctx.set_source_rgba(*PROC_COLOR_T)
-            fill_rect = True
-        elif state == STATE_ZOMBIE:
-            ctx.set_source_rgba(*PROC_COLOR_Z)
+            color = (PROC_COLOR_R[0], PROC_COLOR_R[1], PROC_COLOR_R[2], alpha)
             fill_rect = True
         else:
             fill_rect = False
                        
         if fill_rect:
-            ctx.rectangle(tx, y, tw, proc_h)
-            ctx.fill()
-
+            draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
+            
     draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
     draw_label_centered(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 2, w)
 

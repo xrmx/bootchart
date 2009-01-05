@@ -112,23 +112,27 @@ def draw_text(ctx, text, color, x, y):
 	ctx.set_source_rgba(*color)
 	ctx.move_to(x, y)
 	ctx.show_text(text)
+	
+def draw_fill_rect(ctx, color, rect):
+	ctx.set_source_rgba(*color)
+	ctx.rectangle(*rect)
+	ctx.fill()
 
+def draw_rect(ctx, color, rect):
+	ctx.set_source_rgba(*color)
+	ctx.rectangle(*rect)
+	ctx.stroke()
+	
 def draw_legend_box(ctx, label, fill_color, leg_x, leg_y, leg_s):
-    ctx.set_source_rgba(*fill_color)
-    ctx.rectangle(leg_x, leg_y - leg_s, leg_s, leg_s)
-    ctx.fill()
-    ctx.set_source_rgba(*PROC_BORDER_COLOR)
-    ctx.rectangle(leg_x, leg_y - leg_s, leg_s, leg_s)
-    ctx.stroke()
-    draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
+	draw_fill_rect(ctx, fill_color, (leg_x, leg_y - leg_s, leg_s, leg_s))
+	draw_rect(ctx, PROC_BORDER_COLOR, (leg_x, leg_y - leg_s, leg_s, leg_s))
+	draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
      
 def draw_legend_line(ctx, label, fill_color, leg_x, leg_y, leg_s):
-    ctx.set_source_rgba(*fill_color)
-    ctx.rectangle(leg_x, leg_y - leg_s/2, leg_s + 1, 3)
-    ctx.fill()
-    ctx.arc(leg_x + (leg_s + 1)/2.0, leg_y - (leg_s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
-    ctx.fill()
-    draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
+	draw_fill_rect(ctx, fill_color, (leg_x, leg_y - leg_s/2, leg_s + 1, 3))    
+	ctx.arc(leg_x + (leg_s + 1)/2.0, leg_y - (leg_s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
+	ctx.fill()
+	draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
 
 def draw_label_centered(ctx, label, x, y, w):
     label_w = ctx.text_extents(label)[2]
@@ -197,7 +201,7 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     off_y = 10
 		
     sec_w = 25 # the width of a second
-    w = (proc_tree.duration * sec_w / 1000) + 2*off_x
+    w = (proc_tree.duration * sec_w / 100) + 2*off_x
     proc_h = 16 # the height of a process
     h = proc_h * proc_tree.num_proc + header_h + 2*off_y
     
@@ -206,14 +210,15 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
         w = (proc_tree.duration * sec_w / 1000) + 2*off_x
 
     while (h > MAX_IMG_DIM):
+    	print 'Height', h, proc_tree.num_proc
         proc_h = proc_h * 3 / 4
         h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 		
     w = min(w, MAX_IMG_DIM)
     h = min(h, MAX_IMG_DIM)
 
-    print "w, sec_w = %f, %f" % (w, sec_w)
-    print "h, proc_h = %f, %f" % (h, proc_h)
+    #print "w, sec_w = %f, %f" % (w, sec_w)
+    #print "h, proc_h = %f, %f" % (h, proc_h)
 
 
     if not cairoContext:

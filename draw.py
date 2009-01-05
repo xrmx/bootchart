@@ -134,11 +134,10 @@ def draw_legend_line(ctx, label, fill_color, leg_x, leg_y, leg_s):
 	ctx.fill()
 	draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
 
-def draw_label_centered(ctx, label, x, y, w):
-    label_w = ctx.text_extents(label)[2]
-    label_x = (x + w - label_w) / 2
-    ctx.move_to(label_x, y)	   	
-    ctx.show_text(label)	   	
+def draw_label_centered(ctx, color, label, x, y, w):
+	label_w = ctx.text_extents(label)[2]
+	label_x = (x + w - label_w) / 2
+	draw_text(ctx, label, color, label_x, y)
 
 def draw_box_ticks(ctx, rect, sec_w, labels):
     if labels:
@@ -438,10 +437,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
 		
 
     draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
-    ctx.set_source_rgba(*PROC_TEXT_COLOR)
-    #Font_metrics fm = g.get_font_metrics(PROC_TEXT_FONT_SIZE)
-    label = proc.cmd
-    draw_label_centered(ctx, label, x, y + proc_h - 2, w)
+    draw_label_centered(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 2, w)
 
 
 class PyBootchartWidget(gtk.DrawingArea):

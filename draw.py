@@ -313,11 +313,14 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
         draw_box_ticks(ctx, chart_rect, sec_w, True)	     		
         ctx.set_font_size(PROC_TEXT_FONT_SIZE)
         draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, [rect_x, rect_y, rect_w, rect_h])
-	
-    ctx.set_font_size(SIG_FONT_SIZE)			
+
+    ctx.set_font_size(SIG_FONT_SIZE)
     draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
-    
-			
+
+    #surface.write_to_png(out_filename)
+
+    return (0, 0, w,h)
+
 def draw_header(ctx, headers, off_x, duration):
     dur = duration / 100.0
     toshow = [
@@ -425,6 +428,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		gtk.DrawingArea.__init__(self)
 
 		self.set_flags(gtk.CAN_FOCUS)
+                self.zoom_ratio = 1.0
 		self.res = None
 
 	def do_expose_event(self, event):
@@ -443,21 +447,30 @@ class PyBootchartWidget(gtk.DrawingArea):
 	def draw(self, cr, rect):	
 		cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
 		cr.paint()
-		render(cr, *self.res)
+                cr.scale(self.zoom_ratio, self.zoom_ratio)
+		self.boundingrect = render(cr, *self.res)
 	
 	ZOOM_INCREMENT = 1.25
 
+        def zoom_image(self, zoom_ratio):
+            self.zoom_ratio = zoom_ratio
+            self.queue_draw()
+
+        def zoom_to_rect(self, rect):
+            zoom_ratio = float(rect.width)/float(self.boundingrect[2])
+            self.zoom_image(zoom_ratio)
+
 	def on_zoom_in(self, action):
-		return
+            self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
 
 	def on_zoom_out(self, action):
-		return
+            self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
 
 	def on_zoom_fit(self, action):		
-		return
+            self.zoom_to_rect(self.get_allocation())
 
 	def on_zoom_100(self, action):
-		return
+            self.zoom_image(1.0)
 
 class PyBootchartWindow(gtk.Window):
 
@@ -499,7 +512,7 @@ class PyBootchartWindow(gtk.Window):
 		actiongroup.add_actions((
 			('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget.on_zoom_in),
 			('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget.on_zoom_out),
-			('ZoomFit', gtk.STOCK_ZOOM_FIT, None, None, None, self.widget.on_zoom_fit),
+			('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, None, self.widget.on_zoom_fit),
 			('Zoom100', gtk.STOCK_ZOOM_100, None, None, None, self.widget.on_zoom_100),
 		))
 

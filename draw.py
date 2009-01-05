@@ -144,9 +144,8 @@ def draw_box_ticks(ctx, rect, sec_w, labels):
     if labels:
         ctx.set_font_size(AXIS_FONT_SIZE)
 
-    ctx.set_source_rgba(*BORDER_COLOR)
-    ctx.rectangle(rect[0], rect[1], rect[2], rect[3])
-    ctx.stroke()
+    draw_rect(ctx, BORDER_COLOR, (rect[0], rect[1], rect[2], rect[3]))
+
     for i in range(0, rect[2] + 1, sec_w):
         if ((i / sec_w) % 5 == 0) :
             if labels:
@@ -231,10 +230,8 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
 
     print "rect %i x %i" % (max(w, MIN_IMG_W), h)
 
-    ctx.set_source_rgba(*WHITE)
-    ctx.rectangle(0, 0, max(w, MIN_IMG_W), h)
-    ctx.fill()
-
+    draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+    
     # draw the title and headers
     draw_header(ctx, headers, off_x, proc_tree.duration)
 
@@ -327,9 +324,9 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
 
     if proc_tree.process_tree != None:
         # render processes
-        ctx.set_source_rgba(*BACK_COLOR)
-        ctx.rectangle(rect_x, rect_y, rect_w, rect_h)
-        ctx.fill()
+        
+        draw_fill_rect(ctx, BACK_COLOR, (rect_x, rect_y, rect_w, rect_h))
+
         chart_rect = [rect_x, rect_y, rect_w, rect_h]
         draw_box_ticks(ctx, chart_rect, sec_w, True)	     		
         ctx.set_font_size(PROC_TEXT_FONT_SIZE)
@@ -383,9 +380,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
     x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
     w =  ((proc.duration) * rect[2] / proc_tree.duration)
     
-    ctx.set_source_rgba(*PROC_COLOR_S)
-    ctx.rectangle(x, y, w, proc_h)
-    ctx.fill()
+    draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
     ctx.set_source_rgba(*DEP_COLOR)
     if (px != -1 and py != -1) :
@@ -441,10 +436,8 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
             ctx.rectangle(tx, y, tw, proc_h)
             ctx.fill()			
 		
-		
-    ctx.set_source_rgba(*PROC_BORDER_COLOR)
-    ctx.rectangle(x, y, w, proc_h)
-    ctx.stroke()
+
+    draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
     ctx.set_source_rgba(*PROC_TEXT_COLOR)
     #Font_metrics fm = g.get_font_metrics(PROC_TEXT_FONT_SIZE)
     label = proc.cmd

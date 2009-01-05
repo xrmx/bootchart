@@ -189,7 +189,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
 # Render the chart.
 # 
 def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
-    print 'proc_tree.num_proc', proc_tree.num_proc
+    print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
     header_h = 280
     bar_h = 55
     # offsets
@@ -197,7 +197,7 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     off_y = 10
 		
     sec_w = 25 # the width of a second
-    w = (proc_tree.duration * sec_w / 100) + 2*off_x
+    w = (proc_tree.duration * sec_w / 1000) + 2*off_x
     proc_h = 16 # the height of a process
     h = proc_h * proc_tree.num_proc + header_h + 2*off_y
     
@@ -211,6 +211,10 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
 		
     w = min(w, MAX_IMG_DIM)
     h = min(h, MAX_IMG_DIM)
+
+    print "w, sec_w = %f, %f" % (w, sec_w)
+    print "h, proc_h = %f, %f" % (h, proc_h)
+
 
     if not cairoContext:
 	surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
@@ -272,39 +276,40 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     # leg_x += g.get_fontMetrics(LEGEND_FONT_SIZE).string_width(proc_z) + off_x
     leg_x = leg_x + 120
 
+    print "start_time", proc_tree.start_time
+
     if len(cpu_stats) > 0:
 	
         # render I/O wait
         bar_y = rect_y - 4*off_y - bar_h - off_x - 5;
-        chart_rect = [rect_x, bar_y - bar_h, rect_w, bar_h]
+        chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
         draw_box_ticks(ctx, chart_rect, sec_w, False)
-        data_rect = [proc_tree.start_time, 0, proc_tree.duration, 1]
-        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [[sample.time, sample.user + sample.sys + sample.io] for sample in cpu_stats]) 
+        data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
+        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats]) 
         # render CPU load
-        draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [[sample.time, sample.user + sample.sys] for sample in cpu_stats]) 
+        draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats]) 
 				
     if len(disk_stats) > 0:
         # render I/O utilization
         bar_y = rect_y - 2*off_y - off_y - 5
-        chart_rect = [rect_x, bar_y - bar_h, rect_w, bar_h]
+        chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
         draw_box_ticks(ctx, chart_rect, sec_w, False)
 			
-        data_rect = [proc_tree.start_time, 0, proc_tree.duration, 1]
-        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [[sample.time, sample.util] for sample in disk_stats]) 
+        data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
+        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.util) for sample in disk_stats]) 
 				
         # render disk throughput
         max_tput = max(sample.tput for sample in disk_stats)
-        data_rect = [proc_tree.start_time, 0, proc_tree.duration, max_tput]
-        draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [[sample.time, sample.tput] for sample in disk_stats]) 
+        data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_tput)
+        draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats]) 
 
-			
         for sample in disk_stats :
             # disk tput samples only
             if (sample.tput == max_tput) :
                 pos_x = rect_x + ((sample.time - proc_tree.start_time) * rect_w / proc_tree.duration)
                 if (pos_x < rect_x or pos_x > rect_x + rect_w) :
                     continue
-					
+
                 pos_y = bar_y -  (1.0 * bar_h)
                 if (pos_x < max_leg_x) :
                     pos_y = pos_y + 15
@@ -314,8 +319,8 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
                 draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
 		
                 break
-												
-    if (proc_tree.process_tree is not None) :
+
+    if proc_tree.process_tree != None:
         # render processes
         ctx.set_source_rgba(*BACK_COLOR)
         ctx.rectangle(rect_x, rect_y, rect_w, rect_h)
@@ -532,7 +537,6 @@ class PyBootchartWindow(gtk.Window):
 		# Add the actiongroup to the uimanager
 		uimanager.insert_action_group(actiongroup, 0)
 
-
 		# Add a UI description
 		uimanager.add_ui_from_string(self.ui)
 
@@ -549,7 +553,7 @@ class PyBootchartWindow(gtk.Window):
 
 if __name__ == '__main__':
 	import bc_parser
-	res = bc_parser.parse_log_dir(sys.argv[1], False)
+	res = bc_parser.parse_log_dir(sys.argv[1], True)
 	win = PyBootchartWindow()
 	win.connect('destroy', gtk.main_quit)
 	win.widget.res = res

@@ -94,6 +94,8 @@ STATE_WAITING   = 3
 STATE_STOPPED   = 4
 STATE_ZOMBIE    = 5
 
+STATE_COLORS = [(0,0,0,0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, PROC_COLOR_T, PROC_COLOR_Z]
+
 # Convert ps process state to an int
 def get_proc_state(flag):
     return "RSDTZ".index(flag) + 1 
@@ -311,17 +313,10 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
         draw_box_ticks(ctx, chart_rect, sec_w, True)	     		
         ctx.set_font_size(PROC_TEXT_FONT_SIZE)
         draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, [rect_x, rect_y, rect_w, rect_h])
-				
-    draw_signature(ctx, off_x + 5, h - off_y - 5)
-
-    #surface.write_to_png(out_filename)	   	
-
-def draw_signature(ctx, x, y):
-    ctx.set_source_rgba(*SIG_COLOR)
-    ctx.set_font_size(SIG_FONT_SIZE)
-    ctx.move_to(x, y)
-    ctx.show_text(SIGNATURE)
-
+	
+    ctx.set_font_size(SIG_FONT_SIZE)			
+    draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
+    
 			
 def draw_header(ctx, headers, off_x, duration):
     dur = duration / 100.0
@@ -359,7 +354,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
 #    print "drawing '%s'" % proc.cmd
     x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
     w =  ((proc.duration) * rect[2] / proc_tree.duration)
-    
+   
     draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
     ctx.set_source_rgba(*DEP_COLOR)
@@ -375,13 +370,13 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
             ctx.move_to(x, y + proc_h / 2)
             ctx.line_to(px, y + proc_h / 2)
             ctx.line_to(px, py)
-		
+               
     last_tx = -1
     for sample in proc.samples :
         end_time = proc.startTime + proc.duration - proc_tree.sample_period
         if sample.time < proc.startTime or sample.time > end_time :
             continue
-			
+                       
         tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
         tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
         if (last_tx != -1 and abs(last_tx - tx) <= tw) :
@@ -391,7 +386,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
         last_tx = tx + tw
         state = sample.state
         cpu = sample.cpuSample.user + sample.cpuSample.sys
-			
+                       
         fill_rect = False
         if state == STATE_WAITING:
             ctx.set_source_rgba(*PROC_COLOR_D)
@@ -403,7 +398,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
                                 PROC_COLOR_R[1], PROC_COLOR_R[2], alpha)
             ctx.set_source_rgba(*c)
             fill_rect = True
-	elif state == STATE_STOPPED:
+        elif state == STATE_STOPPED:
             ctx.set_source_rgba(*PROC_COLOR_T)
             fill_rect = True
         elif state == STATE_ZOMBIE:
@@ -411,11 +406,10 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
             fill_rect = True
         else:
             fill_rect = False
-			
+                       
         if fill_rect:
             ctx.rectangle(tx, y, tw, proc_h)
-            ctx.fill()			
-		
+            ctx.fill()
 
     draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
     draw_label_centered(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 2, w)

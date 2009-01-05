@@ -17,6 +17,7 @@ class ProcessTree:
 		self.duration = self.end_time - self.start_time
 
 		self.build()
+
 		removed = self.merge_logger(self.process_tree, LOGGER_PROC, monitoredApp, False)
 		print "Merged %i logger processes" % removed
 

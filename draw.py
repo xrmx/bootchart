@@ -199,26 +199,10 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     off_y = 10
 		
     sec_w = 25 # the width of a second
-    w = (proc_tree.duration * sec_w / 100) + 2*off_x
     proc_h = 16 # the height of a process
+    w = (proc_tree.duration * sec_w / 100) + 2*off_x
     h = proc_h * proc_tree.num_proc + header_h + 2*off_y
-    
-    while (w > MAX_IMG_DIM and sec_w > 1):
-        sec_w = sec_w / 2
-        w = (proc_tree.duration * sec_w / 1000) + 2*off_x
-
-    while (h > MAX_IMG_DIM):
-    	print 'Height', h, proc_tree.num_proc
-        proc_h = proc_h * 3 / 4
-        h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 		
-    w = min(w, MAX_IMG_DIM)
-    h = min(h, MAX_IMG_DIM)
-
-    #print "w, sec_w = %f, %f" % (w, sec_w)
-    #print "h, proc_h = %f, %f" % (h, proc_h)
-
-
     if not cairoContext:
 	surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
     	ctx = cairo.Context(surface)
@@ -226,10 +210,7 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     	ctx = cairoContext
     	
     ctx.select_font_face(FONT_NAME)
-
-    print "rect %i x %i" % (max(w, MIN_IMG_W), h)
-
-    draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+    draw_fill_rect(ctx, WHITE, (0, 0, w, h))
     
     # draw the title and headers
     draw_header(ctx, headers, off_x, proc_tree.duration)

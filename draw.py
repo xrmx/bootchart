@@ -117,16 +117,16 @@ def draw_rect(ctx, color, rect):
 	ctx.rectangle(*rect)
 	ctx.stroke()
 	
-def draw_legend_box(ctx, label, fill_color, leg_x, leg_y, leg_s):
-	draw_fill_rect(ctx, fill_color, (leg_x, leg_y - leg_s, leg_s, leg_s))
-	draw_rect(ctx, PROC_BORDER_COLOR, (leg_x, leg_y - leg_s, leg_s, leg_s))
-	draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
+def draw_legend_box(ctx, label, fill_color, x, y, s):
+	draw_fill_rect(ctx, fill_color, (x, y - s, s, s))
+	draw_rect(ctx, PROC_BORDER_COLOR, (x, y - s, s, s))
+	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
      
-def draw_legend_line(ctx, label, fill_color, leg_x, leg_y, leg_s):
-	draw_fill_rect(ctx, fill_color, (leg_x, leg_y - leg_s/2, leg_s + 1, 3))    
-	ctx.arc(leg_x + (leg_s + 1)/2.0, leg_y - (leg_s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
+def draw_legend_line(ctx, label, fill_color, x, y, s):
+	draw_fill_rect(ctx, fill_color, (x, y - s/2, s + 1, 3))    
+	ctx.arc(x + (s + 1)/2.0, y - (s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
 	ctx.fill()
-	draw_text(ctx, label, TEXT_COLOR, leg_x + leg_s + 5, leg_y)
+	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
 def draw_label_centered(ctx, color, label, x, y, w):
 	label_w = ctx.text_extents(label)[2]

@@ -184,7 +184,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
 #
 # Render the chart.
 # 
-def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
+def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
     header_h = 280
     bar_h = 55
@@ -196,13 +196,7 @@ def render(cairoContext, headers, cpu_stats, disk_stats, proc_tree):
     proc_h = 16 # the height of a process
     w = (proc_tree.duration * sec_w / 100) + 2*off_x
     h = proc_h * proc_tree.num_proc + header_h + 2*off_y
-		
-    if not cairoContext:
-	surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
-    	ctx = cairo.Context(surface)
-    else:
-    	ctx = cairoContext
-    	
+    
     ctx.select_font_face(FONT_NAME)
     draw_fill_rect(ctx, WHITE, (0, 0, w, h))
     
@@ -336,7 +330,8 @@ def draw_header(ctx, headers, off_x, duration):
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
-#        print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
+        #print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
+        print proc.cmd, px, py, y
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
         py2 = y + proc_h

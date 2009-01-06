@@ -132,7 +132,7 @@ def parseProcPsLog(fileName):
 			if not cmd.startswith('('):
 				#print 'Malformed line', line
 				continue
-			stime = int(tokens[22])
+			stime = int(tokens[21])
 
 			if processMap.has_key(pid):
 				process = processMap[pid]

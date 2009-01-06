@@ -351,6 +351,8 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
    
     draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
+    if proc.startTime < proc_tree.start_time:
+        print "Process %s starts %i before tree %i" % (proc.cmd, proc.startTime, proc_tree.start_time)
     ctx.set_source_rgba(*DEP_COLOR)
     if (px != -1 and py != -1) :
         if (abs(px - x) < 3) :

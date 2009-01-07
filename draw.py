@@ -130,7 +130,7 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 
 def draw_label_centered(ctx, color, label, x, y, w):
 	label_w = ctx.text_extents(label)[2]
-	label_x = (x + w - label_w) / 2
+	label_x = x + (x + w - label_w) / 2
 	draw_text(ctx, label, color, label_x, y)
 
 def draw_box_ticks(ctx, rect, sec_w, labels):

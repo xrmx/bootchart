@@ -143,8 +143,8 @@ def draw_box_ticks(ctx, rect, sec_w, labels):
         if ((i / sec_w) % 5 == 0) :
             if labels:
                 label = "%ds" % (i / sec_w)
-                label_width = ctx.text_extents(label)[2]
-                draw_text(ctx, label, TEXT_COLOR, rect[0] + i - label_width/2, rect[1] - 2)
+                label_w = ctx.text_extents(label)[2]
+                draw_text(ctx, label, TEXT_COLOR, rect[0] + i - label_w/2, rect[1] - 2)
             ctx.set_source_rgba(*TICK_COLOR_BOLD)
         else :
             ctx.set_source_rgba(*TICK_COLOR)
@@ -189,8 +189,7 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     header_h = 280
     bar_h = 55
     # offsets
-    off_x = 10
-    off_y = 10
+    off_x, off_y = 10, 10
 		
     sec_w = 25 # the width of a second
     proc_h = 16 # the height of a process
@@ -203,10 +202,7 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     # draw the title and headers
     draw_header(ctx, headers, off_x, proc_tree.duration)
 
-    rect_x = off_x
-    rect_y = header_h + off_y
-    rect_w = w - 2 * off_x
-    rect_h = h - 2 * off_y - header_h
+    rect_x, rect_y, rect_w, rect_h = off_x, header_h + off_y, w - 2 * off_x, h - 2 * off_y - header_h
     
     # render bar legend
     ctx.set_font_size(LEGEND_FONT_SIZE)
@@ -215,41 +211,27 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     leg_s = 10
     if len(cpu_stats) > 0:
         draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, leg_x, leg_y, leg_s)
-        leg_x = leg_x + 120
-        draw_legend_box(ctx, "I/O (wait)", IO_COLOR, leg_x, leg_y, leg_s)
-        leg_x = leg_x + 120
+        draw_legend_box(ctx, "I/O (wait)", IO_COLOR, leg_x + 120, leg_y, leg_s)
 				
     leg_x = off_x
     if len(disk_stats) > 0:
         leg_y = rect_y - bar_h - 4*off_y
-        leg_x = off_x
         draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, leg_x, leg_y, leg_s)
-        leg_x = leg_x + 120
-        draw_legend_box(ctx, "Disk utilization", IO_COLOR, leg_x, leg_y, leg_s)
-        leg_x = leg_x + 120
-		
-    max_leg_x = leg_x
+        draw_legend_box(ctx, "Disk utilization", IO_COLOR, leg_x + 120, leg_y, leg_s)
+
+    max_leg_x = leg_x + 120
 
     # process states
     leg_y = rect_y - 17
     leg_x = off_x
-    draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, leg_x, leg_y, leg_s)
-    leg_x = leg_x + 120
-		
-    draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, leg_x, leg_y, leg_s)
-    leg_x = leg_x + 120
-		
-    draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, leg_x, leg_y, leg_s)
-    leg_x = leg_x + 120
-		
-    draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, leg_x, leg_y, leg_s)
-    # leg_x += g.get_fontMetrics(LEGEND_FONT_SIZE).string_width(proc_z) + off_x
+    draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, leg_x, leg_y, leg_s)		
+    draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, leg_x+120, leg_y, leg_s)
+    draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, leg_x+240, leg_y, leg_s)
+    draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, leg_x+360, leg_y, leg_s)
+
     leg_x = leg_x + 120
 
-    print "start_time", proc_tree.start_time
-
-    if len(cpu_stats) > 0:
-	
+    if len(cpu_stats) > 0:	
         # render I/O wait
         bar_y = rect_y - 4*off_y - bar_h - off_x - 5;
         chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
@@ -298,12 +280,10 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
         chart_rect = [rect_x, rect_y, rect_w, rect_h]
         draw_box_ticks(ctx, chart_rect, sec_w, True)	     		
         ctx.set_font_size(PROC_TEXT_FONT_SIZE)
-        draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, [rect_x, rect_y, rect_w, rect_h])
+        draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, chart_rect)
 
     ctx.set_font_size(SIG_FONT_SIZE)
     draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
-
-    #surface.write_to_png(out_filename)
 
     return (0, 0, w,h)
 

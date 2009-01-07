@@ -93,8 +93,8 @@ class ProcessTree:
         return min( [min(proc.startTime, self.get_start_time(proc.child_list)) for proc in process_subtree] )
 
     def get_end_time(self, process_subtree):
-	 """Returns the end time of the process subtree.  This is the end time
-	    of the last collected sample.
+        """Returns the end time of the process subtree.  This is the end time
+           of the last collected sample.
 
         """
         if not process_subtree:

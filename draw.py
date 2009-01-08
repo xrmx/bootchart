@@ -331,18 +331,22 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
     draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
     ctx.set_source_rgba(*DEP_COLOR)
-    if (px != -1 and py != -1) :
-        if (abs(px - x) < 3) :
+    if px != -1 and py != -1:
+        ctx.set_dash([2,2])
+        if abs(px - x) < 3:
             dep_off_x = 3
             dep_off_y = proc_h / 4
             ctx.move_to(x, y + proc_h / 2)
             ctx.line_to(px - dep_off_x, y + proc_h / 2)
             ctx.line_to(px - dep_off_x, py - dep_off_y)
             ctx.line_to(px, py - dep_off_y)
-        else :
+            ctx.stroke()
+        else:
             ctx.move_to(x, y + proc_h / 2)
             ctx.line_to(px, y + proc_h / 2)
             ctx.line_to(px, py)
+            ctx.stroke()
+        ctx.set_dash([])
                
     last_tx = -1
     for sample in proc.samples :

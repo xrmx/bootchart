@@ -128,9 +128,13 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 	ctx.fill()
 	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
-def draw_label_centered(ctx, color, label, x, y, w):
+def draw_label_in_box(ctx, color, label, x, y, w, maxx):
 	label_w = ctx.text_extents(label)[2]
-	label_x = x + (x + w - label_w) / 2
+	label_x = x + w / 2 - label_w / 2
+        if label_w + 10 > w:
+            label_x = x + w + 5
+        if label_x + label_w > maxx:
+            label_w = x - label_w - 5
 	draw_text(ctx, label, color, label_x, y)
 
 def draw_box_ticks(ctx, rect, sec_w, labels):
@@ -348,7 +352,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
                        
         tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
         tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
-        if (last_tx != -1 and abs(last_tx - tx) <= tw) :
+        if last_tx != -1 and abs(last_tx - tx) <= tw:
             tw -= last_tx - tx
             tx = last_tx
              
@@ -372,4 +376,4 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
             draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
             
     draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
-    draw_label_centered(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 2, w)
+    draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])

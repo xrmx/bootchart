@@ -59,8 +59,7 @@ SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
 # Signature font.
 SIG_FONT_SIZE = 14
 # Signature text.
-SIGNATURE = "www.bootchart.org"
-SIGNATURE = ""
+SIGNATURE = "http://code.google.com/p/pybootchartgui"
 	
 # Disk chart line stoke.
 DISK_STROKE = 1.5
@@ -141,7 +140,7 @@ def draw_box_ticks(ctx, rect, sec_w, labels):
     if labels:
         ctx.set_font_size(AXIS_FONT_SIZE)
 
-    draw_rect(ctx, BORDER_COLOR, (rect[0], rect[1], rect[2], rect[3]))
+    draw_rect(ctx, BORDER_COLOR, tuple(rect))
 
     for i in range(0, rect[2] + 1, sec_w):
         if ((i / sec_w) % 5 == 0) :
@@ -157,6 +156,8 @@ def draw_box_ticks(ctx, rect, sec_w, labels):
         ctx.stroke()
 
 def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
+    ymax =  max(y for (x,y) in data) # data_bounds[3]
+    xmax =  max(x for (x,y) in data) # data_bounds[2]
     first = None
     last = None
     if data_bounds[2] == 0 or data_bounds[3] == 0:
@@ -210,29 +211,25 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     
     # render bar legend
     ctx.set_font_size(LEGEND_FONT_SIZE)
-    leg_y = rect_y - 2*bar_h - 6*off_y
-    leg_x = off_x
+    leg_y = rect_y - 2*bar_h - 6*off_y 
     leg_s = 10
     if len(cpu_stats) > 0:
-        draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, leg_x, leg_y, leg_s)
-        draw_legend_box(ctx, "I/O (wait)", IO_COLOR, leg_x + 120, leg_y, leg_s)
+        draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, leg_y, leg_s)
+        draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, leg_y, leg_s)
 
     if len(disk_stats) > 0:
         leg_y = rect_y - bar_h - 4*off_y
-        draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, leg_x, leg_y, leg_s)
-        draw_legend_box(ctx, "Disk utilization", IO_COLOR, leg_x + 120, leg_y, leg_s)
+        draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, off_x, leg_y, leg_s)
+        draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, leg_y, leg_s)
 
-    max_leg_x = leg_x + 120
+    max_leg_x = off_x + 120
 
     # process states
     leg_y = rect_y - 17
-    leg_x = off_x
-    draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, leg_x, leg_y, leg_s)		
-    draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, leg_x+120, leg_y, leg_s)
-    draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, leg_x+240, leg_y, leg_s)
-    draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, leg_x+360, leg_y, leg_s)
-
-    leg_x = leg_x + 120
+    draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, off_x, leg_y, leg_s)		
+    draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, off_x+120, leg_y, leg_s)
+    draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, off_x+240, leg_y, leg_s)
+    draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, off_x+360, leg_y, leg_s)
 
     if len(cpu_stats) > 0:	
         # render I/O wait
@@ -274,8 +271,10 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
         draw_fill_rect(ctx, BACK_COLOR, (rect_x, rect_y, rect_w, rect_h))
 
         chart_rect = [rect_x, rect_y, rect_w, rect_h]
+        print chart_rect
         draw_box_ticks(ctx, chart_rect, sec_w, True)	     		
         ctx.set_font_size(PROC_TEXT_FONT_SIZE)
+        print [p.cmd for p in proc_tree.process_tree]
         draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, chart_rect)
 
     ctx.set_font_size(SIG_FONT_SIZE)
@@ -305,8 +304,6 @@ def draw_header(ctx, headers, off_x, duration):
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
-        #print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
-        #print proc.cmd, px, py, y
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
         py2 = y + proc_h
@@ -322,13 +319,12 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 		ctx.move_to(x, y + proc_h / 2)
 		ctx.line_to(px - dep_off_x, y + proc_h / 2)
 		ctx.line_to(px - dep_off_x, py - dep_off_y)
-		ctx.line_to(px, py - dep_off_y)
-		ctx.stroke()
+		ctx.line_to(px, py - dep_off_y)		
 	else:
 		ctx.move_to(x, y + proc_h / 2)
 		ctx.line_to(px, y + proc_h / 2)
 		ctx.line_to(px, py)
-		ctx.stroke()
+	ctx.stroke()
         ctx.set_dash([])	
 
 def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :

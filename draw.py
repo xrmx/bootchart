@@ -216,8 +216,7 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     if len(cpu_stats) > 0:
         draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, leg_x, leg_y, leg_s)
         draw_legend_box(ctx, "I/O (wait)", IO_COLOR, leg_x + 120, leg_y, leg_s)
-				
-    leg_x = off_x
+
     if len(disk_stats) > 0:
         leg_y = rect_y - bar_h - 4*off_y
         draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, leg_x, leg_y, leg_s)
@@ -256,7 +255,6 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 				
         # render disk throughput
         max_sample = max(disk_stats, key=lambda s: s.tput)
-        max_tput = max_sample.tput
         data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_sample.tput)
         draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats]) 
 
@@ -295,8 +293,7 @@ def draw_header(ctx, headers, off_x, duration):
       ('pseudo.header', 'time', lambda s: '%02d:%0.2f' % (math.floor(dur/60), dur - math.floor(dur/60)))
     ]
 
-    header_y = ctx.font_extents()[2]
-    header_y += 2
+    header_y = ctx.font_extents()[2] + 10
     ctx.set_font_size(TITLE_FONT_SIZE)
     draw_text(ctx, headers['title'], TEXT_COLOR, off_x, header_y)
     ctx.set_font_size(TEXT_FONT_SIZE)
@@ -309,7 +306,7 @@ def draw_header(ctx, headers, off_x, duration):
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
     for proc in process_list:
         #print "proc '%s' with %i children" % (proc.cmd, len(proc.child_list))
-        print proc.cmd, px, py, y
+        #print proc.cmd, px, py, y
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
         py2 = y + proc_h

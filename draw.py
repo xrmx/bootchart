@@ -255,27 +255,21 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
         draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.util) for sample in disk_stats]) 
 				
         # render disk throughput
-        max_tput = max(sample.tput for sample in disk_stats)
-        data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_tput)
+        max_sample = max(disk_stats, key=lambda s: s.tput)
+        max_tput = max_sample.tput
+        data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_sample.tput)
         draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats]) 
 
-        for sample in disk_stats :
-            # disk tput samples only
-            if (sample.tput == max_tput) :
-                pos_x = rect_x + ((sample.time - proc_tree.start_time) * rect_w / proc_tree.duration)
-                if (pos_x < rect_x or pos_x > rect_x + rect_w) :
-                    continue
-
-                pos_y = bar_y -  (1.0 * bar_h)
-                if (pos_x < max_leg_x) :
-                    pos_y = pos_y + 15
-                    pos_x = pos_x + 30
-					
-                label = "%dMB/s" % round((sample.tput) / 1024.0)
-                draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
-		
-                break
-
+        pos_y = bar_y -  (1.0 * bar_h)
+        pos_x = rect_x + ((max_sample.time - proc_tree.start_time) * rect_w / proc_tree.duration)
+        
+        if (pos_x < max_leg_x) :
+            pos_y = pos_y + 15
+            pos_x = pos_x + 30
+       				
+        label = "%dMB/s" % round((max_sample.tput) / 1024.0)
+        draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
+	
     if proc_tree.process_tree != None:
         # render processes
         

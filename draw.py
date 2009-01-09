@@ -313,7 +313,24 @@ def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
         y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + proc_h, proc_h, rect)
 		
     return y
-	
+
+def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
+	ctx.set_dash([2,2])
+	if abs(px - x) < 3:
+		dep_off_x = 3
+		dep_off_y = proc_h / 4
+		ctx.move_to(x, y + proc_h / 2)
+		ctx.line_to(px - dep_off_x, y + proc_h / 2)
+		ctx.line_to(px - dep_off_x, py - dep_off_y)
+		ctx.line_to(px, py - dep_off_y)
+		ctx.stroke()
+	else:
+		ctx.move_to(x, y + proc_h / 2)
+		ctx.line_to(px, y + proc_h / 2)
+		ctx.line_to(px, py)
+		ctx.stroke()
+        ctx.set_dash([])	
+
 def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
 #    print "drawing '%s'" % proc.cmd
     x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
@@ -323,21 +340,7 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
 
     ctx.set_source_rgba(*DEP_COLOR)
     if px != -1 and py != -1:
-        ctx.set_dash([2,2])
-        if abs(px - x) < 3:
-            dep_off_x = 3
-            dep_off_y = proc_h / 4
-            ctx.move_to(x, y + proc_h / 2)
-            ctx.line_to(px - dep_off_x, y + proc_h / 2)
-            ctx.line_to(px - dep_off_x, py - dep_off_y)
-            ctx.line_to(px, py - dep_off_y)
-            ctx.stroke()
-        else:
-            ctx.move_to(x, y + proc_h / 2)
-            ctx.line_to(px, y + proc_h / 2)
-            ctx.line_to(px, py)
-            ctx.stroke()
-        ctx.set_dash([])
+        draw_process_connecting_lines(ctx, px, py, x, y, proc_h)
                
     last_tx = -1
     for sample in proc.samples :
@@ -354,21 +357,15 @@ def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
         last_tx = tx + tw
         state = get_proc_state( sample.state )
                    
-        fill_rect = False
-        if state in [STATE_WAITING, STATE_STOPPED, STATE_ZOMBIE]:
-            color = STATE_COLORS[state]
-            fill_rect = True
-        elif state == STATE_RUNNING:
+        color = STATE_COLORS[state]        
+        if state == STATE_RUNNING:
             cpu = sample.cpuSample.user + sample.cpuSample.sys
             alpha = (cpu * 255)
             alpha = max(0, min(alpha, 255))
-            color = (PROC_COLOR_R[0], PROC_COLOR_R[1], PROC_COLOR_R[2], alpha)
-            fill_rect = True
-        else:
-            fill_rect = False
-                       
-        if fill_rect:
-            draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
+            color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
+        elif state == STATE_SLEEPING:
+            continue
+        draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
             
     draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
     draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])

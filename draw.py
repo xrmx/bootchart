@@ -311,6 +311,58 @@ def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
 		
     return y
 
+
+        
+def draw_process_list2(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
+    for proc in process_list:
+        draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
+        px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
+        py2 = y + proc_h
+        y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + proc_h, proc_h, rect)
+		
+    return y
+
+def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
+#    print "drawing '%s'" % proc.cmd
+    x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
+    w =  ((proc.duration) * rect[2] / proc_tree.duration)
+
+    ctx.set_source_rgba(*DEP_COLOR)
+    if px != -1 and py != -1:
+        draw_process_connecting_lines(ctx, px, py, x, y, proc_h)
+
+    draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)               
+            
+    draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+    draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])
+
+
+def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
+	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
+
+	last_tx = -1
+	for sample in proc.samples :    
+		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+		tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
+		if last_tx != -1 and abs(last_tx - tx) <= tw:
+		tw -= last_tx - tx
+		tx = last_tx
+             
+		last_tx = tx + tw
+		state = get_proc_state( sample.state )
+                   
+		color = STATE_COLORS[state]        
+		if state == STATE_RUNNING:
+			cpu = sample.cpuSample.user + sample.cpuSample.sys
+			alpha = (cpu * 255)
+			alpha = max(0, min(alpha, 255))
+			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
+		elif state == STATE_SLEEPING:
+			continue
+		
+		draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
+
+    
 def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.set_dash([2,2])
 	if abs(px - x) < 3:
@@ -325,43 +377,4 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 		ctx.line_to(px, y + proc_h / 2)
 		ctx.line_to(px, py)
 	ctx.stroke()
-        ctx.set_dash([])	
-
-def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
-#    print "drawing '%s'" % proc.cmd
-    x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
-    w =  ((proc.duration) * rect[2] / proc_tree.duration)
-   
-    draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
-
-    ctx.set_source_rgba(*DEP_COLOR)
-    if px != -1 and py != -1:
-        draw_process_connecting_lines(ctx, px, py, x, y, proc_h)
-               
-    last_tx = -1
-    for sample in proc.samples :
-        end_time = proc.startTime + proc.duration - proc_tree.sample_period
-        if sample.time < proc.startTime or sample.time > end_time :
-            continue
-                       
-        tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
-        tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
-        if last_tx != -1 and abs(last_tx - tx) <= tw:
-            tw -= last_tx - tx
-            tx = last_tx
-             
-        last_tx = tx + tw
-        state = get_proc_state( sample.state )
-                   
-        color = STATE_COLORS[state]        
-        if state == STATE_RUNNING:
-            cpu = sample.cpuSample.user + sample.cpuSample.sys
-            alpha = (cpu * 255)
-            alpha = max(0, min(alpha, 255))
-            color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
-        elif state == STATE_SLEEPING:
-            continue
-        draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
-            
-    draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
-    draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])
+        ctx.set_dash([])

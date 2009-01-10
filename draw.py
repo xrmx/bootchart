@@ -303,6 +303,7 @@ def draw_header(ctx, headers, off_x, duration):
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
+    print rect
     for proc in process_list:
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
@@ -345,8 +346,8 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
 		tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
 		if last_tx != -1 and abs(last_tx - tx) <= tw:
-		tw -= last_tx - tx
-		tx = last_tx
+			tw -= last_tx - tx
+			tx = last_tx
              
 		last_tx = tx + tw
 		state = get_proc_state( sample.state )

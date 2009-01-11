@@ -189,20 +189,26 @@ def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
     else:
         ctx.stroke()
     ctx.restore()
+
+header_h = 280
+bar_h = 55
+# offsets
+off_x, off_y = 10, 10
+sec_w = 25 # the width of a second
+proc_h = 16 # the height of a process
+
+def extents(headers, cpu_stats, disk_stats, proc_tree):
+    w = (proc_tree.duration * sec_w / 100) + 2*off_x
+    h = proc_h * proc_tree.num_proc + header_h + 2*off_y
+    return (0,0,w,h)
+
 #
 # Render the chart.
 # 
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
-    header_h = 280
-    bar_h = 55
-    # offsets
-    off_x, off_y = 10, 10
-		
-    sec_w = 25 # the width of a second
-    proc_h = 16 # the height of a process
-    w = (proc_tree.duration * sec_w / 100) + 2*off_x
-    h = proc_h * proc_tree.num_proc + header_h + 2*off_y
+    
+    (zx, zy, w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
     
     ctx.select_font_face(FONT_NAME)
     draw_fill_rect(ctx, WHITE, (0, 0, w, h))
@@ -302,7 +308,7 @@ def draw_header(ctx, headers, off_x, duration):
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
 def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
-    print rect
+    # print rect
     for proc in process_list:
         draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
         px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)

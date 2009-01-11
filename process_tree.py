@@ -40,6 +40,10 @@ class ProcessTree:
 	self.build()
         self.update_ppids_for_daemons(self.process_list)
 
+        self.start_time = self.get_start_time(self.process_tree)
+        self.end_time = self.get_end_time(self.process_tree)
+        self.duration = self.end_time - self.start_time
+
 	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
 	print "Merged %i logger processes" % removed
 
@@ -195,7 +199,7 @@ class ProcessTree:
                 for child in p.child_list:
                     self.__merge_processes(p, child)
                     num_removed += 1
-                    p.child_list = []
+                p.child_list = []
             else:
                 num_removed += self.merge_logger(p.child_list, logger_proc, monitored_app, is_app_tree)
         return num_removed
@@ -257,7 +261,6 @@ class ProcessTree:
                 ptime = p.startTime
                 nptime = child.startTime
                 p.startTime = min(ptime, nptime)
-                if p.startTime == 0: print "starttime now 0 for", p.cmd
                 pendtime = max(ptime + p.duration, nptime + child.duration)
                 p.duration = pendtime - p.startTime
                 num_removed += 1
@@ -272,6 +275,5 @@ class ProcessTree:
         p1time = p1.startTime
         p2time = p2.startTime
         p1.startTime = min(p1time, p2time)
-        if p1.startTime == 0: print "starttime now 0 for", p1.cmd
         pendtime = max(p1time + p1.duration, p2time + p2.duration)
         p1.duration = pendtime - p1.startTime

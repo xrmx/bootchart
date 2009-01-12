@@ -43,7 +43,7 @@ class ProcessTree:
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
         self.duration = self.end_time - self.start_time
-
+	print 'proc_tree before prune: num_proc=%i, duration=%i' % (self.num_nodes(self.process_list, 0), self.duration)
 	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
 	print "Merged %i logger processes" % removed
 
@@ -63,7 +63,7 @@ class ProcessTree:
         self.end_time = self.get_end_time(self.process_tree)
 	self.duration = self.end_time - self.start_time
 
-	self.num_proc = self.num_nodes(self.process_list)
+	self.num_proc = self.num_nodes(self.process_tree, 0)
 
     def build(self):
         """Build the process tree from the list of top samples."""
@@ -80,12 +80,13 @@ class ProcessTree:
             p.child_list.sort(key = lambda p: p.pid)
             self.sort(p.child_list)
 
-    def num_nodes(self, process_list):
+
+    def num_nodes(self, process_list, count):
         "Counts the number of nodes in the specified process tree."""
         nodes = 0
         for proc in process_list:
-            nodes += 1 + self.num_nodes(proc.child_list)
-        return nodes
+            nodes = nodes + self.num_nodes(proc.child_list, 0)
+        return nodes + len(process_list)
 
     def get_start_time(self, process_subtree):
         """Returns the start time of the process subtree.  This is the start
@@ -156,7 +157,7 @@ class ProcessTree:
                    process_end >= self.start_time + self.duration and \
                    p.startTime > self.start_time and \
                    p.duration > 0.9 * self.duration and \
-                   self.num_nodes(p.child_list) == 0:
+                   self.num_nodes(p.child_list, 0) == 0:
                     # idle background process without children
                     prune = True
                 elif p.duration <= 2 * self.sample_period:

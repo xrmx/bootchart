@@ -200,96 +200,91 @@ sec_w = 25 # the width of a second
 proc_h = 16 # the height of a process
 
 def extents(headers, cpu_stats, disk_stats, proc_tree):
-    w = (proc_tree.duration * sec_w / 100) + 2*off_x
-    h = proc_h * proc_tree.num_proc + header_h + 2*off_y
-    return (0,0,w,h)
+	w = (proc_tree.duration * sec_w / 100) + 2*off_x
+	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
+	return (0,0,w,h)
 
 #
 # Render the chart.
 # 
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
-    print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
+	print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
 
-    (zx, zy, w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
+	(zx, zy, w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
     
-    ctx.select_font_face(FONT_NAME)
-    draw_fill_rect(ctx, WHITE, (0, 0, w, h))
+	ctx.select_font_face(FONT_NAME)
+	draw_fill_rect(ctx, WHITE, (0, 0, w, h))
     
-    # draw the title and headers
-    draw_header(ctx, headers, off_x, proc_tree.duration)
+	# draw the title and headers
+	draw_header(ctx, headers, off_x, proc_tree.duration)
 
-    rect_x, rect_y, rect_w, rect_h = off_x, header_h + off_y, w - 2 * off_x, h - 2 * off_y - header_h
+	rect_x, rect_y, rect_w, rect_h = off_x, header_h + off_y, w - 2 * off_x, h - 2 * off_y - header_h
     
-    # render bar legend
-    ctx.set_font_size(LEGEND_FONT_SIZE)
-    leg_y = rect_y - 2*bar_h - 6*off_y 
-    leg_s = 10
-    if len(cpu_stats) > 0:
-        draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, leg_y, leg_s)
-        draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, leg_y, leg_s)
+	# render bar legend
+	ctx.set_font_size(LEGEND_FONT_SIZE)
+	leg_y = rect_y - 2*bar_h - 6*off_y 
+	leg_s = 10
 
-    if len(disk_stats) > 0:
-        leg_y = rect_y - bar_h - 4*off_y
-        draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, off_x, leg_y, leg_s)
-        draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, leg_y, leg_s)
+	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, leg_y, leg_s)
+	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, leg_y, leg_s)
+	leg_y = rect_y - bar_h - 4*off_y
+	draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, off_x, leg_y, leg_s)
+	draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, leg_y, leg_s)
 
-    max_leg_x = off_x + 120
-    # process states
-    leg_y = rect_y - 17
-    draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, off_x, leg_y, leg_s)		
-    draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, off_x+120, leg_y, leg_s)
-    draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, off_x+240, leg_y, leg_s)
-    draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, off_x+360, leg_y, leg_s)
+	# process states
+	leg_y = rect_y - 17
+	draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, off_x, leg_y, leg_s)		
+	draw_legend_box(ctx, "Unint.sleep (I/O)", PROC_COLOR_D, off_x+120, leg_y, leg_s)
+	draw_legend_box(ctx, "Sleeping", PROC_COLOR_S, off_x+240, leg_y, leg_s)
+	draw_legend_box(ctx, "Zombie", PROC_COLOR_Z, off_x+360, leg_y, leg_s)
 
-    if len(cpu_stats) > 0:	
-        # render I/O wait
-        bar_y = rect_y - 4*off_y - bar_h - off_x - 5;
+	# render I/O wait
+	bar_y = rect_y - 4*off_y - bar_h - off_x - 5;
         chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
-        draw_box_ticks(ctx, chart_rect, sec_w)
-        data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
-        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats]) 
-        # render CPU load
-        draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats]) 
-  			
-    if len(disk_stats) > 0:
+	draw_box_ticks(ctx, chart_rect, sec_w)
+	data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
+	draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats]) 
+	# render CPU load
+	draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats])
+	
         # render I/O utilization
-        bar_y = rect_y - 2*off_y - off_y - 5
-        chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
-        draw_box_ticks(ctx, chart_rect, sec_w)
+	bar_y = rect_y - 2*off_y - off_y - 5
+	chart_rect = (rect_x, bar_y - bar_h, rect_w, bar_h)
+	draw_box_ticks(ctx, chart_rect, sec_w)
 			
-        data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
-        draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.util) for sample in disk_stats]) 
+	data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
+	draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.util) for sample in disk_stats]) 
 				
-        # render disk throughput
-        max_sample = max(disk_stats, key=lambda s: s.tput)
-        data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_sample.tput)
-        draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats]) 
+	# render disk throughput
+	max_sample = max(disk_stats, key=lambda s: s.tput)
+	data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_sample.tput)
+	draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats]) 
 
-        pos_y = bar_y -  (1.0 * bar_h)
-        pos_x = rect_x + ((max_sample.time - proc_tree.start_time) * rect_w / proc_tree.duration)
-        
-        if (pos_x < max_leg_x) :
-            pos_y = pos_y + 15
-            pos_x = pos_x + 30
+	pos_y = bar_y - bar_h
+	pos_x = rect_x + ((max_sample.time - proc_tree.start_time) * rect_w / proc_tree.duration)
+
+	if (pos_x < off_x + 120):
+		pos_y = pos_y + 15
+		pos_x = pos_x + 30
        				
-        label = "%dMB/s" % round((max_sample.tput) / 1024.0)
-        draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
+	label = "%dMB/s" % round((max_sample.tput) / 1024.0)
+	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
 
-    chart_rect = [rect_x, rect_y, rect_w, rect_h]
-    ctx.set_font_size(PROC_TEXT_FONT_SIZE)
-    if proc_tree.process_tree != None:    
-        draw_box_ticks(ctx, chart_rect, sec_w)
-        draw_5sec_labels(ctx, chart_rect, sec_w)
+	chart_rect = [rect_x, rect_y, rect_w, rect_h]
+	ctx.set_font_size(PROC_TEXT_FONT_SIZE)
+	
+	draw_box_ticks(ctx, chart_rect, sec_w)
+	draw_5sec_labels(ctx, chart_rect, sec_w)
         
-        y = rect_y
-        for root in proc_tree.process_tree:        
-        	draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
-        	y  = y + proc_h * proc_tree.num_nodes([root])
-    
-    ctx.set_font_size(SIG_FONT_SIZE)
-    draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
+	y = rect_y
+	for root in proc_tree.process_tree:        
+		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
+		y  = y + proc_h * proc_tree.num_nodes([root])
 
-    return (0, 0, w,h)
+	ctx.set_font_size(SIG_FONT_SIZE)
+	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
+
+	return (0, 0, w,h)
 
 def draw_header(ctx, headers, off_x, duration):
     dur = duration / 100.0

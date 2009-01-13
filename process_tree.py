@@ -28,14 +28,11 @@ class ProcessTree:
     LOGGER_PROC = 'bootchartd'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, psstats, monitoredApp, prune):
+    def __init__(self, psstats, monitoredApp, prune, for_testing = False):
         self.process_tree = []
 	self.psstats = psstats
-	self.process_list = psstats.process_list
+	self.process_list = sorted(psstats.process_list, key = lambda p: p.pid)
 	self.sample_period = psstats.sample_period
-	self.start_time = psstats.start_time
-	self.end_time = psstats.end_time
-	self.duration = self.end_time - self.start_time
 
 	self.build()
         self.update_ppids_for_daemons(self.process_list)
@@ -43,7 +40,12 @@ class ProcessTree:
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
         self.duration = self.end_time - self.start_time
+
+        if for_testing:
+            return
+
 	print 'proc_tree before prune: num_proc=%i, duration=%i' % (self.num_nodes(self.process_list), self.duration)
+
 	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
 	print "Merged %i logger processes" % removed
 
@@ -79,7 +81,6 @@ class ProcessTree:
         for p in process_subtree:
             p.child_list.sort(key = lambda p: p.pid)
             self.sort(p.child_list)
-
 
     def num_nodes(self, process_list):
         "Counts the number of nodes in the specified process tree."""

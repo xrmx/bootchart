@@ -53,7 +53,7 @@ class Process:
 		self.lastSysCpuTime = None
 	
 	def __str__(self):
-		return " ".join([str(self.pid), self.cmd, self.ppid, '[ ' + str(len(self.samples)) + ' samples ]' ])
+		return " ".join([str(self.pid), self.cmd, str(self.ppid), '[ ' + str(len(self.samples)) + ' samples ]' ])
 	
 	def calcStats(self, samplePeriod):
 		if self.samples:
@@ -267,5 +267,15 @@ def parse_log_dir(log_dir, prune):
         cpu_stats = parseProcStatLog(os.path.join(log_dir, "proc_stat.log"))
     
     proc_tree = ProcessTree(ps_stats, monitored_app, prune)
+
+    def dump_tree(indent, proc_tree):
+	    ind = ''
+	    for i in xrange(0,indent):
+		    ind += ' '
+	    for p in proc_tree:
+		    print "%s%i %i: %s" % (ind, p.pid, 10 * p.startTime, p.cmd)
+		    dump_tree(indent + 2, p.child_list)
+
+    #dump_tree(0, proc_tree.process_tree)
 
     return (headers, cpu_stats, disk_stats, proc_tree)

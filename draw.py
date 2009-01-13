@@ -159,14 +159,20 @@ def draw_box_ticks(ctx, rect, sec_w):
 		ctx.stroke()
 
 def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
+
+    def transform_point_coords(point, data_bounds, xscale, yscale):
+        x = (point[0] - data_bounds[0]) * xscale
+        y = (point[1] - data_bounds[1]) * yscale
+        return x, y
+        
     ymax =  max(y for (x,y) in data) # data_bounds[3]
     xmax =  max(x for (x,y) in data) # data_bounds[2]
-    first = None
-    last = None
-    if data_bounds[2] == 0 or data_bounds[3] == 0:
-        return
     xscale = float(chart_bounds[2])/data_bounds[2]
     yscale = float(chart_bounds[3])/data_bounds[3]
+    
+    first = transform_point_coords(data[0], data_bounds, xscale, yscale)
+    last = transform_point_coords(data[-1], data_bounds, xscale, yscale)
+    
     ctx.save()
     ctx.translate(chart_bounds[0], chart_bounds[1] + chart_bounds[3])
     ctx.scale(1, -1)
@@ -174,12 +180,8 @@ def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data):
     ctx.clip()
     ctx.set_source_rgba(*color)
     for point in data:
-        x = (point[0] - data_bounds[0]) * xscale
-        y = (point[1] - data_bounds[1]) * yscale
-        last = (x, y)
-        if first is None:
-            first = last
-        ctx.line_to(last[0], last[1])
+        x, y = transform_point_coords(point, data_bounds, xscale, yscale)
+        ctx.line_to(x, y)
     if fill:
         ctx.stroke_preserve()
         ctx.line_to(last[0], 0)
@@ -207,7 +209,7 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 # 
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
     print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
-    
+
     (zx, zy, w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
     
     ctx.select_font_face(FONT_NAME)
@@ -232,7 +234,6 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
         draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, leg_y, leg_s)
 
     max_leg_x = off_x + 120
-
     # process states
     leg_y = rect_y - 17
     draw_legend_box(ctx, "Running (%cpu)", PROC_COLOR_R, off_x, leg_y, leg_s)		
@@ -249,7 +250,7 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
         draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats]) 
         # render CPU load
         draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats]) 
-				
+  			
     if len(disk_stats) > 0:
         # render I/O utilization
         bar_y = rect_y - 2*off_y - off_y - 5
@@ -273,15 +274,18 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
        				
         label = "%dMB/s" % round((max_sample.tput) / 1024.0)
         draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, pos_y - 3)
-	
+
     chart_rect = [rect_x, rect_y, rect_w, rect_h]
     ctx.set_font_size(PROC_TEXT_FONT_SIZE)
     if proc_tree.process_tree != None:    
         draw_box_ticks(ctx, chart_rect, sec_w)
         draw_5sec_labels(ctx, chart_rect, sec_w)
         
-        draw_process_list(ctx, proc_tree.process_tree, -1, -1, proc_tree, rect_y, proc_h, chart_rect)
-
+        y = rect_y
+        for root in proc_tree.process_tree:        
+        	draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
+        	y  = y + proc_h * proc_tree.num_nodes([root])
+    
     ctx.set_font_size(SIG_FONT_SIZE)
     draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
 
@@ -307,27 +311,22 @@ def draw_header(ctx, headers, off_x, duration):
         txt = headertitle + ': ' + mangle(headers.get(headerkey))
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
-def draw_process_list(ctx, process_list, px, py, proc_tree, y, proc_h, rect) :
-    # print rect
-    for proc in process_list:
-        draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect)
-        px2 = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
-        py2 = y + proc_h
-        y = draw_process_list(ctx, proc.child_list, px2, py2, proc_tree, y + proc_h, proc_h, rect)
+
+def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
+	x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
+	w = ((proc.duration) * rect[2] / proc_tree.duration)
+
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
+	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+	draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])
+
+	next_y = y + proc_h
+	for child in proc.child_list:
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect)
+		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
+		next_y = next_y + proc_h * proc_tree.num_nodes([child])
 		
-    return y
-
-def draw_process(ctx, proc, px, py, proc_tree, y, proc_h, rect) :
-    x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
-    w =  ((proc.duration) * rect[2] / proc_tree.duration)
-    
-    if px != -1 and py != -1:
-        draw_process_connecting_lines(ctx, px, py, x, y, proc_h)
-
-    draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)               
-            
-    draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
-    draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])
+	return x, y
 
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):

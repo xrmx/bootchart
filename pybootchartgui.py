@@ -221,7 +221,7 @@ class PyBootchartWindow(gtk.Window):
 		self.show_all()
 
 	def on_allocation_size_changed(self, widget, allocation):
-		self.update_scrollbars(allocation)
+		self.update_scrollbars(self.widget.get_allocation())
 
 	def update_scrollbars(self, rect):
 		self.hadj.lower = self.extents[0]

@@ -1,22 +1,17 @@
 import sys
 import os
-#import re
-#import struct
-#import operator
-#import math
-#from collections import defaultdict
 import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import bc_parser
+import parsing
 import process_tree
 
 class TestProcessTree(unittest.TestCase):
 
     def setUp(self):
 	self.name = "Process tree unittest"
-	self.ps_stats = bc_parser.parseProcPsLog('examples/1/proc_ps.log')
+	self.ps_stats = parsing.parseProcPsLog('examples/1/proc_ps.log')
         self.processtree = process_tree.ProcessTree(self.ps_stats, None, False, for_testing = True)
 
     def flatten(self, process_tree):

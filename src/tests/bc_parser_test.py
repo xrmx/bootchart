@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import bc_parser
+import parsing
 
 debug = False
 

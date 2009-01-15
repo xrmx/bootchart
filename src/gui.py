@@ -241,9 +241,7 @@ class PyBootchartWindow(gtk.Window):
 		self.hadj.value = x
 		self.vadj.value = y
 
-if __name__ == '__main__':
-	import bc_parser
-	res = bc_parser.parse_log_dir(sys.argv[1], True)
+def show(res):
 	win = PyBootchartWindow(res)
 	win.connect('destroy', gtk.main_quit)
 	gtk.main()

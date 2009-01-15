@@ -11,8 +11,12 @@ class TestProcessTree(unittest.TestCase):
 
     def setUp(self):
 	self.name = "Process tree unittest"
-	self.ps_stats = parsing.parseProcPsLog('examples/1/proc_ps.log')
+        self.rootdir = '../examples/1'
+	self.ps_stats = parsing.parseProcPsLog(self.mk_fname('proc_ps.log'))
         self.processtree = process_tree.ProcessTree(self.ps_stats, None, False, for_testing = True)
+
+    def mk_fname(self,f):
+        return os.path.join(self.rootdir, f)
 
     def flatten(self, process_tree):
         flattened = []
@@ -33,25 +37,25 @@ class TestProcessTree(unittest.TestCase):
 
     def testBuild(self):
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.1.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.1.log'), process_tree)
 
     def testMergeLogger(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.2.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.2.log'), process_tree)
 
     def testPrune(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
         self.processtree.prune(self.processtree.process_tree, None)
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.3b.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.3b.log'), process_tree)
 
     def testMergeExploders(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
         self.processtree.prune(self.processtree.process_tree, None)
         self.processtree.merge_exploders(self.processtree.process_tree, set(['hwup']))
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.3c.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.3c.log'), process_tree)
 
     def testMergeSiblings(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
@@ -59,7 +63,7 @@ class TestProcessTree(unittest.TestCase):
         self.processtree.merge_exploders(self.processtree.process_tree, set(['hwup']))
         self.processtree.merge_siblings(self.processtree.process_tree)
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.3d.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.3d.log'), process_tree)
 
     def testMergeRuns(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
@@ -68,7 +72,7 @@ class TestProcessTree(unittest.TestCase):
         self.processtree.merge_siblings(self.processtree.process_tree)
         self.processtree.merge_runs(self.processtree.process_tree)
         process_tree = self.processtree.process_tree
-        self.checkAgainstJavaExtract('examples/1/extract.processtree.3e.log', process_tree)
+        self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.3e.log'), process_tree)
 
 if __name__ == '__main__':
     unittest.main()

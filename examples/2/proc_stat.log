@@ -1,0 +1,2050 @@
+698
+cpu  8 0 141 321 227 1 0
+cpu0 8 0 141 321 227 1 0
+intr 7528 7006 8 0 1 3 1 0 0 0 1 1 1 101 0 382 23
+ctxt 4618
+btime 1107044823
+processes 533
+procs_running 2
+procs_blocked 1
+
+719
+cpu  9 0 142 321 246 1 0
+cpu0 9 0 142 321 246 1 0
+intr 7767 7225 8 0 1 3 1 0 0 0 1 1 1 101 0 402 23
+ctxt 4730
+btime 1107044823
+processes 543
+procs_running 3
+procs_blocked 2
+
+741
+cpu  14 0 148 321 257 1 0
+cpu0 14 0 148 321 257 1 0
+intr 7992 7434 8 0 1 3 1 0 0 0 1 1 1 101 0 418 23
+ctxt 5267
+btime 1107044823
+processes 622
+procs_running 4
+procs_blocked 14
+
+762
+cpu  16 0 151 321 273 1 0
+cpu0 16 0 151 321 273 1 0
+intr 8213 7642 8 0 1 3 1 0 0 0 1 1 1 101 0 431 23
+ctxt 5692
+btime 1107044823
+processes 665
+procs_running 1
+procs_blocked 2
+
+782
+cpu  17 0 154 321 289 1 0
+cpu0 17 0 154 321 289 1 0
+intr 8430 7845 8 0 1 3 1 0 0 0 1 1 1 101 0 445 23
+ctxt 5962
+btime 1107044823
+processes 687
+procs_running 1
+procs_blocked 3
+
+803
+cpu  20 0 157 321 304 1 0
+cpu0 20 0 157 321 304 1 0
+intr 8666 8064 8 0 1 3 1 0 0 0 1 1 1 101 0 462 23
+ctxt 6330
+btime 1107044823
+processes 711
+procs_running 3
+procs_blocked 17
+
+825
+cpu  31 0 162 321 310 1 0
+cpu0 31 0 162 321 310 1 0
+intr 8891 8272 8 0 1 3 1 0 0 0 1 1 1 101 0 479 23
+ctxt 6914
+btime 1107044823
+processes 774
+procs_running 3
+procs_blocked 1
+
+845
+cpu  46 0 163 321 314 1 0
+cpu0 46 0 163 321 314 1 0
+intr 9125 8476 8 0 1 3 1 0 0 0 1 1 1 101 0 510 23
+ctxt 7081
+btime 1107044823
+processes 776
+procs_running 3
+procs_blocked 0
+
+866
+cpu  66 0 164 321 314 1 0
+cpu0 66 0 164 321 314 1 0
+intr 9334 8684 8 0 1 3 1 0 0 0 1 1 1 101 0 510 23
+ctxt 7193
+btime 1107044823
+processes 780
+procs_running 2
+procs_blocked 0
+
+886
+cpu  76 0 167 321 321 1 0
+cpu0 76 0 167 321 321 1 0
+intr 9546 8890 8 0 1 3 1 0 0 0 1 1 1 101 0 516 23
+ctxt 7519
+btime 1107044823
+processes 840
+procs_running 2
+procs_blocked 0
+
+907
+cpu  83 0 169 321 333 1 0
+cpu0 83 0 169 321 333 1 0
+intr 9759 9094 8 0 1 3 1 0 0 0 1 1 1 101 0 525 23
+ctxt 7878
+btime 1107044823
+processes 901
+procs_running 3
+procs_blocked 1
+
+927
+cpu  88 0 170 321 347 1 0
+cpu0 88 0 170 321 347 1 0
+intr 9984 9297 8 0 1 3 1 0 0 0 1 1 1 101 0 547 23
+ctxt 8042
+btime 1107044823
+processes 908
+procs_running 3
+procs_blocked 1
+
+948
+cpu  95 0 182 321 349 1 0
+cpu0 95 0 182 321 349 1 0
+intr 10192 9503 8 0 1 3 1 0 0 0 1 1 1 101 0 549 23
+ctxt 9044
+btime 1107044823
+processes 1087
+procs_running 4
+procs_blocked 0
+
+968
+cpu  103 0 194 321 349 1 0
+cpu0 103 0 194 321 349 1 0
+intr 10398 9709 8 0 1 3 1 0 0 0 1 1 1 101 0 549 23
+ctxt 9940
+btime 1107044823
+processes 1248
+procs_running 4
+procs_blocked 0
+
+989
+cpu  111 0 202 321 354 1 0
+cpu0 111 0 202 321 354 1 0
+intr 10606 9913 8 0 1 3 1 0 0 0 1 1 1 101 0 553 23
+ctxt 10583
+btime 1107044823
+processes 1355
+procs_running 1
+procs_blocked 1
+
+1009
+cpu  122 0 203 321 362 1 0
+cpu0 122 0 203 321 362 1 0
+intr 10826 10116 8 0 1 3 1 0 0 0 1 1 1 101 0 570 23
+ctxt 10725
+btime 1107044823
+processes 1362
+procs_running 2
+procs_blocked 0
+
+1029
+cpu  142 0 203 321 362 1 0
+cpu0 142 0 203 321 362 1 0
+intr 11030 10320 8 0 1 3 1 0 0 0 1 1 1 101 0 570 23
+ctxt 10838
+btime 1107044823
+processes 1367
+procs_running 2
+procs_blocked 0
+
+1049
+cpu  161 0 204 321 362 1 0
+cpu0 161 0 204 321 362 1 0
+intr 11233 10523 8 0 1 3 1 0 0 0 1 1 1 101 0 570 23
+ctxt 10941
+btime 1107044823
+processes 1370
+procs_running 2
+procs_blocked 0
+
+1069
+cpu  181 0 204 321 362 1 0
+cpu0 181 0 204 321 362 1 0
+intr 11436 10726 8 0 1 3 1 0 0 0 1 1 1 101 0 570 23
+ctxt 11043
+btime 1107044823
+processes 1373
+procs_running 2
+procs_blocked 0
+
+1089
+cpu  200 0 205 321 362 1 0
+cpu0 200 0 205 321 362 1 0
+intr 11639 10929 8 0 1 3 1 0 0 0 1 1 1 101 0 570 23
+ctxt 11146
+btime 1107044823
+processes 1376
+procs_running 2
+procs_blocked 0
+
+1111
+cpu  209 0 207 321 373 1 0
+cpu0 209 0 207 321 373 1 0
+intr 11862 11132 8 0 1 3 1 0 0 0 1 1 1 101 0 590 23
+ctxt 11290
+btime 1107044823
+processes 1379
+procs_running 1
+procs_blocked 1
+
+1130
+cpu  218 0 217 321 373 1 0
+cpu0 218 0 217 321 373 1 0
+intr 12067 11336 8 0 1 3 1 0 0 0 1 1 1 101 0 591 23
+ctxt 11402
+btime 1107044823
+processes 1382
+procs_running 2
+procs_blocked 0
+
+1151
+cpu  227 0 229 321 373 1 0
+cpu0 227 0 229 321 373 1 0
+intr 12270 11539 8 0 1 3 1 0 0 0 1 1 1 101 0 591 23
+ctxt 11511
+btime 1107044823
+processes 1385
+procs_running 2
+procs_blocked 0
+
+1171
+cpu  233 0 237 321 379 1 0
+cpu0 233 0 237 321 379 1 0
+intr 12476 11742 8 0 1 3 1 0 0 0 1 1 1 101 0 594 23
+ctxt 11623
+btime 1107044823
+processes 1388
+procs_running 1
+procs_blocked 1
+
+1191
+cpu  234 0 237 321 398 1 0
+cpu0 234 0 237 321 398 1 0
+intr 12689 11945 8 0 1 3 1 0 0 0 1 1 1 101 0 604 23
+ctxt 11755
+btime 1107044823
+processes 1391
+procs_running 1
+procs_blocked 1
+
+1212
+cpu  235 0 238 321 417 1 0
+cpu0 235 0 238 321 417 1 0
+intr 12909 12148 8 0 1 3 1 0 0 0 1 1 1 101 0 621 23
+ctxt 11893
+btime 1107044823
+processes 1394
+procs_running 1
+procs_blocked 1
+
+1233
+cpu  236 0 238 321 437 1 0
+cpu0 236 0 238 321 437 1 0
+intr 13131 12351 8 0 1 3 1 0 0 0 1 1 1 101 0 640 23
+ctxt 12030
+btime 1107044823
+processes 1396
+procs_running 3
+procs_blocked 1
+
+1261
+cpu  242 0 242 321 455 1 0
+cpu0 242 0 242 321 455 1 0
+intr 13444 12644 8 0 1 3 1 0 0 0 1 1 1 101 0 660 23
+ctxt 12561
+btime 1107044823
+processes 1473
+procs_running 4
+procs_blocked 1
+
+1282
+cpu  243 0 242 321 475 1 0
+cpu0 243 0 242 321 475 1 0
+intr 13691 12854 8 0 1 3 1 0 0 0 1 1 1 101 0 697 23
+ctxt 12657
+btime 1107044823
+processes 1476
+procs_running 1
+procs_blocked 1
+
+1303
+cpu  244 0 243 321 494 1 0
+cpu0 244 0 243 321 494 1 0
+intr 13926 13057 8 0 1 3 1 0 0 0 1 1 1 101 0 729 23
+ctxt 12750
+btime 1107044823
+processes 1479
+procs_running 1
+procs_blocked 1
+
+1323
+cpu  245 0 243 321 513 1 0
+cpu0 245 0 243 321 513 1 0
+intr 14144 13260 8 0 1 3 1 0 0 0 1 1 1 101 0 744 23
+ctxt 12804
+btime 1107044823
+processes 1482
+procs_running 1
+procs_blocked 1
+
+1343
+cpu  245 0 244 321 532 1 0
+cpu0 245 0 244 321 532 1 0
+intr 14366 13463 8 0 1 3 1 0 0 0 1 1 1 101 0 763 23
+ctxt 12887
+btime 1107044823
+processes 1487
+procs_running 1
+procs_blocked 1
+
+1364
+cpu  246 0 245 321 551 1 0
+cpu0 246 0 245 321 551 1 0
+intr 14591 13666 8 0 1 3 1 0 0 0 1 1 1 101 0 785 23
+ctxt 12954
+btime 1107044823
+processes 1490
+procs_running 2
+procs_blocked 1
+
+1384
+cpu  246 0 246 321 570 1 0
+cpu0 246 0 246 321 570 1 0
+intr 14817 13869 8 0 1 3 1 0 0 0 1 1 1 101 0 808 23
+ctxt 13027
+btime 1107044823
+processes 1493
+procs_running 1
+procs_blocked 1
+
+1405
+cpu  247 0 247 321 589 1 0
+cpu0 247 0 247 321 589 1 0
+intr 15038 14072 8 0 1 3 1 0 0 0 1 1 1 101 0 826 23
+ctxt 13092
+btime 1107044823
+processes 1496
+procs_running 1
+procs_blocked 1
+
+1424
+cpu  247 0 247 321 608 1 0
+cpu0 247 0 247 321 608 1 0
+intr 15261 14275 8 0 1 3 1 0 0 0 1 1 1 101 0 846 23
+ctxt 13156
+btime 1107044823
+processes 1499
+procs_running 1
+procs_blocked 1
+
+1445
+cpu  248 0 248 321 627 1 0
+cpu0 248 0 248 321 627 1 0
+intr 15484 14478 8 0 1 3 1 0 0 0 1 1 1 101 0 866 23
+ctxt 13224
+btime 1107044823
+processes 1502
+procs_running 1
+procs_blocked 1
+
+1465
+cpu  248 0 249 321 646 1 0
+cpu0 248 0 249 321 646 1 0
+intr 15714 14681 8 0 1 3 1 0 0 0 1 1 1 101 0 893 23
+ctxt 13304
+btime 1107044823
+processes 1505
+procs_running 1
+procs_blocked 1
+
+1485
+cpu  249 0 249 321 665 1 0
+cpu0 249 0 249 321 665 1 0
+intr 15931 14884 8 0 1 3 1 0 0 0 1 1 1 101 0 907 23
+ctxt 13356
+btime 1107044823
+processes 1508
+procs_running 1
+procs_blocked 1
+
+1505
+cpu  250 0 252 321 681 1 0
+cpu0 250 0 252 321 681 1 0
+intr 16182 15087 8 0 1 3 1 0 0 0 1 1 1 101 0 955 23
+ctxt 13482
+btime 1107044823
+processes 1511
+procs_running 2
+procs_blocked 0
+
+1526
+cpu  257 0 260 321 687 1 0
+cpu0 257 0 260 321 687 1 0
+intr 16385 15290 8 0 1 3 1 0 0 0 1 1 1 101 0 955 23
+ctxt 13617
+btime 1107044823
+processes 1517
+procs_running 1
+procs_blocked 1
+
+1546
+cpu  263 0 262 321 699 1 0
+cpu0 263 0 262 321 699 1 0
+intr 16603 15494 8 0 1 3 1 0 0 0 1 1 1 101 0 969 23
+ctxt 13908
+btime 1107044823
+processes 1550
+procs_running 2
+procs_blocked 0
+
+1566
+cpu  271 0 266 321 708 1 0
+cpu0 271 0 266 321 708 1 0
+intr 16828 15704 8 0 1 3 1 0 0 0 1 1 1 101 0 984 23
+ctxt 14215
+btime 1107044823
+processes 1600
+procs_running 2
+procs_blocked 1
+
+1587
+cpu  277 0 270 321 718 1 0
+cpu0 277 0 270 321 718 1 0
+intr 17047 15907 8 0 1 3 1 0 0 0 1 1 1 101 0 1000 23
+ctxt 14626
+btime 1107044823
+processes 1671
+procs_running 1
+procs_blocked 1
+
+1608
+cpu  279 0 275 329 724 1 0
+cpu0 279 0 275 329 724 1 0
+intr 17258 16110 8 0 1 3 3 0 0 0 1 1 1 101 0 1006 23
+ctxt 14736
+btime 1107044823
+processes 1686
+procs_running 1
+procs_blocked 0
+
+1628
+cpu  284 0 277 342 724 1 0
+cpu0 284 0 277 342 724 1 0
+intr 17489 16313 8 0 1 3 31 0 0 0 1 1 1 101 0 1006 23
+ctxt 14951
+btime 1107044823
+processes 1706
+procs_running 2
+procs_blocked 0
+
+1649
+cpu  294 0 280 342 732 1 0
+cpu0 294 0 280 342 732 1 0
+intr 17715 16517 8 0 1 3 32 0 0 0 1 1 1 101 0 1027 23
+ctxt 15323
+btime 1107044823
+processes 1753
+procs_running 2
+procs_blocked 1
+
+1669
+cpu  302 0 286 342 738 1 0
+cpu0 302 0 286 342 738 1 0
+intr 17934 16720 8 0 1 3 32 0 0 0 1 1 1 101 0 1043 23
+ctxt 15858
+btime 1107044823
+processes 1847
+procs_running 2
+procs_blocked 1
+
+1691
+cpu  310 0 294 342 743 2 0
+cpu0 310 0 294 342 743 2 0
+intr 18170 16933 8 0 1 3 36 0 0 0 1 1 1 101 0 1062 23
+ctxt 16444
+btime 1107044823
+processes 1948
+procs_running 3
+procs_blocked 0
+
+1711
+cpu  311 0 294 361 743 2 0
+cpu0 311 0 294 361 743 2 0
+intr 18374 17136 8 0 1 3 37 0 0 0 1 1 1 101 0 1062 23
+ctxt 16856
+btime 1107044823
+processes 1951
+procs_running 2
+procs_blocked 0
+
+1732
+cpu  311 0 296 380 743 2 0
+cpu0 311 0 296 380 743 2 0
+intr 18583 17339 8 0 1 3 43 0 0 0 1 1 1 101 0 1062 23
+ctxt 17255
+btime 1107044823
+processes 1954
+procs_running 2
+procs_blocked 0
+
+1752
+cpu  312 0 296 399 743 2 0
+cpu0 312 0 296 399 743 2 0
+intr 18789 17542 8 0 1 3 46 0 0 0 1 1 1 101 0 1062 23
+ctxt 17668
+btime 1107044823
+processes 1957
+procs_running 2
+procs_blocked 0
+
+1772
+cpu  313 0 297 417 743 2 0
+cpu0 313 0 297 417 743 2 0
+intr 18997 17746 8 0 1 3 50 0 0 0 1 1 1 101 0 1062 23
+ctxt 18005
+btime 1107044823
+processes 1964
+procs_running 2
+procs_blocked 0
+
+1793
+cpu  320 0 302 417 752 2 0
+cpu0 320 0 302 417 752 2 0
+intr 19217 17949 8 0 1 3 53 0 0 0 1 1 1 101 0 1076 23
+ctxt 18383
+btime 1107044823
+processes 2044
+procs_running 1
+procs_blocked 1
+
+1816
+cpu  328 0 308 418 760 2 0
+cpu0 328 0 308 418 760 2 0
+intr 19474 18186 8 0 1 3 56 0 0 0 1 1 1 101 0 1093 23
+ctxt 18932
+btime 1107044823
+processes 2139
+procs_running 4
+procs_blocked 0
+
+1839
+cpu  339 0 315 418 765 2 0
+cpu0 339 0 315 418 765 2 0
+intr 19711 18410 8 0 1 3 59 0 0 0 1 1 1 101 0 1103 23
+ctxt 19584
+btime 1107044823
+processes 2254
+procs_running 2
+procs_blocked 0
+
+1904
+cpu  393 0 323 420 766 2 0
+cpu0 393 0 323 420 766 2 0
+intr 20378 19057 8 0 1 3 72 0 0 0 1 1 1 101 0 1110 23
+ctxt 20188
+btime 1107044823
+processes 2356
+procs_running 8
+procs_blocked 1
+
+1952
+cpu  436 0 326 420 768 2 0
+cpu0 436 0 326 420 768 2 0
+intr 20883 19547 8 0 1 3 81 0 0 0 1 1 1 101 0 1116 23
+ctxt 20481
+btime 1107044823
+processes 2401
+procs_running 11
+procs_blocked 0
+
+2011
+cpu  491 0 330 420 768 2 0
+cpu0 491 0 330 420 768 2 0
+intr 21477 20126 8 0 1 3 91 0 0 0 1 1 1 101 0 1121 23
+ctxt 20736
+btime 1107044823
+processes 2437
+procs_running 5
+procs_blocked 0
+
+2049
+cpu  522 0 333 424 768 2 0
+cpu0 522 0 333 424 768 2 0
+intr 21881 20522 8 0 1 3 99 0 0 0 1 1 1 101 0 1121 23
+ctxt 21001
+btime 1107044823
+processes 2481
+procs_running 6
+procs_blocked 0
+
+2093
+cpu  563 0 336 424 768 2 0
+cpu0 563 0 336 424 768 2 0
+intr 22329 20962 8 0 1 3 107 0 0 0 1 1 1 101 0 1121 23
+ctxt 21133
+btime 1107044823
+processes 2499
+procs_running 4
+procs_blocked 0
+
+2118
+cpu  582 0 339 425 770 2 0
+cpu0 582 0 339 425 770 2 0
+intr 22571 21196 8 0 1 3 112 0 0 0 1 1 1 101 0 1124 23
+ctxt 21332
+btime 1107044823
+processes 2549
+procs_running 5
+procs_blocked 1
+
+2177
+cpu  639 0 341 425 770 2 0
+cpu0 639 0 341 425 770 2 0
+intr 23181 21794 8 0 1 3 123 0 0 0 1 1 1 101 0 1125 23
+ctxt 21453
+btime 1107044823
+processes 2564
+procs_running 7
+procs_blocked 1
+
+2202
+cpu  644 0 357 425 774 2 0
+cpu0 644 0 357 425 774 2 0
+intr 23447 22043 8 0 1 3 130 0 0 0 1 1 1 101 0 1135 23
+ctxt 21831
+btime 1107044823
+processes 2627
+procs_running 4
+procs_blocked 0
+
+2225
+cpu  645 0 370 434 774 2 0
+cpu0 645 0 370 434 774 2 0
+intr 23708 22276 8 0 2 3 157 0 0 0 1 1 1 101 0 1135 23
+ctxt 21908
+btime 1107044823
+processes 2635
+procs_running 4
+procs_blocked 0
+
+2302
+cpu  714 0 376 434 776 2 0
+cpu0 714 0 376 434 776 2 0
+intr 24530 23057 8 0 2 3 190 0 0 0 1 1 1 101 0 1144 23
+ctxt 22364
+btime 1107044823
+processes 2717
+procs_running 9
+procs_blocked 1
+
+2331
+cpu  730 0 387 434 778 2 0
+cpu0 730 0 387 434 778 2 0
+intr 24820 23333 8 0 2 3 194 0 0 0 1 1 1 101 0 1153 23
+ctxt 22680
+btime 1107044823
+processes 2771
+procs_running 4
+procs_blocked 0
+
+2355
+cpu  737 0 404 434 778 2 0
+cpu0 737 0 404 434 778 2 0
+intr 25072 23572 8 0 2 3 203 0 0 0 1 1 1 101 0 1157 23
+ctxt 23153
+btime 1107044823
+processes 2861
+procs_running 14
+procs_blocked 0
+
+2384
+cpu  754 0 411 434 783 2 0
+cpu0 754 0 411 434 783 2 0
+intr 25402 23868 8 0 2 3 231 0 0 0 1 1 1 101 0 1163 23
+ctxt 23691
+btime 1107044823
+processes 2982
+procs_running 8
+procs_blocked 1
+
+2612
+cpu  960 0 433 434 783 2 0
+cpu0 960 0 433 434 783 2 0
+intr 27755 26150 8 0 2 3 274 0 0 0 1 2 1 101 0 1190 23
+ctxt 25497
+btime 1107044823
+processes 3302
+procs_running 23
+procs_blocked 1
+
+2636
+cpu  979 0 438 434 783 2 0
+cpu0 979 0 438 434 783 2 0
+intr 27998 26389 8 0 2 3 277 0 0 0 1 2 1 101 0 1191 23
+ctxt 25856
+btime 1107044823
+processes 3358
+procs_running 6
+procs_blocked 1
+
+2658
+cpu  983 0 441 437 796 2 0
+cpu0 983 0 441 437 796 2 0
+intr 28247 26615 8 0 2 3 282 0 0 0 1 3 1 101 0 1208 23
+ctxt 26130
+btime 1107044823
+processes 3394
+procs_running 6
+procs_blocked 0
+
+2679
+cpu  987 0 443 450 797 2 0
+cpu0 987 0 443 450 797 2 0
+intr 28456 26820 8 0 2 3 285 0 0 0 1 3 1 101 0 1209 23
+ctxt 26307
+btime 1107044823
+processes 3425
+procs_running 1
+procs_blocked 0
+
+2700
+cpu  988 0 444 459 807 2 0
+cpu0 988 0 444 459 807 2 0
+intr 28672 27023 8 0 2 3 288 0 0 1 1 3 1 101 0 1218 23
+ctxt 26397
+btime 1107041220
+processes 3432
+procs_running 1
+procs_blocked 1
+
+2720
+cpu  993 0 451 459 816 2 0
+cpu0 993 0 451 459 816 2 0
+intr 28922 27238 8 0 2 3 291 0 0 1 2 3 1 101 0 1249 23
+ctxt 26828
+btime 1107041220
+processes 3495
+procs_running 8
+procs_blocked 0
+
+2741
+cpu  1002 0 459 459 819 2 0
+cpu0 1002 0 459 459 819 2 0
+intr 29149 27450 8 0 2 3 296 0 0 1 2 3 1 101 0 1259 23
+ctxt 27553
+btime 1107041220
+processes 3630
+procs_running 3
+procs_blocked 0
+
+2762
+cpu  1006 0 461 459 834 2 0
+cpu0 1006 0 461 459 834 2 0
+intr 29366 27653 8 0 2 3 299 0 0 1 2 3 1 101 0 1270 23
+ctxt 27761
+btime 1107041220
+processes 3662
+procs_running 1
+procs_blocked 1
+
+2782
+cpu  1007 0 463 459 851 2 0
+cpu0 1007 0 463 459 851 2 0
+intr 29592 27856 8 0 2 3 302 0 0 1 2 3 1 101 0 1290 23
+ctxt 27901
+btime 1107041220
+processes 3678
+procs_running 1
+procs_blocked 1
+
+2803
+cpu  1008 0 464 463 866 2 0
+cpu0 1008 0 464 463 866 2 0
+intr 29827 28059 8 0 2 3 307 0 0 1 2 3 1 101 0 1306 34
+ctxt 27977
+btime 1107041220
+processes 3681
+procs_running 1
+procs_blocked 1
+
+2824
+cpu  1010 0 466 468 877 3 0
+cpu0 1010 0 466 468 877 3 0
+intr 30091 28263 8 0 2 3 310 0 0 1 2 3 1 101 0 1363 34
+ctxt 28210
+btime 1107041220
+processes 3698
+procs_running 1
+procs_blocked 0
+
+2844
+cpu  1010 0 467 487 877 3 0
+cpu0 1010 0 467 487 877 3 0
+intr 30298 28466 8 0 2 3 314 0 0 1 2 3 1 101 0 1363 34
+ctxt 28246
+btime 1107041220
+processes 3701
+procs_running 1
+procs_blocked 0
+
+2865
+cpu  1011 0 468 492 891 3 0
+cpu0 1011 0 468 492 891 3 0
+intr 30512 28669 8 0 2 3 317 0 0 1 2 3 1 101 0 1371 34
+ctxt 28376
+btime 1107041220
+processes 3709
+procs_running 1
+procs_blocked 1
+
+2885
+cpu  1012 0 469 492 909 3 0
+cpu0 1012 0 469 492 909 3 0
+intr 30739 28873 8 0 2 3 320 0 0 1 2 3 1 101 0 1391 34
+ctxt 28503
+btime 1107041220
+processes 3720
+procs_running 1
+procs_blocked 1
+
+2905
+cpu  1014 0 470 492 926 3 0
+cpu0 1014 0 470 492 926 3 0
+intr 30970 29076 8 0 2 3 324 0 0 1 2 3 1 101 0 1415 34
+ctxt 28702
+btime 1107041220
+processes 3745
+procs_running 1
+procs_blocked 1
+
+2926
+cpu  1016 0 472 492 943 3 0
+cpu0 1016 0 472 492 943 3 0
+intr 31196 29279 8 0 2 3 329 0 0 1 2 3 1 101 0 1433 34
+ctxt 28820
+btime 1107041220
+processes 3758
+procs_running 2
+procs_blocked 1
+
+2947
+cpu  1018 0 474 492 960 3 0
+cpu0 1018 0 474 492 960 3 0
+intr 31423 29482 8 0 2 3 333 0 0 1 2 3 1 101 0 1453 34
+ctxt 28958
+btime 1107041220
+processes 3771
+procs_running 1
+procs_blocked 1
+
+2966
+cpu  1021 0 476 492 974 3 0
+cpu0 1021 0 476 492 974 3 0
+intr 31649 29685 8 0 2 3 336 0 0 1 2 3 1 101 0 1473 34
+ctxt 29274
+btime 1107041220
+processes 3818
+procs_running 2
+procs_blocked 0
+
+2985
+cpu  1024 0 477 492 989 3 0
+cpu0 1024 0 477 492 989 3 0
+intr 31878 29888 8 0 2 3 339 0 0 1 2 3 1 101 0 1496 34
+ctxt 29381
+btime 1107041220
+processes 3829
+procs_running 1
+procs_blocked 1
+
+3006
+cpu  1025 0 478 492 1008 3 0
+cpu0 1025 0 478 492 1008 3 0
+intr 32109 30091 8 0 2 3 342 0 0 1 2 3 1 101 0 1521 34
+ctxt 29414
+btime 1107041220
+processes 3832
+procs_running 1
+procs_blocked 1
+
+3027
+cpu  1027 0 479 492 1026 3 0
+cpu0 1027 0 479 492 1026 3 0
+intr 32335 30294 8 0 2 3 348 0 0 1 2 3 1 101 0 1538 34
+ctxt 29489
+btime 1107041220
+processes 3841
+procs_running 1
+procs_blocked 2
+
+3047
+cpu  1027 0 480 492 1045 3 0
+cpu0 1027 0 480 492 1045 3 0
+intr 32557 30497 8 0 2 3 351 0 0 1 2 3 1 101 0 1554 34
+ctxt 29532
+btime 1107041220
+processes 3844
+procs_running 1
+procs_blocked 2
+
+3068
+cpu  1028 0 481 492 1064 3 0
+cpu0 1028 0 481 492 1064 3 0
+intr 32777 30700 8 0 2 3 354 0 0 1 2 3 1 101 0 1568 34
+ctxt 29595
+btime 1107041220
+processes 3851
+procs_running 2
+procs_blocked 1
+
+3087
+cpu  1028 0 481 492 1083 3 0
+cpu0 1028 0 481 492 1083 3 0
+intr 32999 30903 8 0 2 3 357 0 0 1 2 3 1 101 0 1584 34
+ctxt 29668
+btime 1107041220
+processes 3854
+procs_running 1
+procs_blocked 1
+
+3108
+cpu  1030 0 482 492 1101 3 0
+cpu0 1030 0 482 492 1101 3 0
+intr 33222 31108 8 0 2 3 362 0 0 1 2 3 1 101 0 1597 34
+ctxt 29743
+btime 1107041220
+processes 3857
+procs_running 2
+procs_blocked 1
+
+3129
+cpu  1031 0 483 492 1120 3 0
+cpu0 1031 0 483 492 1120 3 0
+intr 33438 31312 8 0 2 3 365 0 0 1 2 3 1 101 0 1606 34
+ctxt 29790
+btime 1107041220
+processes 3860
+procs_running 1
+procs_blocked 1
+
+3149
+cpu  1033 0 484 492 1137 3 0
+cpu0 1033 0 484 492 1137 3 0
+intr 33650 31515 8 0 2 3 368 0 0 1 2 3 1 101 0 1612 34
+ctxt 29891
+btime 1107041220
+processes 3876
+procs_running 1
+procs_blocked 2
+
+3168
+cpu  1033 0 484 492 1156 3 0
+cpu0 1033 0 484 492 1156 3 0
+intr 33864 31718 8 0 2 3 373 0 0 1 2 3 1 101 0 1618 34
+ctxt 29931
+btime 1107041220
+processes 3880
+procs_running 1
+procs_blocked 2
+
+3189
+cpu  1034 0 485 492 1175 3 0
+cpu0 1034 0 485 492 1175 3 0
+intr 34075 31921 8 0 2 3 376 0 0 1 2 3 1 101 0 1623 34
+ctxt 29962
+btime 1107041220
+processes 3883
+procs_running 1
+procs_blocked 2
+
+3210
+cpu  1037 0 487 492 1191 3 0
+cpu0 1037 0 487 492 1191 3 0
+intr 34289 32124 8 0 2 3 379 0 0 1 2 3 1 101 0 1631 34
+ctxt 30106
+btime 1107041220
+processes 3907
+procs_running 2
+procs_blocked 2
+
+3232
+cpu  1039 0 489 492 1208 4 0
+cpu0 1039 0 489 492 1208 4 0
+intr 34511 32335 8 0 2 3 382 0 0 1 2 3 1 101 0 1639 34
+ctxt 30252
+btime 1107041220
+processes 3930
+procs_running 1
+procs_blocked 1
+
+3251
+cpu  1039 0 489 492 1227 4 0
+cpu0 1039 0 489 492 1227 4 0
+intr 34724 32538 8 0 2 3 387 0 0 1 2 3 1 101 0 1644 34
+ctxt 30292
+btime 1107041220
+processes 3933
+procs_running 1
+procs_blocked 2
+
+3272
+cpu  1040 0 490 492 1246 4 0
+cpu0 1040 0 490 492 1246 4 0
+intr 34935 32741 8 0 2 3 390 0 0 1 2 3 1 101 0 1649 34
+ctxt 30324
+btime 1107041220
+processes 3936
+procs_running 1
+procs_blocked 2
+
+3292
+cpu  1041 0 491 492 1264 4 0
+cpu0 1041 0 491 492 1264 4 0
+intr 35145 32944 8 0 2 3 393 0 0 1 2 3 1 101 0 1653 34
+ctxt 30361
+btime 1107041220
+processes 3941
+procs_running 1
+procs_blocked 3
+
+3312
+cpu  1041 0 491 492 1284 4 0
+cpu0 1041 0 491 492 1284 4 0
+intr 35358 33147 8 0 2 3 398 0 0 1 2 3 1 101 0 1658 34
+ctxt 30390
+btime 1107041220
+processes 3944
+procs_running 1
+procs_blocked 3
+
+3332
+cpu  1044 0 493 492 1299 4 0
+cpu0 1044 0 493 492 1299 4 0
+intr 35580 33350 8 0 2 3 402 0 0 1 2 3 1 101 0 1673 34
+ctxt 30603
+btime 1107041220
+processes 3974
+procs_running 1
+procs_blocked 3
+
+3354
+cpu  1046 0 495 492 1317 4 0
+cpu0 1046 0 495 492 1317 4 0
+intr 35823 33571 8 0 2 3 405 0 0 1 2 3 1 101 0 1692 34
+ctxt 30765
+btime 1107041220
+processes 3995
+procs_running 3
+procs_blocked 2
+
+3375
+cpu  1049 0 497 492 1333 4 0
+cpu0 1049 0 497 492 1333 4 0
+intr 36051 33774 8 0 2 3 408 0 0 1 2 3 1 101 0 1714 34
+ctxt 30933
+btime 1107041220
+processes 4020
+procs_running 1
+procs_blocked 2
+
+3395
+cpu  1050 0 497 492 1352 4 0
+cpu0 1050 0 497 492 1352 4 0
+intr 36270 33977 8 0 2 3 411 0 0 1 2 3 1 101 0 1727 34
+ctxt 30987
+btime 1107041220
+processes 4023
+procs_running 2
+procs_blocked 2
+
+3454
+cpu  1050 0 498 492 1410 4 0
+cpu0 1050 0 498 492 1410 4 0
+intr 36973 34572 8 0 2 3 421 0 0 1 2 3 1 101 0 1825 34
+ctxt 31071
+btime 1107041220
+processes 4028
+procs_running 4
+procs_blocked 3
+
+3475
+cpu  1052 0 498 492 1429 4 0
+cpu0 1052 0 498 492 1429 4 0
+intr 37200 34775 8 0 2 3 425 0 0 1 2 3 1 101 0 1845 34
+ctxt 31139
+btime 1107041220
+processes 4033
+procs_running 2
+procs_blocked 3
+
+3495
+cpu  1053 0 500 492 1446 4 0
+cpu0 1053 0 500 492 1446 4 0
+intr 37434 34981 8 0 2 3 431 0 0 1 2 3 1 101 0 1867 34
+ctxt 31280
+btime 1107041220
+processes 4048
+procs_running 2
+procs_blocked 1
+
+3517
+cpu  1054 0 501 492 1465 5 0
+cpu0 1054 0 501 492 1465 5 0
+intr 37663 35185 8 0 2 3 434 0 0 1 2 3 1 101 0 1889 34
+ctxt 31346
+btime 1107041220
+processes 4053
+procs_running 1
+procs_blocked 1
+
+3536
+cpu  1055 0 501 510 1465 5 0
+cpu0 1055 0 501 510 1465 5 0
+intr 37874 35388 8 0 2 3 437 0 0 1 2 3 1 101 0 1894 34
+ctxt 31382
+btime 1107041220
+processes 4056
+procs_running 1
+procs_blocked 0
+
+3557
+cpu  1055 0 502 530 1465 5 0
+cpu0 1055 0 502 530 1465 5 0
+intr 38081 35591 8 0 2 3 441 0 0 1 2 3 1 101 0 1894 34
+ctxt 31410
+btime 1107041220
+processes 4059
+procs_running 1
+procs_blocked 0
+
+3578
+cpu  1058 0 503 547 1465 5 0
+cpu0 1058 0 503 547 1465 5 0
+intr 38287 35794 8 0 2 3 444 0 0 1 2 3 1 101 0 1894 34
+ctxt 31489
+btime 1107041220
+processes 4073
+procs_running 3
+procs_blocked 0
+
+3598
+cpu  1065 0 508 547 1473 5 0
+cpu0 1065 0 508 547 1473 5 0
+intr 38498 35997 8 0 2 3 447 0 0 1 2 3 1 101 0 1899 34
+ctxt 31925
+btime 1107041220
+processes 4156
+procs_running 1
+procs_blocked 1
+
+3618
+cpu  1066 0 509 547 1491 5 0
+cpu0 1066 0 509 547 1491 5 0
+intr 38722 36200 8 0 2 3 453 0 0 1 2 3 1 101 0 1914 34
+ctxt 32029
+btime 1107041220
+processes 4164
+procs_running 1
+procs_blocked 1
+
+3638
+cpu  1068 0 511 547 1507 5 0
+cpu0 1068 0 511 547 1507 5 0
+intr 38946 36403 8 0 2 3 456 0 0 1 2 3 1 101 0 1932 34
+ctxt 32202
+btime 1107041220
+processes 4179
+procs_running 1
+procs_blocked 2
+
+3657
+cpu  1071 0 514 547 1520 5 0
+cpu0 1071 0 514 547 1520 5 0
+intr 39199 36606 8 0 2 3 459 0 0 1 2 3 1 101 0 1979 34
+ctxt 32496
+btime 1107041220
+processes 4198
+procs_running 1
+procs_blocked 1
+
+3678
+cpu  1073 0 516 548 1536 5 0
+cpu0 1073 0 516 548 1536 5 0
+intr 39425 36809 8 0 2 3 462 0 0 1 2 3 1 101 0 1999 34
+ctxt 32705
+btime 1107041220
+processes 4220
+procs_running 1
+procs_blocked 1
+
+3699
+cpu  1075 0 517 548 1554 5 0
+cpu0 1075 0 517 548 1554 5 0
+intr 39651 37012 8 0 2 3 465 0 0 1 2 3 1 101 0 2019 34
+ctxt 32852
+btime 1107041220
+processes 4231
+procs_running 1
+procs_blocked 2
+
+3719
+cpu  1078 0 519 548 1569 5 0
+cpu0 1078 0 519 548 1569 5 0
+intr 39885 37215 8 0 2 3 468 0 0 1 2 3 1 101 0 2047 34
+ctxt 33086
+btime 1107041220
+processes 4252
+procs_running 1
+procs_blocked 2
+
+3739
+cpu  1080 0 521 549 1584 5 0
+cpu0 1080 0 521 549 1584 5 0
+intr 40124 37419 8 0 2 3 471 0 0 1 2 3 1 101 0 2079 34
+ctxt 33318
+btime 1107041220
+processes 4269
+procs_running 1
+procs_blocked 2
+
+3759
+cpu  1082 0 521 550 1601 5 0
+cpu0 1082 0 521 550 1601 5 0
+intr 40378 37623 8 0 2 3 475 0 0 1 2 3 1 101 0 2125 34
+ctxt 33528
+btime 1107041220
+processes 4272
+procs_running 1
+procs_blocked 1
+
+3780
+cpu  1083 0 522 551 1619 5 0
+cpu0 1083 0 522 551 1619 5 0
+intr 40607 37827 8 0 2 3 479 0 0 1 2 3 1 101 0 2146 34
+ctxt 33632
+btime 1107041220
+processes 4275
+procs_running 1
+procs_blocked 1
+
+3800
+cpu  1085 0 524 551 1635 5 0
+cpu0 1085 0 524 551 1635 5 0
+intr 40835 38031 8 0 2 3 482 0 0 1 2 3 1 101 0 2167 34
+ctxt 33813
+btime 1107041220
+processes 4290
+procs_running 1
+procs_blocked 2
+
+3820
+cpu  1088 0 526 551 1650 5 0
+cpu0 1088 0 526 551 1650 5 0
+intr 41074 38235 8 0 2 3 485 0 0 1 2 3 1 101 0 2199 34
+ctxt 34027
+btime 1107041220
+processes 4305
+procs_running 3
+procs_blocked 1
+
+3840
+cpu  1090 0 528 552 1665 5 0
+cpu0 1090 0 528 552 1665 5 0
+intr 41303 38439 8 0 2 3 488 0 0 1 2 3 1 101 0 2221 34
+ctxt 34207
+btime 1107041220
+processes 4321
+procs_running 1
+procs_blocked 2
+
+3860
+cpu  1092 0 529 552 1682 5 0
+cpu0 1092 0 529 552 1682 5 0
+intr 41534 38642 8 0 2 3 493 0 0 1 2 3 1 101 0 2244 34
+ctxt 34336
+btime 1107041220
+processes 4330
+procs_running 1
+procs_blocked 2
+
+3881
+cpu  1093 0 530 553 1700 5 0
+cpu0 1093 0 530 553 1700 5 0
+intr 41789 38846 8 0 2 3 499 0 0 1 2 3 1 101 0 2289 34
+ctxt 34561
+btime 1107041220
+processes 4333
+procs_running 1
+procs_blocked 2
+
+3901
+cpu  1095 0 531 554 1716 5 0
+cpu0 1095 0 531 554 1716 5 0
+intr 42025 39049 8 0 2 3 502 0 0 1 2 3 1 101 0 2319 34
+ctxt 34769
+btime 1107041220
+processes 4343
+procs_running 3
+procs_blocked 1
+
+3921
+cpu  1097 0 533 554 1732 5 0
+cpu0 1097 0 533 554 1732 5 0
+intr 42247 39253 8 0 2 3 505 0 0 1 2 3 1 101 0 2334 34
+ctxt 34903
+btime 1107041220
+processes 4356
+procs_running 2
+procs_blocked 3
+
+3943
+cpu  1099 0 534 554 1751 5 0
+cpu0 1099 0 534 554 1751 5 0
+intr 42471 39456 8 0 2 3 509 0 0 1 2 3 1 101 0 2351 34
+ctxt 35016
+btime 1107041220
+processes 4364
+procs_running 1
+procs_blocked 2
+
+3962
+cpu  1099 0 535 554 1769 5 0
+cpu0 1099 0 535 554 1769 5 0
+intr 42696 39659 8 0 2 3 513 0 0 1 2 3 1 101 0 2369 34
+ctxt 35108
+btime 1107041220
+processes 4370
+procs_running 1
+procs_blocked 2
+
+3983
+cpu  1100 0 537 554 1787 5 0
+cpu0 1100 0 537 554 1787 5 0
+intr 42948 39862 8 0 2 3 516 0 0 1 2 3 1 101 0 2415 34
+ctxt 35282
+btime 1107041220
+processes 4376
+procs_running 4
+procs_blocked 0
+
+4004
+cpu  1102 0 538 554 1805 5 0
+cpu0 1102 0 538 554 1805 5 0
+intr 43171 40065 8 0 2 3 519 0 0 1 2 3 1 101 0 2432 34
+ctxt 35399
+btime 1107041220
+processes 4387
+procs_running 1
+procs_blocked 2
+
+4023
+cpu  1103 0 538 554 1823 5 0
+cpu0 1103 0 538 554 1823 5 0
+intr 43401 40268 8 0 2 3 523 0 0 1 2 3 1 101 0 2455 34
+ctxt 35483
+btime 1107041220
+processes 4392
+procs_running 5
+procs_blocked 1
+
+4044
+cpu  1105 0 540 554 1840 5 0
+cpu0 1105 0 540 554 1840 5 0
+intr 43627 40471 8 0 2 3 527 0 0 1 2 3 1 101 0 2474 34
+ctxt 35624
+btime 1107041220
+processes 4401
+procs_running 2
+procs_blocked 2
+
+4064
+cpu  1107 0 540 554 1858 5 0
+cpu0 1107 0 540 554 1858 5 0
+intr 43853 40677 8 0 2 3 531 0 0 1 2 3 1 101 0 2490 34
+ctxt 35727
+btime 1107041220
+processes 4407
+procs_running 1
+procs_blocked 2
+
+4084
+cpu  1109 0 543 554 1873 5 0
+cpu0 1109 0 543 554 1873 5 0
+intr 44087 40881 8 0 2 3 534 0 0 1 2 3 1 101 0 2517 34
+ctxt 35927
+btime 1107041220
+processes 4422
+procs_running 1
+procs_blocked 2
+
+4104
+cpu  1121 0 544 554 1880 5 0
+cpu0 1121 0 544 554 1880 5 0
+intr 44351 41084 8 0 2 3 537 0 0 1 2 3 1 101 0 2575 34
+ctxt 36268
+btime 1107041220
+processes 4431
+procs_running 1
+procs_blocked 2
+
+4124
+cpu  1122 0 544 554 1899 5 0
+cpu0 1122 0 544 554 1899 5 0
+intr 44578 41287 8 0 2 3 540 0 0 1 2 3 1 101 0 2596 34
+ctxt 36337
+btime 1107041220
+processes 4436
+procs_running 1
+procs_blocked 2
+
+4145
+cpu  1123 0 545 554 1918 5 0
+cpu0 1123 0 545 554 1918 5 0
+intr 44797 41490 8 0 2 3 544 0 0 1 2 3 1 101 0 2608 34
+ctxt 36385
+btime 1107041220
+processes 4440
+procs_running 1
+procs_blocked 2
+
+4166
+cpu  1124 0 546 554 1937 5 0
+cpu0 1124 0 546 554 1937 5 0
+intr 45032 41693 8 0 2 3 547 0 0 1 2 3 1 101 0 2637 34
+ctxt 36464
+btime 1107041220
+processes 4443
+procs_running 1
+procs_blocked 2
+
+4185
+cpu  1124 0 546 554 1956 5 0
+cpu0 1124 0 546 554 1956 5 0
+intr 45269 41896 8 0 2 3 551 0 0 1 2 3 1 101 0 2667 34
+ctxt 36519
+btime 1107041220
+processes 4446
+procs_running 1
+procs_blocked 2
+
+4206
+cpu  1125 0 547 554 1974 6 0
+cpu0 1125 0 547 554 1974 6 0
+intr 45503 42099 8 0 2 3 554 0 0 1 2 3 1 101 0 2695 34
+ctxt 36593
+btime 1107041220
+processes 4449
+procs_running 1
+procs_blocked 2
+
+4227
+cpu  1126 0 548 554 1993 6 0
+cpu0 1126 0 548 554 1993 6 0
+intr 45726 42302 8 0 2 3 557 0 0 1 2 3 1 101 0 2712 34
+ctxt 36663
+btime 1107041220
+processes 4452
+procs_running 1
+procs_blocked 2
+
+4247
+cpu  1127 0 548 554 2012 6 0
+cpu0 1127 0 548 554 2012 6 0
+intr 45954 42505 8 0 2 3 562 0 0 1 2 3 1 101 0 2732 34
+ctxt 36728
+btime 1107041220
+processes 4455
+procs_running 1
+procs_blocked 2
+
+4268
+cpu  1128 0 549 554 2031 6 0
+cpu0 1128 0 549 554 2031 6 0
+intr 46180 42708 8 0 2 3 565 0 0 1 2 3 1 101 0 2752 34
+ctxt 36785
+btime 1107041220
+processes 4458
+procs_running 1
+procs_blocked 2
+
+4287
+cpu  1128 0 549 554 2050 6 0
+cpu0 1128 0 549 554 2050 6 0
+intr 46407 42911 8 0 2 3 568 0 0 1 2 3 1 101 0 2773 34
+ctxt 36852
+btime 1107041220
+processes 4461
+procs_running 2
+procs_blocked 2
+
+4308
+cpu  1129 0 550 554 2069 6 0
+cpu0 1129 0 550 554 2069 6 0
+intr 46640 43115 8 0 2 3 572 0 0 1 2 3 1 101 0 2798 34
+ctxt 36929
+btime 1107041220
+processes 4464
+procs_running 1
+procs_blocked 2
+
+4328
+cpu  1130 0 551 554 2087 6 0
+cpu0 1130 0 551 554 2087 6 0
+intr 46871 43318 8 0 2 3 575 0 0 1 2 3 1 101 0 2823 34
+ctxt 36996
+btime 1107041220
+processes 4467
+procs_running 2
+procs_blocked 2
+
+4348
+cpu  1131 0 551 554 2106 6 0
+cpu0 1131 0 551 554 2106 6 0
+intr 47098 43521 8 0 2 3 579 0 0 1 2 3 1 101 0 2843 34
+ctxt 37066
+btime 1107041220
+processes 4470
+procs_running 1
+procs_blocked 2
+
+4369
+cpu  1132 0 552 554 2125 6 0
+cpu0 1132 0 552 554 2125 6 0
+intr 47330 43724 8 0 2 3 583 0 0 1 2 3 1 101 0 2868 34
+ctxt 37127
+btime 1107041220
+processes 4473
+procs_running 1
+procs_blocked 2
+
+4388
+cpu  1132 0 552 554 2144 6 0
+cpu0 1132 0 552 554 2144 6 0
+intr 47558 43927 8 0 2 3 586 0 0 1 2 3 1 101 0 2890 34
+ctxt 37186
+btime 1107041220
+processes 4476
+procs_running 1
+procs_blocked 2
+
+4416
+cpu  1134 0 553 554 2169 6 0
+cpu0 1134 0 553 554 2169 6 0
+intr 47873 44202 8 0 2 3 591 0 0 1 2 3 1 101 0 2925 34
+ctxt 37276
+btime 1107041220
+processes 4481
+procs_running 1
+procs_blocked 2
+
+4436
+cpu  1134 0 554 554 2188 6 0
+cpu0 1134 0 554 554 2188 6 0
+intr 48110 44405 8 0 2 3 594 0 0 1 2 3 1 101 0 2956 34
+ctxt 37351
+btime 1107041220
+processes 4484
+procs_running 1
+procs_blocked 2
+
+4456
+cpu  1135 0 555 554 2206 6 0
+cpu0 1135 0 555 554 2206 6 0
+intr 48330 44608 8 0 2 3 598 0 0 1 2 3 1 101 0 2969 34
+ctxt 37419
+btime 1107041220
+processes 4489
+procs_running 2
+procs_blocked 3
+
+4477
+cpu  1136 0 556 554 2225 6 0
+cpu0 1136 0 556 554 2225 6 0
+intr 48552 44811 8 0 2 3 601 0 0 1 2 3 1 101 0 2985 34
+ctxt 37480
+btime 1107041220
+processes 4492
+procs_running 1
+procs_blocked 2
+
+4497
+cpu  1137 0 556 554 2244 6 0
+cpu0 1137 0 556 554 2244 6 0
+intr 48828 45014 8 0 2 3 606 0 0 1 2 3 1 101 0 3053 34
+ctxt 37606
+btime 1107041220
+processes 4495
+procs_running 1
+procs_blocked 2
+
+4534
+cpu  1137 0 557 554 2279 7 0
+cpu0 1137 0 557 554 2279 7 0
+intr 49299 45381 8 0 2 3 612 0 0 1 2 3 1 101 0 3151 34
+ctxt 37810
+btime 1107041220
+processes 4498
+procs_running 4
+procs_blocked 3
+
+4555
+cpu  1138 0 558 554 2298 7 0
+cpu0 1138 0 558 554 2298 7 0
+intr 49533 45591 8 0 2 3 615 0 0 1 2 3 1 101 0 3172 34
+ctxt 37893
+btime 1107041220
+processes 4504
+procs_running 2
+procs_blocked 2
+
+4577
+cpu  1140 0 559 554 2317 7 0
+cpu0 1140 0 559 554 2317 7 0
+intr 49764 45796 8 0 2 3 619 0 0 1 2 3 1 101 0 3194 34
+ctxt 37973
+btime 1107041220
+processes 4509
+procs_running 2
+procs_blocked 3
+
+4597
+cpu  1140 0 560 554 2336 7 0
+cpu0 1140 0 560 554 2336 7 0
+intr 50003 46000 8 0 2 3 622 0 0 1 2 3 1 101 0 3226 34
+ctxt 38045
+btime 1107041220
+processes 4512
+procs_running 1
+procs_blocked 3
+
+4664
+cpu  1141 0 561 554 2401 7 0
+cpu0 1141 0 561 554 2401 7 0
+intr 50818 46678 8 0 2 3 635 0 0 1 2 3 1 101 0 3350 34
+ctxt 38258
+btime 1107041220
+processes 4517
+procs_running 5
+procs_blocked 2
+
+4685
+cpu  1143 0 563 554 2418 7 0
+cpu0 1143 0 563 554 2418 7 0
+intr 51053 46885 8 0 2 3 638 0 0 1 2 3 1 101 0 3375 34
+ctxt 38400
+btime 1107041220
+processes 4528
+procs_running 2
+procs_blocked 3
+
+4706
+cpu  1144 0 564 554 2437 7 0
+cpu0 1144 0 564 554 2437 7 0
+intr 51285 47090 8 0 2 3 641 0 0 1 2 3 1 101 0 3399 34
+ctxt 38491
+btime 1107041220
+processes 4531
+procs_running 1
+procs_blocked 3
+
+4725
+cpu  1144 0 564 554 2456 7 0
+cpu0 1144 0 564 554 2456 7 0
+intr 51510 47295 8 0 2 3 644 0 0 1 2 3 1 101 0 3416 34
+ctxt 38576
+btime 1107041220
+processes 4536
+procs_running 1
+procs_blocked 2
+
+4747
+cpu  1147 0 566 555 2472 7 0
+cpu0 1147 0 566 555 2472 7 0
+intr 51741 47499 8 0 2 3 648 0 0 1 2 3 1 101 0 3439 34
+ctxt 38755
+btime 1107041220
+processes 4550
+procs_running 2
+procs_blocked 2
+
+4768
+cpu  1148 0 569 555 2489 7 0
+cpu0 1148 0 569 555 2489 7 0
+intr 51974 47702 8 0 2 3 661 0 0 1 2 3 1 101 0 3456 34
+ctxt 38885
+btime 1107041220
+processes 4560
+procs_running 2
+procs_blocked 2
+
+4788
+cpu  1151 0 570 555 2505 7 0
+cpu0 1151 0 570 555 2505 7 0
+intr 52213 47905 8 0 2 3 687 0 0 1 2 3 1 101 0 3466 34
+ctxt 38973
+btime 1107041220
+processes 4567
+procs_running 2
+procs_blocked 3
+
+4808
+cpu  1152 0 571 555 2523 7 0
+cpu0 1152 0 571 555 2523 7 0
+intr 52443 48109 8 0 2 3 690 0 0 1 2 3 1 101 0 3489 34
+ctxt 39081
+btime 1107041220
+processes 4572
+procs_running 1
+procs_blocked 3
+
+4831
+cpu  1160 0 579 555 2530 7 0
+cpu0 1160 0 579 555 2530 7 0
+intr 52706 48342 8 0 2 3 693 0 0 1 2 3 1 101 0 3516 34
+ctxt 39735
+btime 1107041220
+processes 4682
+procs_running 11
+procs_blocked 2
+
+4857
+cpu  1175 0 590 555 2530 7 0
+cpu0 1175 0 590 555 2530 7 0
+intr 52981 48598 8 0 2 3 698 0 0 1 2 3 1 101 0 3530 34
+ctxt 40728
+btime 1107041220
+processes 4866
+procs_running 11
+procs_blocked 2
+
+4877
+cpu  1185 0 596 555 2534 7 0
+cpu0 1185 0 596 555 2534 7 0
+intr 53200 48802 8 0 2 3 701 0 0 1 2 3 1 101 0 3542 34
+ctxt 41180
+btime 1107041220
+processes 4938
+procs_running 2
+procs_blocked 4
+
+4898
+cpu  1188 0 598 555 2550 7 0
+cpu0 1188 0 598 555 2550 7 0
+intr 53431 49009 8 0 2 3 711 0 0 1 2 3 1 101 0 3556 34
+ctxt 41429
+btime 1107041220
+processes 4976
+procs_running 2
+procs_blocked 3
+
+4920
+cpu  1193 0 601 555 2564 7 0
+cpu0 1193 0 601 555 2564 7 0
+intr 53676 49233 8 0 2 3 717 0 0 1 2 3 1 101 0 3571 34
+ctxt 41733
+btime 1107041220
+processes 5027
+procs_running 5
+procs_blocked 3
+
+4942
+cpu  1197 0 605 555 2577 8 0
+cpu0 1197 0 605 555 2577 8 0
+intr 53921 49438 8 0 2 3 741 0 0 1 2 3 1 101 0 3587 34
+ctxt 41998
+btime 1107041220
+processes 5048
+procs_running 2
+procs_blocked 4
+
+4961
+cpu  1203 0 610 555 2585 8 0
+cpu0 1203 0 610 555 2585 8 0
+intr 54140 49641 8 0 2 3 745 0 0 1 2 3 1 101 0 3599 34
+ctxt 42474
+btime 1107041220
+processes 5096
+procs_running 1
+procs_blocked 3
+
+4982
+cpu  1205 0 611 555 2603 8 0
+cpu0 1205 0 611 555 2603 8 0
+intr 54403 49844 8 0 2 3 745 0 0 1 2 3 1 101 0 3625 68
+ctxt 42716
+btime 1107041220
+processes 5100
+procs_running 1
+procs_blocked 3
+
+5001
+cpu  1206 0 612 555 2620 8 0
+cpu0 1206 0 612 555 2620 8 0
+intr 54626 50048 8 0 2 3 745 0 0 1 2 3 1 101 0 3644 68
+ctxt 42855
+btime 1107041220
+processes 5114
+procs_running 1
+procs_blocked 3
+
+5022
+cpu  1210 0 615 555 2634 8 0
+cpu0 1210 0 615 555 2634 8 0
+intr 54868 50252 8 0 2 3 745 0 0 1 2 3 1 101 0 3664 86
+ctxt 43092
+btime 1107041220
+processes 5130
+procs_running 4
+procs_blocked 3
+
+5042
+cpu  1215 0 619 555 2645 8 0
+cpu0 1215 0 619 555 2645 8 0
+intr 55088 50455 8 0 2 3 745 0 0 1 2 3 1 101 0 3681 86
+ctxt 43691
+btime 1107041220
+processes 5174
+procs_running 1
+procs_blocked 3
+
+5063
+cpu  1223 0 624 555 2653 8 0
+cpu0 1223 0 624 555 2653 8 0
+intr 55331 50658 8 0 2 3 745 0 0 1 2 3 1 101 0 3721 86
+ctxt 44449
+btime 1107041220
+processes 5218
+procs_running 2
+procs_blocked 2
+
+5083
+cpu  1231 0 631 555 2657 9 0
+cpu0 1231 0 631 555 2657 9 0
+intr 55587 50863 8 0 2 3 764 0 0 1 2 3 1 101 0 3753 86
+ctxt 45049
+btime 1107041220
+processes 5275
+procs_running 5
+procs_blocked 1
+
+5104
+cpu  1236 0 634 555 2670 9 0
+cpu0 1236 0 634 555 2670 9 0
+intr 55864 51066 8 0 2 3 819 0 0 1 2 3 1 101 0 3772 86
+ctxt 45382
+btime 1107041220
+processes 5294
+procs_running 1
+procs_blocked 2
+
+5124
+cpu  1243 0 639 555 2678 9 0
+cpu0 1243 0 639 555 2678 9 0
+intr 56140 51270 8 0 2 3 862 0 0 1 2 3 1 101 0 3801 86
+ctxt 45758
+btime 1107041220
+processes 5317
+procs_running 5
+procs_blocked 0
+
+5145
+cpu  1255 0 644 555 2682 9 0
+cpu0 1255 0 644 555 2682 9 0
+intr 56402 51475 8 0 2 3 878 0 0 1 2 3 1 101 0 3842 86
+ctxt 46227
+btime 1107041220
+processes 5354
+procs_running 1
+procs_blocked 2
+
+5164
+cpu  1262 0 650 555 2688 9 0
+cpu0 1262 0 650 555 2688 9 0
+intr 56682 51678 8 0 2 3 917 0 0 1 2 3 1 101 0 3880 86
+ctxt 46812
+btime 1107041220
+processes 5389
+procs_running 3
+procs_blocked 2
+
+5184
+cpu  1271 0 656 555 2693 9 0
+cpu0 1271 0 656 555 2693 9 0
+intr 56910 51882 8 0 2 3 917 0 0 1 2 3 1 101 0 3904 86
+ctxt 46959
+btime 1107041220
+processes 5394
+procs_running 3
+procs_blocked 2
+
+5205
+cpu  1282 0 666 555 2693 9 0
+cpu0 1282 0 666 555 2693 9 0
+intr 57175 52086 8 0 2 3 917 0 0 1 2 3 1 101 0 3965 86
+ctxt 47255
+btime 1107041220
+processes 5399
+procs_running 3
+procs_blocked 1
+
+5226
+cpu  1289 0 671 556 2701 9 0
+cpu0 1289 0 671 556 2701 9 0
+intr 57484 52289 8 0 2 3 917 0 0 1 2 3 1 101 0 4053 104
+ctxt 48042
+btime 1107041220
+processes 5412
+procs_running 1
+procs_blocked 1
+
+5245
+cpu  1290 0 671 558 2717 9 0
+cpu0 1290 0 671 558 2717 9 0
+intr 57766 52493 8 0 2 3 917 0 0 1 2 3 1 101 0 4131 104
+ctxt 48446
+btime 1107041220
+processes 5415
+procs_running 1
+procs_blocked 1
+
+5266
+cpu  1291 0 672 562 2732 9 0
+cpu0 1291 0 672 562 2732 9 0
+intr 58059 52696 8 0 2 3 917 0 0 1 2 3 1 101 0 4221 104
+ctxt 48905
+btime 1107041220
+processes 5418
+procs_running 1
+procs_blocked 1
+
+5286
+cpu  1292 0 673 564 2748 9 0
+cpu0 1292 0 673 564 2748 9 0
+intr 58348 52899 8 0 2 3 917 0 0 1 2 3 1 101 0 4307 104
+ctxt 49352
+btime 1107041220
+processes 5421
+procs_running 3
+procs_blocked 1
+
+5307
+cpu  1293 0 674 567 2764 9 0
+cpu0 1293 0 674 567 2764 9 0
+intr 58637 53102 8 0 2 3 918 0 0 1 2 3 1 101 0 4392 104
+ctxt 49792
+btime 1107041220
+processes 5424
+procs_running 1
+procs_blocked 1
+
+5327
+cpu  1295 0 675 567 2781 9 0
+cpu0 1295 0 675 567 2781 9 0
+intr 58873 53307 8 0 2 3 918 0 0 1 2 3 1 101 0 4423 104
+ctxt 49920
+btime 1107041220
+processes 5426
+procs_running 4
+procs_blocked 2
+
+5347
+cpu  1313 0 676 567 2782 9 0
+cpu0 1313 0 676 567 2782 9 0
+intr 59080 53511 8 0 2 3 918 0 0 1 2 3 1 101 0 4426 104
+ctxt 50012
+btime 1107041220
+processes 5446
+procs_running 1
+procs_blocked 2
+
+5383
+cpu  1317 0 694 567 2796 9 0
+cpu0 1317 0 694 567 2796 9 0
+intr 59459 53875 8 0 2 3 919 0 0 1 2 3 1 101 0 4440 104
+ctxt 50231
+btime 1107041220
+processes 5478
+procs_running 3
+procs_blocked 1
+
+5403
+cpu  1318 0 695 567 2814 9 0
+cpu0 1318 0 695 567 2814 9 0
+intr 59689 54079 8 0 2 3 919 0 0 1 2 14 1 101 0 4455 104
+ctxt 50313
+btime 1107041220
+processes 5482
+procs_running 1
+procs_blocked 2
+
+5423
+cpu  1322 0 697 567 2828 9 0
+cpu0 1322 0 697 567 2828 9 0
+intr 59939 54284 8 0 2 3 919 0 0 1 2 26 1 101 0 4470 122
+ctxt 50568
+btime 1107041220
+processes 5521
+procs_running 2
+procs_blocked 2
+
+5444
+cpu  1325 0 698 567 2845 9 0
+cpu0 1325 0 698 567 2845 9 0
+intr 60180 54489 8 0 2 3 919 0 0 1 2 39 1 101 0 4493 122
+ctxt 50684
+btime 1107041220
+processes 5525
+procs_running 1
+procs_blocked 2
+
+5465
+cpu  1328 0 699 567 2862 9 0
+cpu0 1328 0 699 567 2862 9 0
+intr 60420 54694 8 0 2 3 919 0 0 1 2 51 1 101 0 4516 122
+ctxt 50780
+btime 1107041220
+processes 5528
+procs_running 2
+procs_blocked 1
+
+5486
+cpu  1333 0 702 568 2874 9 0
+cpu0 1333 0 702 568 2874 9 0
+intr 60690 54899 10 0 2 3 925 0 0 1 2 64 1 101 0 4560 122
+ctxt 51111
+btime 1107041220
+processes 5560
+procs_running 3
+procs_blocked 0
+
+5507
+cpu  1336 0 703 585 2874 9 0
+cpu0 1336 0 703 585 2874 9 0
+intr 60917 55103 10 0 2 3 930 0 0 1 2 76 1 101 0 4566 122
+ctxt 51184
+btime 1107041220
+processes 5567
+procs_running 2
+procs_blocked 0
+

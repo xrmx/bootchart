@@ -1,0 +1,6 @@
+version = 0.8
+title = Boot chart for serenity.klika.si (Sun Jan 30 00:27:58 CET 2005)
+system.uname = Linux 2.6.10-prep #1 Sat Jan 29 22:36:16 CET 2005 i686
+system.release = Fedora Core release 3 (Heidelberg)
+system.cpu = model name	: Intel(R) Pentium(R) M processor 1500MHz (1)
+system.kernel.options = ro root=/dev/vg0/root vga=0x318 quiet grub init=/sbin/bootchartd

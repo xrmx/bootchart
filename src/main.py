@@ -4,6 +4,7 @@ import optparse
 
 import parsing
 import gui
+import batch
 
 sys.path.insert(0, os.getcwd())
 
@@ -12,7 +13,9 @@ def _mk_options_parser():
 	usage = "%prog [options] PATH, ..., PATH"
 	version = "%prog v0.0.0"
 	parser = optparse.OptionParser(usage, version=version)
-	parser.add_option("-f", "--format", dest="format",
+	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
+			  help="start in active mode")
+	parser.add_option("-f", "--format", dest="format", default = None,
 			  help="image format (...); default format ...")
 	parser.add_option("-o", "--output-dir", dest="outputdir", metavar="DIR", default=".",
 			  help="output directory where images are stored (default: .)")
@@ -38,7 +41,10 @@ def main(argv=None):
 		return 2
 
 	res = parsing.parse_log_dir(args[0], options.prune)
-	gui.show(res)
+	if options.interactive or options.format == None:
+		gui.show(res)
+	else:
+		batch.render(res, options.format, "bootchart." + options.format)
 	return 0
 
 if __name__ == '__main__':

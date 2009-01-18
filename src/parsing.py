@@ -1,4 +1,5 @@
-import sys, os, re, struct
+import os
+import re
 from collections import defaultdict
 from process_tree import ProcessTree
 

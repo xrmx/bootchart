@@ -1,9 +1,3 @@
-import sys
-import os
-import re
-import struct
-from collections import defaultdict
-
 class ProcessTree:
     """ProcessTree encapsulates a process tree.  The tree is built from log files
        retrieved during the boot process.  When building the process tree, it is

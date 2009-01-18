@@ -1,11 +1,7 @@
-import sys
 import gobject
 import gtk
 import gtk.gdk
 import gtk.keysyms
-import cairo
-import pango
-import pangocairo
 
 import draw
 

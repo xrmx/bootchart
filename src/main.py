@@ -16,7 +16,7 @@ def _mk_options_parser():
 			  help="image format (...); default format ...")
 	parser.add_option("-o", "--output-dir", dest="outputdir", metavar="DIR", default=".",
 			  help="output directory where images are stored (default: .)")
-	parser.add_option("-n", "--no-prune", action="store_true", dest="noprune", default=False,
+	parser.add_option("-n", "--no-prune", action="store_false", dest="prune", default=True,
 			  help="do not prune the process tree")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")
@@ -31,13 +31,13 @@ def main(argv=None):
 		argv = sys.argv[1:]
 	
 	parser = _mk_options_parser()
-	opts, args = parser.parse_args(argv)
+	options, args = parser.parse_args(argv)
 	
 	if len(args) == 0:
 		parser.error("insufficient arguments, expected at least one path.")
 		return 2
 
-	res = parsing.parse_log_dir(args[0], True)
+	res = parsing.parse_log_dir(args[0], options.prune)
 	gui.show(res)
 	return 0
 

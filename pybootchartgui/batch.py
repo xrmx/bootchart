@@ -1,4 +1,5 @@
 import cairo
+
 import draw
 
 def render(res, format, filename):

@@ -1,8 +1,5 @@
 import math
-#import os
 import re
-#import sys
-#import struct
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)

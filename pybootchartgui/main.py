@@ -6,8 +6,6 @@ import parsing
 import gui
 import batch
 
-sys.path.insert(0, os.getcwd())
-
 def _mk_options_parser():
 	"""Make an options parser."""
 	usage = "%prog [options] PATH, ..., PATH"
@@ -46,6 +44,7 @@ def main(argv=None):
 	else:
 		batch.render(res, options.format, "bootchart." + options.format)
 	return 0
+
 
 if __name__ == '__main__':
 	sys.exit(main())

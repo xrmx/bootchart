@@ -14,7 +14,7 @@ def render(res, format, filename):
         return 10
 
     mk, cl = handlers[format]
-    x,y,w,h = draw.extents(*res)
+    w,h = draw.extents(*res)
     surface = mk((w,h))
     ctx = cairo.Context(surface)
     draw.render(ctx, *res)

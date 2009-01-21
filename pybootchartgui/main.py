@@ -35,8 +35,11 @@ def _get_filename(paths, options):
 		return options.output
 	if options.output != None:
 		dir = options.output
-	if len(paths) == 1 and os.path.isdir(paths[0]):
-		file = os.path.split(paths[0])[-1]
+	if len(paths) == 1:
+		if os.path.isdir(paths[0]):
+			file = os.path.split(paths[0])[-1]
+		elif os.path.splitext(paths[0])[1] in [".tar", ".tgz", ".tar.gz"]:
+			file = os.path.splitext(paths[0])[0]
 	return os.path.join(dir, file + "." + options.format)
 
 def main(argv=None):
@@ -50,7 +53,7 @@ def main(argv=None):
 		parser.error("insufficient arguments, expected at least one path.")
 		return 2
 
-	res = parsing.parse_log_dir(args[0], options.prune)
+	res = parsing.parse(args, options.prune)
 	if options.interactive or options.format == None:
 		gui.show(res)
 	else:

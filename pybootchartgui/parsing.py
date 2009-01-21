@@ -1,5 +1,8 @@
+from __future__ import with_statement
+
 import os
 import re
+import tarfile
 from collections import defaultdict
 from process_tree import ProcessTree
 
@@ -97,16 +100,16 @@ class DiskSample:
 	def __str__(self):
 		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
 
-def parseHeaders(fileName):        
-    return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in open(fileName) if '=' in line) )
+def parseHeaders(file):
+    return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in file if '=' in line) )
 
-def _parseTimedBlocks(fileName):
-	blocks = open(fileName).read().split('\n\n')
+def _parseTimedBlocks(file):
+	blocks = file.read().split('\n\n')
 	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
 	
-def parseProcPsLog(fileName):	
+def parseProcPsLog(file):
 	processMap = {}
-	timedBlocks = _parseTimedBlocks(fileName)
+	timedBlocks = _parseTimedBlocks(file)
 	numSamples = len(timedBlocks)-1
 	ltime = 0
 	startTime = -1
@@ -164,11 +167,11 @@ def parseProcPsLog(fileName):
 		
 	return ProcessStats(processMap.values(), samplePeriod, startTime, ltime)
 	
-def parseProcStatLog(fileName):
+def parseProcStatLog(file):
 	samples = []
 	startTime = -1
 	ltimes = None
-	for time, block in _parseTimedBlocks(fileName):
+	for time, block in _parseTimedBlocks(file):
 		lines = block.split('\n')
 		# CPU times {user, nice, system, idle, io_wait, irq, softirq}		
 		tokens = lines[1].split();
@@ -186,14 +189,14 @@ def parseProcStatLog(fileName):
 		# skip the rest of statistics lines
 	return samples
 		
-def parseProcDiskStatLog(fileName, numCpu):
+def parseProcDiskStatLog(file, numCpu):
 	DISK_REGEX = 'hd.|sd.'
 	
 	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
 	startTime = -1
 	ltime = None
-	for time, block in _parseTimedBlocks(fileName):
+	for time, block in _parseTimedBlocks(file):
 		lines = block.split('\n')
 		for line in lines:
 			# {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
@@ -247,36 +250,61 @@ def get_num_cpus(headers):
         return 1
     return int(mat.group(1))
 
-# Gather all the stats from a directory before rendering.
-def parse_log_dir(log_dir, prune):   
-    files = os.listdir(log_dir)
-    if "header" in files:
-        headers = parseHeaders(os.path.join(log_dir, "header"))
-        monitored_app = headers.get("profile.process")
-        num_cpu = get_num_cpus(headers)
+class ParserState:
+    def __init__(self):
+        self.headers = None
+	self.disk_stats = None
+	self.ps_stats = None
+	self.cpu_stats = None
 
-    if "proc_diskstats.log" in files:
-        # read the /proc/diskstats log file
-        disk_stats = parseProcDiskStatLog(os.path.join(log_dir, "proc_diskstats.log"), num_cpu)
+relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
 
-    if "proc_ps.log" in files:
-        # read the /proc/[PID]/stat log file
-        ps_stats = parseProcPsLog(os.path.join(log_dir, "proc_ps.log"))
+def do_parse(state, name, file):
+    if name == "header":
+        state.headers = parseHeaders(file)
+    elif name == "proc_diskstats.log":
+        state.disk_stats = parseProcDiskStatLog(file, get_num_cpus(state.headers))
+    elif name == "proc_ps.log":
+        state.ps_stats = parseProcPsLog(file)
+    elif name == "proc_stat.log":
+        state.cpu_stats = parseProcStatLog(file)
+    return state
 
-    if "proc_stat.log" in files:
-        # read the /proc/stat log file
-        cpu_stats = parseProcStatLog(os.path.join(log_dir, "proc_stat.log"))
-    
-    proc_tree = ProcessTree(ps_stats, monitored_app, prune)
+def parse_file(state, filename):
+    basename = os.path.basename(filename)
+    if not(basename in relevant_files):
+#        print "ignoring", filename
+        return state
+    with open(filename, "rb") as file:
+        return do_parse(state, basename, file)
 
-    def dump_tree(indent, proc_tree):
-	    ind = ''
-	    for i in xrange(0,indent):
-		    ind += ' '
-	    for p in proc_tree:
-		    print "%s%i %i: %s" % (ind, p.pid, 10 * p.startTime, p.cmd)
-		    dump_tree(indent + 2, p.child_list)
+def parse_paths(state, paths):
+    for path in paths:
+        root,extension = os.path.splitext(path)
+        if not(os.path.exists(path)):
+            print "warning: path '%s' does not exist, ignoring." % path
+            continue
+        if os.path.isdir(path):
+            files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
+            files.sort()
+            state = parse_paths(state, files)
+        elif extension in [".tar", ".tgz", ".tar.gz"]:
+            tf = None
+            try:
+                tf = tarfile.open(path, 'r:*')
+                for name in tf.getnames():
+                    state = do_parse(state, name, tf.extractfile(name))
+            except tarfile.ReadError, error:
+                print "error: could not read tarfile '%s': %s." % (path, error)
+            finally:
+                if tf != None:
+                    tf.close()
+        else:
+            state = parse_file(state, path)
+    return state
 
-    #dump_tree(0, proc_tree.process_tree)
-
-    return (headers, cpu_stats, disk_stats, proc_tree)
+def parse(paths, prune):   
+    state = parse_paths(ParserState(), paths)
+    monitored_app = state.headers.get("profile.process")
+    proc_tree = ProcessTree(state.ps_stats, monitored_app, prune)
+    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree)

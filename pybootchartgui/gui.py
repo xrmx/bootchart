@@ -220,10 +220,10 @@ class PyBootchartWindow(gtk.Window):
 		self.update_scrollbars(self.widget.get_allocation())
 
 	def update_scrollbars(self, rect):
-		self.hadj.lower = self.extents[0]
-		self.hadj.upper = max(self.extents[0] + self.extents[2] - rect.width, 0)
-		self.vadj.lower = self.extents[1]
-		self.vadj.upper = max(self.extents[1] + self.extents[3] - rect.height, 0)
+		self.hadj.lower = 0
+		self.hadj.upper = max(self.extents[0] - rect.width, 0)
+		self.vadj.lower = 0
+		self.vadj.upper = max(self.extents[1] - rect.height, 0)
 
 	def on_vertical_scroll_changed(self, adj):
 		self.widget.y = adj.value

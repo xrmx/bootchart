@@ -144,42 +144,35 @@ def draw_box_ticks(ctx, rect, sec_w):
 		ctx.line_to(rect[0] + i, rect[1] + rect[3])
 		ctx.stroke()
 
-def draw_chart(ctx, color, fill, chart_bounds, data_bounds, data, proc_tree):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
+	x_shift = proc_tree.start_time
+	x_scale = proc_tree.duration
+    
+	def transform_point_coords(point, x_base, y_base, xscale, yscale, x_trans, y_trans):
+		x = (point[0] - x_base) * xscale + x_trans
+		y = (point[1] - y_base) * -yscale + y_trans + bar_h
+		return x, y
 
-    x_shift = proc_tree.start_time
-    x_scale = proc_tree.duration
+	xscale = float(chart_bounds[2]) / max(x for (x,y) in data)
+	yscale = float(chart_bounds[3]) / max(y for (x,y) in data)
     
-    def transform_point_coords(point, data_bounds, xscale, yscale):
-        x = (point[0] - data_bounds[0]) * xscale
-        y = (point[1] - data_bounds[1]) * yscale
-        return x, y
-        
-    ymax =  max(y for (x,y) in data) # data_bounds[3]
-    xmax =  max(x for (x,y) in data) # data_bounds[2]
-    xscale = float(chart_bounds[2])/data_bounds[2]
-    yscale = float(chart_bounds[3])/data_bounds[3]
+	first = transform_point_coords(data[0], x_shift, 0, xscale, yscale, chart_bounds[0], chart_bounds[1])
+	last = transform_point_coords(data[-1], x_shift, 0, xscale, yscale, chart_bounds[0], chart_bounds[1])
     
-    first = transform_point_coords(data[0], data_bounds, xscale, yscale)
-    last = transform_point_coords(data[-1], data_bounds, xscale, yscale)
-    
-    ctx.save()
-    ctx.translate(chart_bounds[0], chart_bounds[1] + chart_bounds[3])
-    ctx.scale(1, -1)
-    ctx.rectangle(0,0,chart_bounds[2],chart_bounds[3])
-    ctx.clip()
-    ctx.set_source_rgba(*color)
-    for point in data:
-        x, y = transform_point_coords(point, data_bounds, xscale, yscale)
-        ctx.line_to(x, y)
-    if fill:
-        ctx.stroke_preserve()
-        ctx.line_to(last[0], 0)
-        ctx.line_to(first[0], 0)
-        ctx.line_to(first[0], first[1])
-        ctx.fill()
-    else:
-        ctx.stroke()
-    ctx.restore()
+	ctx.set_source_rgba(*color)
+	ctx.move_to(*first)
+	for point in data:
+		x, y = transform_point_coords(point, x_shift, 0, xscale, yscale, chart_bounds[0], chart_bounds[1])
+		ctx.line_to(x, y)
+	if fill:
+		ctx.stroke_preserve()
+		ctx.line_to(last[0], chart_bounds[1]+bar_h)
+		ctx.line_to(first[0], chart_bounds[1]+bar_h)
+		ctx.line_to(first[0], first[1])
+		ctx.fill()
+	else:
+		ctx.stroke()
+
 
 header_h = 280
 bar_h = 55
@@ -217,10 +210,9 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	# render I/O wait
         chart_rect = (off_x, curr_y+30, w, bar_h)
 	draw_box_ticks(ctx, chart_rect, sec_w)
-	data_rect = (proc_tree.start_time, 0, proc_tree.duration, 1)
-	draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], proc_tree) 
+	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], proc_tree) 
 	# render CPU load
-	draw_chart(ctx, CPU_COLOR, True, chart_rect, data_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats], proc_tree)
+	draw_chart(ctx, CPU_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats], proc_tree)
 
 	curr_y = curr_y + 30 + bar_h
 
@@ -229,14 +221,13 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, curr_y+20, leg_s)
 
         # render I/O utilization
-	chart_rect = (off_x, curr_y + 30, w, bar_h)
+	chart_rect = (off_x, curr_y+30, w, bar_h)
 	draw_box_ticks(ctx, chart_rect, sec_w)			
-	draw_chart(ctx, IO_COLOR, True, chart_rect, data_rect, [(sample.time, sample.util) for sample in disk_stats], proc_tree)
+	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.util) for sample in disk_stats], proc_tree)
 				
 	# render disk throughput
 	max_sample = max(disk_stats, key=lambda s: s.tput)
-	data_rect = (proc_tree.start_time, 0, proc_tree.duration, max_sample.tput)
-	draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, data_rect, [(sample.time, sample.tput) for sample in disk_stats], proc_tree)
+	draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, [(sample.time, sample.tput) for sample in disk_stats], proc_tree)
 	
 	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
@@ -245,12 +236,11 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 		pos_x = pos_x + 30
        				
 	label = "%dMB/s" % round((max_sample.tput) / 1024.0)
-	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, curr_y)
+	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, curr_y+20)
 
 
 	# draw process boxes
-	curr_y = curr_y + bar_h
-	draw_process_bar_chart(ctx, proc_tree, curr_y, w, h)
+	draw_process_bar_chart(ctx, proc_tree, curr_y + bar_h, w, h)
 
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
@@ -258,10 +248,10 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	return (0, 0, w,h)
 	
 def draw_process_bar_chart(ctx, proc_tree, curr_y, w, h):
-	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 40, leg_s)		
-	draw_legend_box(ctx, "Unint.sleep (I/O)", 	PROC_COLOR_D, off_x+120, curr_y + 40, leg_s)
-	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 40, leg_s)
-	draw_legend_box(ctx, "Zombie", 			PROC_COLOR_Z, off_x+360, curr_y + 40, leg_s)
+	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
+	draw_legend_box(ctx, "Unint.sleep (I/O)", 	PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
+	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
+	draw_legend_box(ctx, "Zombie", 			PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
 	
 	chart_rect = [off_x, curr_y+60, w, h - 2 * off_y - curr_y+60]
 	ctx.set_font_size(PROC_TEXT_FONT_SIZE)

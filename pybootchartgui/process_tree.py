@@ -253,12 +253,7 @@ class ProcessTree:
             if len(p.child_list) == 1 and p.child_list[0].cmd == p.cmd:
                 child = p.child_list[0]
                 p.child_list = list(child.child_list)
-                p.samples.extend(child.samples)
-                ptime = p.startTime
-                nptime = child.startTime
-                p.startTime = min(ptime, nptime)
-                pendtime = max(ptime + p.duration, nptime + child.duration)
-                p.duration = pendtime - p.startTime
+                __merge_processes(p, child)
                 num_removed += 1
                 continue
             num_removed += self.merge_runs(p.child_list)

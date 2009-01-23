@@ -12,7 +12,7 @@ class TestProcessTree(unittest.TestCase):
     def setUp(self):
 	self.name = "Process tree unittest"
         self.rootdir = '../examples/1'
-	self.ps_stats = parsing.parseProcPsLog(self.mk_fname('proc_ps.log'))
+	self.ps_stats = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_ps.log')).ps_stats
         self.processtree = process_tree.ProcessTree(self.ps_stats, None, False, for_testing = True)
 
     def mk_fname(self,f):

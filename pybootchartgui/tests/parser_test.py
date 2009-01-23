@@ -21,16 +21,17 @@ class TestBCParser(unittest.TestCase):
 		return os.path.join(self.rootdir, f)
 
 	def testParseHeader(self):
-		headers = parsing.parseHeaders(self.mk_fname('header'))
-		self.assertEqual(7, len(headers))
+		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('header'))
+		self.assertEqual(6, len(state.headers))
+		self.assertEqual(2, parsing.get_num_cpus(state.headers))
 
 	def test_parseTimedBlocks(self):
-		timedBlocks = parsing._parseTimedBlocks(self.mk_fname('proc_diskstats.log'))
-		self.assertEqual(142, len(timedBlocks))		
+		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_diskstats.log'))
+		self.assertEqual(141, len(state.disk_stats))		
 
 	def testParseProcPsLog(self):
-		samples = parsing.parseProcPsLog(self.mk_fname('proc_ps.log'))
-
+		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_ps.log'))
+		samples = state.ps_stats
 		processes = samples.process_list
 		sorted_processes = sorted(processes, key=lambda p: p.pid )
 		
@@ -49,7 +50,8 @@ class TestBCParser(unittest.TestCase):
         
 
 	def testparseProcDiskStatLog(self):
-		samples = parsing.parseProcDiskStatLog(self.mk_fname('proc_diskstats.log'), 2)
+		state_with_headers = parsing.parse_file(parsing.ParserState(), self.mk_fname('header'))
+		samples = parsing.parse_file(state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
 		self.assertEqual(141, len(samples))
 	
 		for index, line in enumerate(open(self.mk_fname('extract.proc_diskstats.log'))):
@@ -66,7 +68,7 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.util))
 	
 	def testparseProcStatLog(self):
-		samples = parsing.parseProcStatLog(self.mk_fname('proc_stat.log'))
+		samples = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_stat.log')).cpu_stats
 		self.assertEqual(141, len(samples))
 			
 		for index, line in enumerate(open(self.mk_fname('extract.proc_stat.log'))):
@@ -82,7 +84,7 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.io))
 	
 	def testParseLogDir(self):		
-		res = parsing.parse_log_dir(self.rootdir, False)		
+		res = parsing.parse([self.rootdir], False)		
 		self.assertEqual(4, len(res))
 	
 if __name__ == '__main__':

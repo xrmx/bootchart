@@ -108,33 +108,24 @@ def _parseTimedBlocks(file):
 	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
 	
 def parseProcPsLog(file):
+	"""
+	 * See proc(5) for details.
+	 * 
+	 * {pid, comm, state, ppid, pgrp, session, tty_nr, tpgid, flags, minflt, cminflt, majflt, cmajflt, utime, stime,
+	 *  cutime, cstime, priority, nice, 0, itrealvalue, starttime, vsize, rss, rlim, startcode, endcode, startstack, 
+	 *  kstkesp, kstkeip}
+	"""
 	processMap = {}
-	timedBlocks = _parseTimedBlocks(file)
-	numSamples = len(timedBlocks)-1
+	timedBlocks = _parseTimedBlocks(file)	
 	ltime = 0
-	startTime = -1
 	for time, block in timedBlocks:
-			
-		if startTime == -1: startTime = time
 
 		lines = block.split('\n')
 		for line in lines[1:]:
-			tokens = line.split(' ')
-			"""
-			 * See proc(5) for details.
-			 * 
-			 * {pid, comm, state, ppid, pgrp, session, tty_nr, tpgid, flags, minflt, cminflt, majflt, cmajflt, utime, stime,
-			 *  cutime, cstime, priority, nice, 0, itrealvalue, starttime, vsize, rss, rlim, startcode, endcode, startstack, 
-			 *  kstkesp, kstkeip}
-			"""
-			
-			pid = int(tokens[0])
-			ppid = int(tokens[3])
-			cmd = tokens[1]
-			state = tokens[2]
+			tokens = line.split(' ')			
+			pid, cmd, state, ppid = int(tokens[0]), tokens[1], tokens[2], int(tokens[3])
 				
 			if not cmd.startswith('('):
-				#print 'Malformed line', line
 				continue
 			stime = int(tokens[21])
 
@@ -157,6 +148,8 @@ def parseProcPsLog(file):
 			process.lastSysCpuTime = sysCpu
 		ltime = time
 	
+	numSamples = len(timedBlocks)-1
+	startTime = timedBlocks[0][0]
 	samplePeriod = (ltime - startTime)/numSamples	
 
 	for process in processMap.values():
@@ -169,7 +162,6 @@ def parseProcPsLog(file):
 	
 def parseProcStatLog(file):
 	samples = []
-	startTime = -1
 	ltimes = None
 	for time, block in _parseTimedBlocks(file):
 		lines = block.split('\n')
@@ -194,7 +186,6 @@ def parseProcDiskStatLog(file, numCpu):
 	
 	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
-	startTime = -1
 	ltime = None
 	for time, block in _parseTimedBlocks(file):
 		lines = block.split('\n')

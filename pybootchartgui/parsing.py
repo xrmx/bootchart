@@ -4,110 +4,18 @@ import os
 import re
 import tarfile
 from collections import defaultdict
+
+from samples import *
 from process_tree import ProcessTree
 
-class DiskStatSample:
-	def __init__(self):
-		self.values = [0,0,0]
-		self.changes = [0,0,0]
-	def __str__(self):
-		return 'Values ' +  str(self.values) + ", Changes " + str(self.changes);
-
-class CPUSample:
-	def __init__(self, time, user, sys, io):
-		self.time = time
-		self.user = user
-		self.sys = sys
-		self.io = io
-
-	def __str__(self):
-		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io);
-		
-class ProcessSample:
-	def __init__(self, time, state, cpuSample):
-		self.time = time
-		self.state = state
-		self.cpuSample = cpuSample
-		
-	def __str__(self):
-		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpuSample);
-
-class ProcessStats:
-    def __init__(self, process_list, sample_period, start_time, end_time):
-        self.process_list = process_list
-        self.sample_period = sample_period
-        self.start_time = start_time
-        self.end_time = end_time
-
-class Process:	
-	def __init__(self, pid, cmd, ppid, startTime):
-
-		self.pid = pid
-		self.cmd = cmd.strip('(').strip(')')
-		self.ppid = ppid
-		self.startTime = startTime
-		self.samples = []
-		self.parent = None
-		self.child_list = []
-		
-		self.duration = 0
-		self.active = None
-		
-		self.lastUserCpuTime = None
-		self.lastSysCpuTime = None
-	
-	def __str__(self):
-		return " ".join([str(self.pid), self.cmd, str(self.ppid), '[ ' + str(len(self.samples)) + ' samples ]' ])
-	
-	def calcStats(self, samplePeriod):
-		if self.samples:
-			firstSample = self.samples[0]
-			lastSample = self.samples[-1]
-			self.startTime = min(firstSample.time, self.startTime)
-			self.duration = lastSample.time - self.startTime + samplePeriod
-			
-		activeCount = sum( [1 for sample in self.samples if sample.cpuSample and sample.cpuSample.sys + sample.cpuSample.user + sample.cpuSample.io > 0.0] )
-		activeCount = activeCount + sum( [1 for sample in self.samples if sample.state == 'D'] )
-		self.active = (activeCount>2)
-		
-	def calcLoad(self, userCpu, sysCpu, interval):
-		
-		userCpuLoad = (userCpu - self.lastUserCpuTime) / interval
-		sysCpuLoad = (sysCpu - self.lastSysCpuTime) / interval
-		cpuLoad = userCpuLoad + sysCpuLoad;
-		# normalize
-		if cpuLoad > 1.0:
-			userCpuLoad = userCpuLoad / cpuLoad;
-			sysCpuLoad = sysCpuLoad / cpuLoad;
-		return (userCpuLoad, sysCpuLoad)
-	
-	def setParent(self, processMap):
-		if self.ppid != None:
-			self.parent = processMap.get(self.ppid)
-			if self.parent == None and self.pid > 1:
-				print "warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid)
-	def getEndTime(self):
-		return self.startTime + self.duration
-
-class DiskSample:
-	def __init__(self, time, read, write, util):
-		self.time = time
-		self.read = read
-		self.write = write
-		self.util = util
-	        self.tput = read + write
-
-	def __str__(self):
-		return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
-
-def parseHeaders(file):
+def _parse_headers(file):
     return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in file if '=' in line) )
 
-def _parseTimedBlocks(file):
+def _parse_timed_blocks(file):
 	blocks = file.read().split('\n\n')
 	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
 	
-def parseProcPsLog(file):
+def _parse_proc_ps_log(file):
 	"""
 	 * See proc(5) for details.
 	 * 
@@ -116,7 +24,7 @@ def parseProcPsLog(file):
 	 *  kstkesp, kstkeip}
 	"""
 	processMap = {}
-	timedBlocks = _parseTimedBlocks(file)	
+	timedBlocks = _parse_timed_blocks(file)	
 	ltime = 0
 	for time, block in timedBlocks:
 
@@ -139,13 +47,13 @@ def parseProcPsLog(file):
 			userCpu = int(tokens[13])
 			sysCpu = int(tokens[14])
 			
-			if process.lastUserCpuTime is not None and process.lastSysCpuTime is not None and ltime is not None:
-				userCpuLoad, sysCpuLoad = process.calcLoad(userCpu, sysCpu, time - ltime)
+			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
+				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpu, sysCpu, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample))
 			
-			process.lastUserCpuTime = userCpu
-			process.lastSysCpuTime = sysCpu
+			process.last_user_cpu_time = userCpu
+			process.last_sys_cpu_time = sysCpu
 		ltime = time
 	
 	numSamples = len(timedBlocks)-1
@@ -153,17 +61,17 @@ def parseProcPsLog(file):
 	samplePeriod = (ltime - startTime)/numSamples	
 
 	for process in processMap.values():
-		process.setParent(processMap)
+		process.set_parent(processMap)
 
 	for process in processMap.values():
-		process.calcStats(samplePeriod)
+		process.calc_stats(samplePeriod)
 		
 	return ProcessStats(processMap.values(), samplePeriod, startTime, ltime)
 	
-def parseProcStatLog(file):
+def _parse_proc_stat_log(file):
 	samples = []
 	ltimes = None
-	for time, block in _parseTimedBlocks(file):
+	for time, block in _parse_timed_blocks(file):
 		lines = block.split('\n')
 		# CPU times {user, nice, system, idle, io_wait, irq, softirq}		
 		tokens = lines[1].split();
@@ -181,13 +89,13 @@ def parseProcStatLog(file):
 		# skip the rest of statistics lines
 	return samples
 		
-def parseProcDiskStatLog(file, numCpu):
+def _parse_proc_disk_stat_log(file, numCpu):
 	DISK_REGEX = 'hd.|sd.'
 	
 	diskStatSamples = defaultdict(DiskStatSample)
 	diskStats = []
 	ltime = None
-	for time, block in _parseTimedBlocks(file):
+	for time, block in _parse_timed_blocks(file):
 		lines = block.split('\n')
 		for line in lines:
 			# {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
@@ -228,9 +136,8 @@ def parseProcDiskStatLog(file, numCpu):
 	return diskStats
 	
 	
-# Get the number of CPUs from the system.cpu header
-# property.
 def get_num_cpus(headers):
+    """Get the number of CPUs from the system.cpu header property."""
     if headers is None:
         return 1
     cpu_model = headers.get("system.cpu")
@@ -248,26 +155,25 @@ class ParserState:
 	self.ps_stats = None
 	self.cpu_stats = None
 
-relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
+_relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
 
-def do_parse(state, name, file):
+def _do_parse(state, name, file):
     if name == "header":
-        state.headers = parseHeaders(file)
+        state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
-        state.disk_stats = parseProcDiskStatLog(file, get_num_cpus(state.headers))
+        state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
     elif name == "proc_ps.log":
-        state.ps_stats = parseProcPsLog(file)
+        state.ps_stats = _parse_proc_ps_log(file)
     elif name == "proc_stat.log":
-        state.cpu_stats = parseProcStatLog(file)
+        state.cpu_stats = _parse_proc_stat_log(file)
     return state
 
 def parse_file(state, filename):
     basename = os.path.basename(filename)
-    if not(basename in relevant_files):
-#        print "ignoring", filename
+    if not(basename in _relevant_files):
         return state
     with open(filename, "rb") as file:
-        return do_parse(state, basename, file)
+        return _do_parse(state, basename, file)
 
 def parse_paths(state, paths):
     for path in paths:

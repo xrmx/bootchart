@@ -288,7 +288,7 @@ def draw_header(ctx, headers, off_x, duration):
     return header_y
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
-	x = rect[0] +  ((proc.startTime - proc_tree.start_time) * rect[2] / proc_tree.duration)
+	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	w = ((proc.duration) * rect[2] / proc_tree.duration)
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
@@ -320,7 +320,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
                    
 		color = STATE_COLORS[state]        
 		if state == STATE_RUNNING:
-			cpu = sample.cpuSample.user + sample.cpuSample.sys
+			cpu = sample.cpu_sample.user + sample.cpu_sample.sys
 			alpha = (cpu * 255)
 			alpha = max(0, min(alpha, 255))
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])

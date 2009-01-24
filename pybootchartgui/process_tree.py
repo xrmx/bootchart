@@ -90,7 +90,7 @@ class ProcessTree:
         """
         if not process_subtree:
             return 100000000;
-        return min( [min(proc.startTime, self.get_start_time(proc.child_list)) for proc in process_subtree] )
+        return min( [min(proc.start_time, self.get_start_time(proc.child_list)) for proc in process_subtree] )
 
     def get_end_time(self, process_subtree):
         """Returns the end time of the process subtree.  This is the end time
@@ -99,7 +99,7 @@ class ProcessTree:
         """
         if not process_subtree:
             return -100000000;
-        return max( [max(proc.startTime + proc.duration, self.get_end_time(proc.child_list)) for proc in process_subtree] )
+        return max( [max(proc.start_time + proc.duration, self.get_end_time(proc.child_list)) for proc in process_subtree] )
 
     def get_max_pid(self, process_subtree):
         """Returns the max PID found in the process tree."""
@@ -146,11 +146,11 @@ class ProcessTree:
                 # Filter out sleepy background processes,
                 # short-lived processes and bootcharts'
                 # analysis tools.
-                process_end = p.startTime + p.duration
+                process_end = p.start_time + p.duration
                 prune = False
                 if not p.active and \
                    process_end >= self.start_time + self.duration and \
-                   p.startTime > self.start_time and \
+                   p.start_time > self.start_time and \
                    p.duration > 0.9 * self.duration and \
                    self.num_nodes(p.child_list) == 0:
                     # idle background process without children
@@ -263,8 +263,8 @@ class ProcessTree:
     def __merge_processes(self, p1, p2):
         """Merges two process samples."""
         p1.samples.extend(p2.samples)
-        p1time = p1.startTime
-        p2time = p2.startTime
-        p1.startTime = min(p1time, p2time)
+        p1time = p1.start_time
+        p2time = p2.start_time
+        p1.start_time = min(p1time, p2time)
         pendtime = max(p1time + p1.duration, p2time + p2.duration)
-        p1.duration = pendtime - p1.startTime
+        p1.duration = pendtime - p1.start_time

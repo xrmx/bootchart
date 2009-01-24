@@ -30,7 +30,7 @@ class TestProcessTree(unittest.TestCase):
             tokens = expected.split('\t')
             self.assertEqual(int(tokens[0]), actual.pid)
             self.assertEqual(tokens[1], actual.cmd)
-            self.assertEqual(long(tokens[2]), 10 * actual.startTime)
+            self.assertEqual(long(tokens[2]), 10 * actual.start_time)
             self.assert_(long(tokens[3]) - 10 * actual.duration < 5, "duration")
             self.assertEqual(int(tokens[4]), len(actual.child_list))
             self.assertEqual(int(tokens[5]), len(actual.samples))

@@ -51,6 +51,7 @@ class TestBCParser(unittest.TestCase):
 
 	def testparseProcDiskStatLog(self):
 		state_with_headers = parsing.parse_file(parsing.ParserState(), self.mk_fname('header'))
+		state_with_headers.headers['system.cpu'] = 'xxx (2)'
 		samples = parsing.parse_file(state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
 		self.assertEqual(141, len(samples))
 	

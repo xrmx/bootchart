@@ -133,27 +133,27 @@ class ProcessTree:
             
     def prune(self, process_subtree, parent):
         """Prunes the process tree by removing idle processes and processes
-	   that only live for the duration of a single top sample are
-	   removed.  Sibling processes with the same command line
-	   (i.e. threads) are merged together.
-
+	   that only live for the duration of a single top sample.  Sibling
+	   processes with the same command line (i.e. threads) are merged 
+	   together. This filters out sleepy background processes, short-lived
+	   processes and bootcharts' analysis tools.
         """
+        def is_idle_background_process_without_children(p):
+            process_end = p.start_time + p.duration
+	    return not p.active and \
+                   process_end >= self.start_time + self.duration and \
+                   p.start_time > self.start_time and \
+                   p.duration > 0.9 * self.duration and \
+                   self.num_nodes(p.child_list) == 0
+
         num_removed = 0
         idx = 0
         while idx < len(process_subtree):
             p = process_subtree[idx]
             if parent != None or len(p.child_list) == 0:
-                # Filter out sleepy background processes,
-                # short-lived processes and bootcharts'
-                # analysis tools.
-                process_end = p.start_time + p.duration
+
                 prune = False
-                if not p.active and \
-                   process_end >= self.start_time + self.duration and \
-                   p.start_time > self.start_time and \
-                   p.duration > 0.9 * self.duration and \
-                   self.num_nodes(p.child_list) == 0:
-                    # idle background process without children
+                if is_idle_background_process_without_children(p):
                     prune = True
                 elif p.duration <= 2 * self.sample_period:
                     # short-lived process
@@ -221,7 +221,7 @@ class ProcessTree:
     def merge_siblings(self,process_subtree):
         """Merges thread processes.  Sibling processes with the same command
 	   line are merged together.
-
+	   
         """
         num_removed = 0
         idx = 0

@@ -181,7 +181,7 @@ def parse_paths(state, paths):
             try:
                 tf = tarfile.open(path, 'r:*')
                 for name in tf.getnames():
-                    state = do_parse(state, name, tf.extractfile(name))
+                    state = _do_parse(state, name, tf.extractfile(name))
             except tarfile.ReadError, error:
                 print "error: could not read tarfile '%s': %s." % (path, error)
             finally:

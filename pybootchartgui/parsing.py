@@ -49,7 +49,7 @@ def _parse_proc_ps_log(file):
 			
 			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
 				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
-				cpuSample = CPUSample('null', userCpu, sysCpu, 0.0)
+				cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample))
 			
 			process.last_user_cpu_time = userCpu

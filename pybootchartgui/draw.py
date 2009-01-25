@@ -317,9 +317,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
                    
 		color = STATE_COLORS[state]        
 		if state == STATE_RUNNING:
-			cpu = sample.cpu_sample.user + sample.cpu_sample.sys
-			alpha = (cpu * 255)
-			alpha = max(0, min(alpha, 255))
+			alpha = sample.cpu_sample.user + sample.cpu_sample.sys
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 		elif state == STATE_SLEEPING:
 			continue

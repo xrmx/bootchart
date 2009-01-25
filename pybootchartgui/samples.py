@@ -63,9 +63,9 @@ class Process:
 		
 	def calc_load(self, userCpu, sysCpu, interval):
 		
-		userCpuLoad = (userCpu - self.last_user_cpu_time) / interval
-		sysCpuLoad = (sysCpu - self.last_sys_cpu_time) / interval
-		cpuLoad = userCpuLoad + sysCpuLoad;
+		userCpuLoad = float(userCpu - self.last_user_cpu_time) / interval
+		sysCpuLoad = float(sysCpu - self.last_sys_cpu_time) / interval
+		cpuLoad = userCpuLoad + sysCpuLoad
 		# normalize
 		if cpuLoad > 1.0:
 			userCpuLoad = userCpuLoad / cpuLoad;

@@ -9,7 +9,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 	__gsignals__ = {
 		'expose-event': 'override',
 		'clicked' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_STRING, gtk.gdk.Event)),
-		'position-changed' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT, gobject.TYPE_INT))
+		'position-changed' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT, gobject.TYPE_INT)),
+		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
 	def __init__(self, res):
@@ -27,8 +28,16 @@ class PyBootchartWidget(gtk.DrawingArea):
                 self.connect("scroll-event", self.on_area_scroll_event)
                 self.connect('key-press-event', self.on_key_press_event)
 
+		self.connect('set-scroll-adjustments', self.on_set_scroll_adjustments)
+		self.connect("size-allocate", self.on_allocation_size_changed)
+		self.connect("position-changed", self.on_position_changed)
+
 		self.zoom_ratio = 1.0
                 self.x, self.y = 0.0, 0.0
+
+		self.chart_width, self.chart_height = draw.extents(*res)
+		self.hadj = None
+		self.vadj = None
 
 	def do_expose_event(self, event):
 		cr = self.window.cairo_create()
@@ -47,7 +56,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		cr.paint()
                 cr.scale(self.zoom_ratio, self.zoom_ratio)
                 cr.translate(-self.x, -self.y)
-		self.boundingrect = draw.render(cr, *self.res)
+		draw.render(cr, *self.res)
 
 	def position_changed(self):
 		self.emit("position-changed", self.x, self.y)
@@ -59,7 +68,7 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.queue_draw()
 
         def zoom_to_rect(self, rect):
-            zoom_ratio = float(rect.width)/float(self.boundingrect[2])
+            zoom_ratio = float(rect.width)/float(self.chart_width)
             self.zoom_image(zoom_ratio)
 	    self.x = 0
 	    self.position_changed()
@@ -136,6 +145,65 @@ class PyBootchartWidget(gtk.DrawingArea):
 			self.position_changed()
                 return True
 
+	def on_set_scroll_adjustments(self, area, hadj, vadj):
+		self._set_scroll_adjustments(hadj, vadj)
+
+	def on_allocation_size_changed(self, widget, allocation):
+		self.hadj.page_size = allocation.width
+		self.hadj.page_increment = allocation.width * 0.9
+		self.vadj.page_size = allocation.height
+		self.vadj.page_increment = allocation.height * 0.9
+
+	def _set_scroll_adjustments(self, hadj, vadj):
+		if hadj == None:
+			hadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+		if vadj == None:
+			vadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+			
+		if self.hadj != None and hadj != self.hadj:
+			self.hadj.disconnect(self.hadj_changed_signal_id)
+		if self.vadj != None and vadj != self.vadj:
+			self.vadj.disconnect(self.vadj_changed_signal_id)
+
+		if hadj != None:
+			self.hadj = hadj
+			self._set_adj_upper(self.hadj, self.chart_width)
+			self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed)
+
+		if vadj != None:
+			self.vadj = vadj
+			self._set_adj_upper(self.vadj, self.chart_height)
+			self.vadj_changed_signal_id = self.vadj.connect('value-changed', self.on_adjustments_changed)
+
+	def _set_adj_upper(self, adj, upper):
+		changed = False
+		value_changed = False
+
+		if adj.upper != upper:
+			adj.upper = upper
+			changed = True
+
+		max_value = max(0.0, upper - adj.page_size)
+		if adj.value > max_value:
+			adj.value = max_value
+			value_changed = True
+
+		if changed:
+			adj.changed()
+		if value_changed:
+			adj.value_changed()
+
+	def on_adjustments_changed(self, adj):
+		self.x = self.hadj.value
+		self.y = self.vadj.value
+		self.queue_draw()
+
+	def on_position_changed(self, widget, x, y):
+		self.hadj.value = x
+		self.vadj.value = y
+
+PyBootchartWidget.set_set_scroll_adjustments_signal('set-scroll-adjustments')
+
 class PyBootchartWindow(gtk.Window):
 
 	ui = '''
@@ -153,17 +221,12 @@ class PyBootchartWindow(gtk.Window):
 		gtk.Window.__init__(self)
 
 		window = self
-		window.connect("size-allocate", self.on_allocation_size_changed)
-
 		window.set_title('Bootchart')
 		window.set_default_size(512, 512)
 		vbox = gtk.VBox()
 		window.add(vbox)
 
 		self.widget = PyBootchartWidget(res)
-		self.widget.connect("position-changed", self.on_position_changed)
-
-		self.extents = draw.extents(*res)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()
@@ -190,52 +253,18 @@ class PyBootchartWindow(gtk.Window):
 		# Add a UI description
 		uimanager.add_ui_from_string(self.ui)
 
-		# Scrollbars
-		self.vadj = gtk.Adjustment()
-		self.vadj.connect("value-changed", self.on_vertical_scroll_changed)
-
-		self.hadj = gtk.Adjustment()
-		self.hadj.connect("value-changed", self.on_horizontal_scroll_changed)
-
-		hscrolled = gtk.HBox()
-		vscrollbar = gtk.VScrollbar(self.vadj)
-		hscrolled.pack_start(self.widget)
-		hscrolled.pack_start(vscrollbar, False)
-
-		vscrolled = gtk.VBox()
-		hscrollbar = gtk.HScrollbar(self.hadj)
-		vscrolled.pack_start(hscrolled)
-		vscrolled.pack_start(hscrollbar, False)
+		# Scrolled window
+                scrolled = gtk.ScrolledWindow()
+		scrolled.add(self.widget)
 
 		# Create a Toolbar
 		toolbar = uimanager.get_widget('/ToolBar')
 		vbox.pack_start(toolbar, False)
-		vbox.pack_start(vscrolled)
+		vbox.pack_start(scrolled)
 
 		self.set_focus(self.widget)
 
 		self.show_all()
-
-	def on_allocation_size_changed(self, widget, allocation):
-		self.update_scrollbars(self.widget.get_allocation())
-
-	def update_scrollbars(self, rect):
-		self.hadj.lower = 0
-		self.hadj.upper = max(self.extents[0] - rect.width, 0)
-		self.vadj.lower = 0
-		self.vadj.upper = max(self.extents[1] - rect.height, 0)
-
-	def on_vertical_scroll_changed(self, adj):
-		self.widget.y = adj.value
-		self.widget.queue_draw()
-
-	def on_horizontal_scroll_changed(self, adj):
-		self.widget.x = adj.value
-		self.widget.queue_draw()
-
-	def on_position_changed(self, widget, x, y):
-		self.hadj.value = x
-		self.vadj.value = y
 
 def show(res):
 	win = PyBootchartWindow(res)

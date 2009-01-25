@@ -183,7 +183,7 @@ proc_h = 16 # the height of a process
 leg_s = 10
 
 def extents(headers, cpu_stats, disk_stats, proc_tree):
-	w = (proc_tree.duration * sec_w / 100)
+	w = (proc_tree.duration * sec_w / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 	return (w,h)
 
@@ -191,10 +191,9 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 # Render the chart.
 # 
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
-	print 'proc_tree: num_proc=%i, duration=%i' % (proc_tree.num_proc, proc_tree.duration)
-
 	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
-    
+	w -= 2*off_x
+
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, w + 2*off_x, h))
     
@@ -244,8 +243,6 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
-
-	return (0, 0, w,h)
 	
 def draw_process_bar_chart(ctx, proc_tree, curr_y, w, h):
 	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
@@ -253,7 +250,7 @@ def draw_process_bar_chart(ctx, proc_tree, curr_y, w, h):
 	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
 	draw_legend_box(ctx, "Zombie", 			PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
 	
-	chart_rect = [off_x, curr_y+60, w, h - 2 * off_y - curr_y+60]
+	chart_rect = [off_x, curr_y+60, w, h - 2 * off_y - (curr_y+60) + proc_h]
 	ctx.set_font_size(PROC_TEXT_FONT_SIZE)
 	
 	draw_box_ticks(ctx, chart_rect, sec_w)

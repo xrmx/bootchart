@@ -88,52 +88,43 @@ def _parse_proc_stat_log(file):
 		ltimes = times		
 		# skip the rest of statistics lines
 	return samples
+
 		
 def _parse_proc_disk_stat_log(file, numCpu):
-	DISK_REGEX = 'hd.|sd.'
+	"""
+	Parse file for disk stats, but only look at the whole disks, eg. sda,
+	not sda1, sda2 etc. The format of relevant lines should be:
+	{major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
+	"""
+	DISK_REGEX = 'hd.$|sd.$'
 	
-	diskStatSamples = defaultdict(DiskStatSample)
-	diskStats = []
-	ltime = None
+	def is_relevant_line(line):
+		return len(line.split()) == 14 and re.match(DISK_REGEX, line.split()[2])
+	
+	disk_stat_samples = []
+
 	for time, block in _parse_timed_blocks(file):
 		lines = block.split('\n')
-		for line in lines:
-			# {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
-			tokens = line.split();
-
-			# take only lines with content and only look at the whole disks, eg. sda, not sda1, sda2 etc.
-			if len(tokens) != 14 or not re.match(DISK_REGEX, tokens[2]) or not len(tokens[2]) == 3:
-				continue
+		sample = DiskStatSample(time)		
+		relevant_tokens = [line.split() for line in lines if is_relevant_line(line)]
+		
+		for tokens in relevant_tokens:			
+			disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])			
+			sample.add_diskdata([rsect, wsect, use])
+		
+		disk_stat_samples.append(sample)
 			
-			disk = tokens[2]
-			
-			rsect, wsect, use = int(tokens[5]), int(tokens[9]), int(tokens[12])
-			
-			sample = diskStatSamples[disk]
-						
-			if ltime:				
-				sample.changes = [rsect-sample.values[0], wsect-sample.values[1], use-sample.values[2]] 
-
-			sample.values = [rsect, wsect, use]
-
-		if ltime:
-			interval = time - ltime
-			
-			sums = [0, 0, 0]
-			for sample in diskStatSamples.values():
-				for i in range(3):		
-					sums[i] = sums[i] + sample.changes[i]
-			
-			
-			readTput = sums[0] / 2.0 * 100.0 / interval
-			writeTput = sums[1] / 2.0 * 100.0 / interval
-			# number of ticks (1000/s), reduced to one CPU, time is in jiffies (100/s)
-			util = float( sums[2] ) / 10 / interval / numCpu
-			
-			diskStats.append(DiskSample(time, readTput, writeTput, util))
-			
-		ltime = time
-	return diskStats
+	disk_stats = []
+	for sample1, sample2 in zip(disk_stat_samples[:-1], disk_stat_samples[1:]):
+		interval = sample1.time - sample2.time
+		sums = [ a - b for a, b in zip(sample1.diskdata, sample2.diskdata) ]
+		readTput = sums[0] / 2.0 * 100.0 / interval
+		writeTput = sums[1] / 2.0 * 100.0 / interval			
+		util = float( sums[2] ) / 10 / interval / numCpu
+		
+		disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
+	
+	return disk_stats
 	
 	
 def get_num_cpus(headers):

@@ -1,9 +1,9 @@
 class DiskStatSample:
-	def __init__(self):
-		self.values = [0,0,0]
-		self.changes = [0,0,0]
-	def __str__(self):
-		return 'Values ' +  str(self.values) + ", Changes " + str(self.changes);
+	def __init__(self, time):
+		self.time = time
+		self.diskdata = [0, 0, 0]
+	def add_diskdata(self, new_diskdata):
+		self.diskdata = [ a + b for a, b in zip(self.diskdata, new_diskdata) ]
 
 class CPUSample:
 	def __init__(self, time, user, sys, io):

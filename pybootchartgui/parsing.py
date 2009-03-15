@@ -121,7 +121,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 		readTput = sums[0] / 2.0 * 100.0 / interval
 		writeTput = sums[1] / 2.0 * 100.0 / interval			
 		util = float( sums[2] ) / 10 / interval / numCpu
-		
+		util = max(0.0, min(1.0, util))
 		disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
 	
 	return disk_stats

@@ -145,6 +145,7 @@ def draw_box_ticks(ctx, rect, sec_w):
 		ctx.stroke()
 
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
+	ctx.set_line_width(0.5)
 	x_shift = proc_tree.start_time
 	x_scale = proc_tree.duration
     
@@ -172,7 +173,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
 		ctx.fill()
 	else:
 		ctx.stroke()
-
+	ctx.set_line_width(1.0)
 
 header_h = 280
 bar_h = 55

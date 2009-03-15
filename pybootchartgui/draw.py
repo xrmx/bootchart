@@ -119,7 +119,7 @@ def draw_label_in_box(ctx, color, label, x, y, w, maxx):
         if label_w + 10 > w:
             label_x = x + w + 5
         if label_x + label_w > maxx:
-            label_w = x - label_w - 5
+            label_x = x - label_w - 5
 	draw_text(ctx, label, color, label_x, y)
 
 

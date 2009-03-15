@@ -308,21 +308,21 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 	last_tx = -1
 	for sample in proc.samples :    
 		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
-		tw = round(proc_tree.sample_period * rect[2] / proc_tree.duration)
+		tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
 		if last_tx != -1 and abs(last_tx - tx) <= tw:
 			tw -= last_tx - tx
 			tx = last_tx
              
 		last_tx = tx + tw
 		state = get_proc_state( sample.state )
-                   
+
 		color = STATE_COLORS[state]        
 		if state == STATE_RUNNING:
 			alpha = sample.cpu_sample.user + sample.cpu_sample.sys
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 		elif state == STATE_SLEEPING:
 			continue
-		
+
 		draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
 
     

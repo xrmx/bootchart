@@ -235,12 +235,12 @@ def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	
 	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
-	if (pos_x < off_x + 120):
-		curr_y = curr_y + 15
-		pos_x = pos_x + 30
+	shift_x, shift_y = -20, 20
+	if (pos_x < off_x + 245):
+		shift_x, shift_y = 5, 40
        				
 	label = "%dMB/s" % round((max_sample.tput) / 1024.0)
-	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x - 20, curr_y+20)
+	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
 
 	# draw process boxes

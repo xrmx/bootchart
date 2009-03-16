@@ -46,6 +46,10 @@ PROC_COLOR_S = (0.94, 0.94, 0.94, 1.0)
 PROC_COLOR_T = (0.94, 0.50, 0.50, 1.0)
 # Zombie process color.
 PROC_COLOR_Z = (0.71, 0.71, 0.71, 1.0)
+# Dead process color.
+PROC_COLOR_X = (0.71, 0.71, 0.71, 0.125)
+# Paging process color.
+PROC_COLOR_W = (0.71, 0.71, 0.71, 0.125)
 
 # Process label color.
 PROC_TEXT_COLOR = (0.19, 0.19, 0.19, 1.0)
@@ -75,11 +79,11 @@ STATE_WAITING   = 3
 STATE_STOPPED   = 4
 STATE_ZOMBIE    = 5
 
-STATE_COLORS = [(0,0,0,0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, PROC_COLOR_T, PROC_COLOR_Z]
+STATE_COLORS = [(0,0,0,0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
 # Convert ps process state to an int
 def get_proc_state(flag):
-	return "RSDTZ".index(flag) + 1
+	return "RSDTZXW".index(flag) + 1
 	
 
 def draw_text(ctx, text, color, x, y):

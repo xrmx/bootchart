@@ -275,7 +275,7 @@ def draw_header(ctx, headers, off_x, duration):
       ('system.release', 'release', lambda s: s),
       ('system.cpu', 'CPU', lambda s: re.sub('model name\s*:\s*', '', s, 1)),
       ('system.kernel.options', 'kernel options', lambda s: s),
-      ('pseudo.header', 'time', lambda s: '%02d:%0.2f' % (math.floor(dur/60), dur - math.floor(dur/60)))
+      ('pseudo.header', 'time', lambda s: '%02d:%0.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60)))
     ]
 
     header_y = ctx.font_extents()[2] + 10

@@ -186,6 +186,8 @@ off_x, off_y = 10, 10
 sec_w = 25 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
+MIN_IMG_W = 800
+
 
 def extents(headers, cpu_stats, disk_stats, proc_tree):
 	w = (proc_tree.duration * sec_w / 100) + 2*off_x
@@ -197,11 +199,10 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 # 
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
-	w -= 2*off_x
 
 	ctx.select_font_face(FONT_NAME)
-	draw_fill_rect(ctx, WHITE, (0, 0, w + 2*off_x, h))
-    
+	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+	w -= 2*off_x    
 	# draw the title and headers
 	curr_y = draw_header(ctx, headers, off_x, proc_tree.duration)
     

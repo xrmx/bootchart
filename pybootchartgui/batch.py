@@ -15,6 +15,7 @@ def render(res, format, filename):
 
     mk, cl = handlers[format]
     w,h = draw.extents(*res)
+    w = max(w, draw.MIN_IMG_W)
     surface = mk((w,h))
     ctx = cairo.Context(surface)
     draw.render(ctx, *res)

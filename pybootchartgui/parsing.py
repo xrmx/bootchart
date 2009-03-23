@@ -35,7 +35,8 @@ def _parse_proc_ps_log(file):
 				
 			if not cmd.startswith('('):
 				continue
-			stime = int(tokens[21])
+
+			userCpu, sysCpu, stime= int(tokens[13]), int(tokens[14]), int(tokens[21])
 
 			if processMap.has_key(pid):
 				process = processMap[pid]
@@ -43,9 +44,6 @@ def _parse_proc_ps_log(file):
 			else:
 				process = Process(pid, cmd, ppid, min(time, stime))
 				processMap[pid] = process
-			
-			userCpu = int(tokens[13])
-			sysCpu = int(tokens[14])
 			
 			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
 				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
@@ -56,17 +54,16 @@ def _parse_proc_ps_log(file):
 			process.last_sys_cpu_time = sysCpu
 		ltime = time
 	
-	numSamples = len(timedBlocks)-1
 	startTime = timedBlocks[0][0]
-	samplePeriod = (ltime - startTime)/numSamples	
+	avgSampleLength = (ltime - startTime)/(len(timedBlocks)-1)	
 
 	for process in processMap.values():
 		process.set_parent(processMap)
 
 	for process in processMap.values():
-		process.calc_stats(samplePeriod)
+		process.calc_stats(avgSampleLength)
 		
-	return ProcessStats(processMap.values(), samplePeriod, startTime, ltime)
+	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
 	
 def _parse_proc_stat_log(file):
 	samples = []

@@ -65,6 +65,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
         def zoom_image(self, zoom_ratio):
             self.zoom_ratio = zoom_ratio
+	    self._set_scroll_adjustments(self.hadj, self.vadj)
             self.queue_draw()
 
         def zoom_to_rect(self, rect):
@@ -167,12 +168,12 @@ class PyBootchartWidget(gtk.DrawingArea):
 
 		if hadj != None:
 			self.hadj = hadj
-			self._set_adj_upper(self.hadj, self.chart_width)
+			self._set_adj_upper(self.hadj, self.zoom_ratio * self.chart_width)
 			self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed)
 
 		if vadj != None:
 			self.vadj = vadj
-			self._set_adj_upper(self.vadj, self.chart_height)
+			self._set_adj_upper(self.vadj, self.zoom_ratio * self.chart_height)
 			self.vadj_changed_signal_id = self.vadj.connect('value-changed', self.on_adjustments_changed)
 
 	def _set_adj_upper(self, adj, upper):
@@ -194,8 +195,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 			adj.value_changed()
 
 	def on_adjustments_changed(self, adj):
-		self.x = self.hadj.value
-		self.y = self.vadj.value
+		self.x = self.hadj.value / self.zoom_ratio
+		self.y = self.vadj.value / self.zoom_ratio
 		self.queue_draw()
 
 	def on_position_changed(self, widget, x, y):

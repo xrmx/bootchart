@@ -200,8 +200,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.queue_draw()
 
 	def on_position_changed(self, widget, x, y):
-		self.hadj.value = x
-		self.vadj.value = y
+		self.hadj.value = x * self.zoom_ratio
+		self.vadj.value = y * self.zoom_ratio
 
 PyBootchartWidget.set_set_scroll_adjustments_signal('set-scroll-adjustments')
 

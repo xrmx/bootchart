@@ -30,13 +30,11 @@ def _parse_proc_ps_log(file):
 
 		lines = block.split('\n')
 		for line in lines[1:]:
-			tokens = line.split(' ')			
-			pid, cmd, state, ppid = int(tokens[0]), tokens[1], tokens[2], int(tokens[3])
-				
-			if not cmd.startswith('('):
-				continue
+			tokens = line.split(' ')
 
-			userCpu, sysCpu, stime= int(tokens[13]), int(tokens[14]), int(tokens[21])
+			offset = [index for index, token in enumerate(tokens[1:]) if token.endswith(')')][0]				
+			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:1+offset]), tokens[2+offset], int(tokens[3+offset])
+			userCpu, sysCpu, stime= int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
 			if processMap.has_key(pid):
 				process = processMap[pid]
@@ -53,7 +51,7 @@ def _parse_proc_ps_log(file):
 			process.last_user_cpu_time = userCpu
 			process.last_sys_cpu_time = sysCpu
 		ltime = time
-	
+
 	startTime = timedBlocks[0][0]
 	avgSampleLength = (ltime - startTime)/(len(timedBlocks)-1)	
 

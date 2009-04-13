@@ -32,8 +32,8 @@ def _parse_proc_ps_log(file):
 		for line in lines[1:]:
 			tokens = line.split(' ')
 
-			offset = [index for index, token in enumerate(tokens[1:]) if token.endswith(')')][0]				
-			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:1+offset]), tokens[2+offset], int(tokens[3+offset])
+			offset = [index for index, token in enumerate(tokens[1:]) if token.endswith(')')][0]		
+			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
 			userCpu, sysCpu, stime= int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
 			if processMap.has_key(pid):

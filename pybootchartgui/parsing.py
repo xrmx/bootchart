@@ -8,6 +8,13 @@ from collections import defaultdict
 from samples import *
 from process_tree import ProcessTree
 
+class ParseError(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return self.value
+
 def _parse_headers(file):
     return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in file if '=' in line) )
 
@@ -141,6 +148,10 @@ class ParserState:
 	self.ps_stats = None
 	self.cpu_stats = None
 
+    def valid(self):
+        return self.headers != None and self.disk_stats != None and self.ps_stats != None and self.cpu_stats != None
+
+
 _relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
 
 def _do_parse(state, name, file):
@@ -178,7 +189,7 @@ def parse_paths(state, paths):
                 for name in tf.getnames():
                     state = _do_parse(state, name, tf.extractfile(name))
             except tarfile.ReadError, error:
-                print "error: could not read tarfile '%s': %s." % (path, error)
+                raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
             finally:
                 if tf != None:
                     tf.close()
@@ -188,6 +199,8 @@ def parse_paths(state, paths):
 
 def parse(paths, prune):   
     state = parse_paths(ParserState(), paths)
+    if not state.valid():
+        raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
     monitored_app = state.headers.get("profile.process")
     proc_tree = ProcessTree(state.ps_stats, monitored_app, prune)
     return (state.headers, state.cpu_stats, state.disk_stats, proc_tree)

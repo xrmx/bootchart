@@ -38,7 +38,7 @@ class ProcessTree:
         if for_testing:
             return
 
-	print 'proc_tree before prune: num_proc=%i, duration=%i' % (self.num_nodes(self.process_list), self.duration)
+	# print 'proc_tree before prune: num_proc=%i, duration=%i' % (self.num_nodes(self.process_list), self.duration)
 
 	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
 	print "Merged %i logger processes" % removed

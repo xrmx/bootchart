@@ -43,24 +43,28 @@ def _get_filename(paths, options):
 	return os.path.join(dir, file + "." + options.format)
 
 def main(argv=None):
-	if argv is None:
-		argv = sys.argv[1:]
+	try:
+		if argv is None:
+			argv = sys.argv[1:]
 	
-	parser = _mk_options_parser()
-	options, args = parser.parse_args(argv)
+		parser = _mk_options_parser()
+		options, args = parser.parse_args(argv)
 	
-	if len(args) == 0:
-		parser.error("insufficient arguments, expected at least one path.")
-		return 2
+		if len(args) == 0:
+			parser.error("insufficient arguments, expected at least one path.")
+			return 2
 
-	res = parsing.parse(args, options.prune)
-	if options.interactive or options.format == None:
-		gui.show(res)
-	else:
-		filename = _get_filename(args, options)
-		batch.render(res, options.format, filename)
-		print "bootchart written to", filename
-	return 0
+		res = parsing.parse(args, options.prune)
+		if options.interactive or options.format == None:
+			gui.show(res)
+		else:
+			filename = _get_filename(args, options)
+			batch.render(res, options.format, filename)
+			print "bootchart written to", filename
+		return 0
+	except parsing.ParseError, ex:
+		print("Parse error: %s" % ex)
+		return 2
 
 
 if __name__ == '__main__':

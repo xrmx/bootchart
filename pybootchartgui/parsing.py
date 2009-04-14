@@ -19,9 +19,12 @@ class ParseError(Exception):
 
 def _parse_headers(file):
 	"""Parses the headers of the bootchart."""
-        def parse(line):
-            return map(string.strip,line.split('=', 1))
-	return dict([parse(line) for line in file if '=' in line])
+        def parse((headers,last), line): 
+            if '=' in line: last,value = map(string.strip, line.split('=', 1))
+            else:           value = line.strip()
+            headers[last] += value
+            return headers,last
+        return reduce(parse, file.read().split('\n'), (defaultdict(str),''))[0]
 
 def _parse_timed_blocks(file):
 	"""Parses (ie., splits) a file into so-called timed-blocks. A
@@ -142,7 +145,9 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	
 	
 def get_num_cpus(headers):
-    """Get the number of CPUs from the system.cpu header property."""
+    """Get the number of CPUs from the system.cpu header property. As the
+    CPU utilization graphs are relative, the number of CPUs currently makes
+    no difference."""
     if headers is None:
         return 1
     cpu_model = headers.get("system.cpu")

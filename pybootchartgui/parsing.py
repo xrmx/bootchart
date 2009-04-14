@@ -1,6 +1,7 @@
 from __future__ import with_statement
 
 import os
+import string
 import re
 import tarfile
 from collections import defaultdict
@@ -9,18 +10,33 @@ from samples import *
 from process_tree import ProcessTree
 
 class ParseError(Exception):
-    def __init__(self, value):
-        self.value = value
+	"""Represents errors during parse of the bootchart."""
+	def __init__(self, value):
+            self.value = value
 
-    def __str__(self):
-        return self.value
+        def __str__(self):
+            return self.value
 
 def _parse_headers(file):
-    return dict( (map(lambda s: s.strip(),line.split('=', 1)) for line in file if '=' in line) )
+	"""Parses the headers of the bootchart."""
+        def parse(line):
+            return map(string.strip,line.split('=', 1))
+	return dict([parse(line) for line in file if '=' in line])
 
 def _parse_timed_blocks(file):
+	"""Parses (ie., splits) a file into so-called timed-blocks. A
+        timed-block consists of a timestamp on a line by itself followed
+        by zero or more lines of data for that point in time."""
+        def parse(block):
+            lines = block.split('\n')
+            if not lines:
+                raise ParseError('expected a timed-block consisting a timestamp followed by data lines')
+            try:
+                return (int(lines[0]), lines[1:])
+            except ValueError:
+                raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
 	blocks = file.read().split('\n\n')
-	return [ (int(block.split('\n')[0]), block[1:]) for block in blocks if block.strip()]
+        return [parse(block) for block in blocks if block.strip()]
 	
 def _parse_proc_ps_log(file):
 	"""
@@ -31,12 +47,10 @@ def _parse_proc_ps_log(file):
 	 *  kstkesp, kstkeip}
 	"""
 	processMap = {}
-	timedBlocks = _parse_timed_blocks(file)	
 	ltime = 0
-	for time, block in timedBlocks:
-
-		lines = block.split('\n')
-		for line in lines[1:]:
+        timed_blocks = _parse_timed_blocks(file)
+	for time, lines in timed_blocks:
+		for line in lines:
 			tokens = line.split(' ')
 
 			offset = [index for index, token in enumerate(tokens[1:]) if token.endswith(')')][0]		
@@ -59,8 +73,8 @@ def _parse_proc_ps_log(file):
 			process.last_sys_cpu_time = sysCpu
 		ltime = time
 
-	startTime = timedBlocks[0][0]
-	avgSampleLength = (ltime - startTime)/(len(timedBlocks)-1)	
+	startTime = timed_blocks[0][0]
+	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
 
 	for process in processMap.values():
 		process.set_parent(processMap)
@@ -73,10 +87,9 @@ def _parse_proc_ps_log(file):
 def _parse_proc_stat_log(file):
 	samples = []
 	ltimes = None
-	for time, block in _parse_timed_blocks(file):
-		lines = block.split('\n')
+	for time, lines in _parse_timed_blocks(file):
 		# CPU times {user, nice, system, idle, io_wait, irq, softirq}		
-		tokens = lines[1].split();
+		tokens = lines[0].split();
 		times = [ int(token) for token in tokens[1:] ]
 		if ltimes:
 			user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))
@@ -105,8 +118,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	
 	disk_stat_samples = []
 
-	for time, block in _parse_timed_blocks(file):
-		lines = block.split('\n')
+	for time, lines in _parse_timed_blocks(file):
 		sample = DiskStatSample(time)		
 		relevant_tokens = [line.split() for line in lines if is_relevant_line(line)]
 		

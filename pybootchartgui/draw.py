@@ -1,3 +1,4 @@
+import cairo
 import math
 import re
 
@@ -138,15 +139,19 @@ def draw_5sec_labels(ctx, rect, sec_w):
 
 def draw_box_ticks(ctx, rect, sec_w):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))
+	
+	ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
 
-	for i in range(0, rect[2] + 1, sec_w):
+	for i in range(sec_w, rect[2] + 1, sec_w):
 		if ((i / sec_w) % 5 == 0) :
 			ctx.set_source_rgba(*TICK_COLOR_BOLD)
 		else :
 			ctx.set_source_rgba(*TICK_COLOR)
-		ctx.move_to(rect[0] + i, rect[1])
-		ctx.line_to(rect[0] + i, rect[1] + rect[3])
+		ctx.move_to(rect[0] + i, rect[1] + 1)
+		ctx.line_to(rect[0] + i, rect[1] + rect[3] - 1)
 		ctx.stroke()
+
+	ctx.set_line_cap(cairo.LINE_CAP_BUTT)
 
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
 	ctx.set_line_width(0.5)
@@ -200,6 +205,7 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
 	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
 
+	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
 	w -= 2*off_x    

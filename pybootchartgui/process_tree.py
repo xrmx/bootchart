@@ -22,7 +22,8 @@ class ProcessTree:
     LOGGER_PROC = 'bootchartd'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, psstats, monitoredApp, prune, for_testing = False):
+    def __init__(self, writer, psstats, monitoredApp, prune, for_testing = False):
+        self.writer = writer
         self.process_tree = []
 	self.psstats = psstats
 	self.process_list = sorted(psstats.process_list, key = lambda p: p.pid)
@@ -38,20 +39,15 @@ class ProcessTree:
         if for_testing:
             return
 
-	# print 'proc_tree before prune: num_proc=%i, duration=%i' % (self.num_nodes(self.process_list), self.duration)
-
 	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
-	print "Merged %i logger processes" % removed
+	writer.status("merged %i logger processes" % removed)
 
 	if prune:
-            removed = self.prune(self.process_tree, None)
-	    print "Pruned %i processes" % removed
-	    removed = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
-	    print "Pruned %i exploders" % removed
-	    removed = self.merge_siblings(self.process_tree)
-	    print "Pruned %i threads" % removed
-	    removed = self.merge_runs(self.process_tree)
-	    print "Pruned %i runs" % removed
+            p_processes = self.prune(self.process_tree, None)
+	    p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
+	    p_threads = self.merge_siblings(self.process_tree)
+	    p_runs = self.merge_runs(self.process_tree)
+	    writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
 
         self.sort(self.process_tree)
 

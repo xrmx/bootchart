@@ -41,7 +41,7 @@ def _parse_timed_blocks(file):
 	blocks = file.read().split('\n\n')
         return [parse(block) for block in blocks if block.strip()]
 	
-def _parse_proc_ps_log(file):
+def _parse_proc_ps_log(writer, file):
 	"""
 	 * See proc(5) for details.
 	 * 
@@ -64,7 +64,7 @@ def _parse_proc_ps_log(file):
 				process = processMap[pid]
 				process.cmd = cmd.replace('(', '').replace(')', '') # why rename after latest name??
 			else:
-				process = Process(pid, cmd, ppid, min(time, stime))
+				process = Process(writer, pid, cmd, ppid, min(time, stime))
 				processMap[pid] = process
 			
 			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
@@ -171,53 +171,57 @@ class ParserState:
 
 _relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
 
-def _do_parse(state, name, file):
+def _do_parse(writer, state, name, file):
     if name == "header":
         state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
         state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
     elif name == "proc_ps.log":
-        state.ps_stats = _parse_proc_ps_log(file)
+        state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "proc_stat.log":
         state.cpu_stats = _parse_proc_stat_log(file)
     return state
 
-def parse_file(state, filename):
+def parse_file(writer, state, filename):
     basename = os.path.basename(filename)
     if not(basename in _relevant_files):
+        writer.info("ignoring '%s' as it is not relevant" % filename)
         return state
+    writer.status("parsing '%s'" % filename)
     with open(filename, "rb") as file:
-        return _do_parse(state, basename, file)
+        return _do_parse(writer, state, basename, file)
 
-def parse_paths(state, paths):
+def parse_paths(writer, state, paths):
     for path in paths:
         root,extension = os.path.splitext(path)
         if not(os.path.exists(path)):
-            print "warning: path '%s' does not exist, ignoring." % path
+            writer.warn("warning: path '%s' does not exist, ignoring." % path)
             continue
         if os.path.isdir(path):
             files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
             files.sort()
-            state = parse_paths(state, files)
+            state = parse_paths(writer, state, files)
         elif extension in [".tar", ".tgz", ".tar.gz"]:
             tf = None
             try:
+                writer.status("parsing '%s'" % path)
                 tf = tarfile.open(path, 'r:*')
                 for name in tf.getnames():
-                    state = _do_parse(state, name, tf.extractfile(name))
+                    writer.info("  %s" % name)
+                    state = _do_parse(writer, state, name, tf.extractfile(name))
             except tarfile.ReadError, error:
                 raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
             finally:
                 if tf != None:
                     tf.close()
         else:
-            state = parse_file(state, path)
+            state = parse_file(writer, state, path)
     return state
 
-def parse(paths, prune):   
-    state = parse_paths(ParserState(), paths)
+def parse(writer, paths, prune):
+    state = parse_paths(writer, ParserState(), paths)
     if not state.valid():
         raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
     monitored_app = state.headers.get("profile.process")
-    proc_tree = ProcessTree(state.ps_stats, monitored_app, prune)
+    proc_tree = ProcessTree(writer, state.ps_stats, monitored_app, prune)
     return (state.headers, state.cpu_stats, state.disk_stats, proc_tree)

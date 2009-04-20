@@ -27,19 +27,45 @@ def _mk_options_parser():
 			  help="print all messages")
 	return parser
 
+class Writer:
+	def __init__(self, write, options):
+		self.write = write
+		self.options = options
+		
+	def error(self, msg):
+		self.write(msg)
+
+	def warn(self, msg):
+		if not self.options.quiet:
+			self.write(msg)
+
+	def info(self, msg):
+		if self.options.verbose:
+			self.write(msg)
+
+	def status(self, msg):
+		if not self.options.quiet:
+			self.write(msg)
+
+def _mk_writer(options):
+	def write(s):
+		print s
+	return Writer(write, options)
+	
 def _get_filename(paths, options):
 	"""Construct a usable filename for outputs based on the paths and options given on the commandline."""
 	dir = ""
 	file = "bootchart"
-	if options.output != None and not(os.path.isdir(options.output)):
+	if options.output and not(os.path.isdir(options.output)):
 		return options.output
-	if options.output != None:
+	if options.output:
 		dir = options.output
 	if len(paths) == 1:
-		if os.path.isdir(paths[0]):
-			file = os.path.split(paths[0])[-1]
-		elif os.path.splitext(paths[0])[1] in [".tar", ".tgz", ".tar.gz"]:
-			file = os.path.splitext(paths[0])[0]
+		path = paths[0]
+		if os.path.isdir(path):
+			file = os.path.split(path)[-1]
+		elif os.path.splitext(path)[1] in [".tar", ".tgz", ".tar.gz"]:
+			file = os.path.splitext(path)[0]
 	return os.path.join(dir, file + "." + options.format)
 
 def main(argv=None):
@@ -49,18 +75,18 @@ def main(argv=None):
 	
 		parser = _mk_options_parser()
 		options, args = parser.parse_args(argv)
-	
+		writer = _mk_writer(options)
+
 		if len(args) == 0:
 			parser.error("insufficient arguments, expected at least one path.")
 			return 2
 
-		res = parsing.parse(args, options.prune)
+		res = parsing.parse(writer, args, options.prune)
 		if options.interactive or options.format == None:
 			gui.show(res)
 		else:
 			filename = _get_filename(args, options)
 			batch.render(res, options.format, filename)
-			print "bootchart written to", filename
 		return 0
 	except parsing.ParseError, ex:
 		print("Parse error: %s" % ex)

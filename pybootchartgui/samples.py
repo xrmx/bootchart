@@ -32,7 +32,8 @@ class ProcessStats:
 		self.end_time = end_time
 
 class Process:	
-	def __init__(self, pid, cmd, ppid, start_time):
+	def __init__(self, writer, pid, cmd, ppid, start_time):
+		self.writer = writer
 		self.pid = pid
 		self.cmd = cmd.strip('(').strip(')')
 		self.ppid = ppid
@@ -76,7 +77,7 @@ class Process:
 		if self.ppid != None:
 			self.parent = processMap.get(self.ppid)
 			if self.parent == None and self.pid > 1:
-				print "warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid)
+				self.writer.warn("warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid))
 	def get_end_time(self):
 		return self.start_time + self.duration
 

@@ -4,6 +4,7 @@ import os
 import string
 import re
 import tarfile
+from time import *
 from collections import defaultdict
 
 from samples import *
@@ -56,18 +57,17 @@ def _parse_proc_ps_log(writer, file):
 		for line in lines:
 			tokens = line.split(' ')
 
-			offset = [index for index, token in enumerate(tokens[1:]) if token.endswith(')')][0]		
+			offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]		
 			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
 			userCpu, sysCpu, stime= int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
-			if processMap.has_key(pid):
+			if pid in processMap:
 				process = processMap[pid]
-				process.cmd = cmd.replace('(', '').replace(')', '') # why rename after latest name??
 			else:
-				process = Process(writer, pid, cmd, ppid, min(time, stime))
+				process = Process(writer, pid, cmd.strip('()'), ppid, min(time, stime))
 				processMap[pid] = process
 			
-			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
+			if process.last_user_cpu_time and process.last_sys_cpu_time and ltime:
 				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample))
@@ -85,13 +85,15 @@ def _parse_proc_ps_log(writer, file):
 	for process in processMap.values():
 		process.calc_stats(avgSampleLength)
 		
+	writer.info("%d samples, avg. sample length %f" % (len(timed_blocks), avgSampleLength))
+	writer.info("process list size: %d" % len(processMap.values()))
 	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
 	
 def _parse_proc_stat_log(file):
 	samples = []
 	ltimes = None
 	for time, lines in _parse_timed_blocks(file):
-		# CPU times {user, nice, system, idle, io_wait, irq, softirq}		
+		# CPU times {user, nice, system, idle, io_wait, irq, softirq}
 		tokens = lines[0].split();
 		times = [ int(token) for token in tokens[1:] ]
 		if ltimes:
@@ -116,16 +118,16 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	"""
 	DISK_REGEX = 'hd.$|sd.$'
 	
-	def is_relevant_line(line):
-		return len(line.split()) == 14 and re.match(DISK_REGEX, line.split()[2])
+	def is_relevant_line(linetokens):
+		return len(linetokens) == 14 and re.match(DISK_REGEX, linetokens[2])
 	
 	disk_stat_samples = []
 
 	for time, lines in _parse_timed_blocks(file):
 		sample = DiskStatSample(time)		
-		relevant_tokens = [line.split() for line in lines if is_relevant_line(line)]
+		relevant_tokens = [linetokens for linetokens in map(string.split,lines) if is_relevant_line(linetokens)]
 		
-		for tokens in relevant_tokens:			
+		for tokens in relevant_tokens:
 			disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])			
 			sample.add_diskdata([rsect, wsect, use])
 		
@@ -136,7 +138,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 		interval = sample1.time - sample2.time
 		sums = [ a - b for a, b in zip(sample1.diskdata, sample2.diskdata) ]
 		readTput = sums[0] / 2.0 * 100.0 / interval
-		writeTput = sums[1] / 2.0 * 100.0 / interval			
+		writeTput = sums[1] / 2.0 * 100.0 / interval
 		util = float( sums[2] ) / 10 / interval / numCpu
 		util = max(0.0, min(1.0, util))
 		disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
@@ -172,6 +174,8 @@ class ParserState:
 _relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
 
 def _do_parse(writer, state, name, file):
+    writer.status("parsing '%s'" % name)
+    t1 = clock()
     if name == "header":
         state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
@@ -180,6 +184,8 @@ def _do_parse(writer, state, name, file):
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "proc_stat.log":
         state.cpu_stats = _parse_proc_stat_log(file)
+    t2 = clock()
+    writer.info("  %s seconds" % str(t2-t1))
     return state
 
 def parse_file(writer, state, filename):
@@ -187,7 +193,6 @@ def parse_file(writer, state, filename):
     if not(basename in _relevant_files):
         writer.info("ignoring '%s' as it is not relevant" % filename)
         return state
-    writer.status("parsing '%s'" % filename)
     with open(filename, "rb") as file:
         return _do_parse(writer, state, basename, file)
 
@@ -201,13 +206,17 @@ def parse_paths(writer, state, paths):
             files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
             files.sort()
             state = parse_paths(writer, state, files)
-        elif extension in [".tar", ".tgz", ".tar.gz"]:
+        elif extension in [".tar", ".tgz", ".gz"]:
+            if extension == ".gz":
+                root,extension = os.path.splitext(root)
+                if extension != ".tar":
+                    writer.warn("warning: can only handle zipped tar files, not zipped '%s'-files; ignoring" % extension)
+                    continue
             tf = None
             try:
                 writer.status("parsing '%s'" % path)
                 tf = tarfile.open(path, 'r:*')
                 for name in tf.getnames():
-                    writer.info("  %s" % name)
                     state = _do_parse(writer, state, name, tf.extractfile(name))
             except tarfile.ReadError, error:
                 raise ParseError("error: could not read tarfile '%s': %s." % (path, error))

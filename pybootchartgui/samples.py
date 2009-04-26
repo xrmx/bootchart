@@ -35,7 +35,7 @@ class Process:
 	def __init__(self, writer, pid, cmd, ppid, start_time):
 		self.writer = writer
 		self.pid = pid
-		self.cmd = cmd.strip('(').strip(')')
+		self.cmd = cmd
 		self.ppid = ppid
 		self.start_time = start_time
 		self.samples = []

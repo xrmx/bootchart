@@ -25,6 +25,8 @@ def _mk_options_parser():
 			  help="suppress all messages except errors")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,
 			  help="print all messages")
+	parser.add_option("--profile", action="store_true", dest="profile", default=False,
+			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
 	return parser
 
 class Writer:
@@ -86,7 +88,18 @@ def main(argv=None):
 			gui.show(res)
 		else:
 			filename = _get_filename(args, options)
-			batch.render(res, options.format, filename)
+			def render():
+				batch.render(writer, res, options.format, filename)
+			if options.profile:
+				import cProfile
+				import pstats
+				profile = '%s.prof' % os.path.splitext(filename)[0]
+				cProfile.runctx('render()', globals(), locals(), profile)
+				p = pstats.Stats(profile)
+				p.strip_dirs().sort_stats('time').print_stats(20)
+			else:
+				render()
+
 		return 0
 	except parsing.ParseError, ex:
 		print("Parse error: %s" % ex)

@@ -9,7 +9,7 @@ def render(writer, res, format, filename):
         "svg": (lambda w,h: cairo.SVGSurface(filename, w, h), lambda sfc: 0)
     }
 
-    if not(handlers.has_key(format)):
+    if not(format in handlers):
         writer.error("Unknown format '%s'." % format)
         return 10
 

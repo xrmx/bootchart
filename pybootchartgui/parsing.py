@@ -63,11 +63,12 @@ def _parse_proc_ps_log(writer, file):
 
 			if pid in processMap:
 				process = processMap[pid]
+				process.cmd = cmd.strip('()') # why rename after latest name??
 			else:
 				process = Process(writer, pid, cmd.strip('()'), ppid, min(time, stime))
 				processMap[pid] = process
 			
-			if process.last_user_cpu_time and process.last_sys_cpu_time and ltime:
+			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
 				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample))

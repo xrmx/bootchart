@@ -63,7 +63,7 @@ class TestBCParser(unittest.TestCase):
 			tokens = line.split('\t')
 			sample = samples[index]
 			if debug:		
-				print line.rstrip(), 
+				print line.rstrip()
 				print sample
 				print '-------------------'
 			

@@ -4,12 +4,16 @@ import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import parsing
+import parsing, main
 
 debug = False
 
 def floatEq(f1, f2):
 	return math.fabs(f1-f2) < 0.00001
+	
+parser = main._mk_options_parser()
+options, args = parser.parse_args(['--q', 'testfile'])
+writer = main._mk_writer(options)
 
 class TestBCParser(unittest.TestCase):
     
@@ -21,16 +25,16 @@ class TestBCParser(unittest.TestCase):
 		return os.path.join(self.rootdir, f)
 
 	def testParseHeader(self):
-		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('header'))
+		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('header'))
 		self.assertEqual(6, len(state.headers))
 		self.assertEqual(2, parsing.get_num_cpus(state.headers))
 
 	def test_parseTimedBlocks(self):
-		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_diskstats.log'))
+		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_diskstats.log'))
 		self.assertEqual(141, len(state.disk_stats))		
 
 	def testParseProcPsLog(self):
-		state = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_ps.log'))
+		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_ps.log'))
 		samples = state.ps_stats
 		processes = samples.process_list
 		sorted_processes = sorted(processes, key=lambda p: p.pid )
@@ -50,9 +54,9 @@ class TestBCParser(unittest.TestCase):
         
 
 	def testparseProcDiskStatLog(self):
-		state_with_headers = parsing.parse_file(parsing.ParserState(), self.mk_fname('header'))
+		state_with_headers = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('header'))
 		state_with_headers.headers['system.cpu'] = 'xxx (2)'
-		samples = parsing.parse_file(state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
+		samples = parsing.parse_file(writer, state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
 		self.assertEqual(141, len(samples))
 	
 		for index, line in enumerate(open(self.mk_fname('extract.proc_diskstats.log'))):
@@ -69,7 +73,7 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.util))
 	
 	def testparseProcStatLog(self):
-		samples = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_stat.log')).cpu_stats
+		samples = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_stat.log')).cpu_stats
 		self.assertEqual(141, len(samples))
 			
 		for index, line in enumerate(open(self.mk_fname('extract.proc_stat.log'))):
@@ -85,7 +89,7 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.io))
 	
 	def testParseLogDir(self):		
-		res = parsing.parse([self.rootdir], False)		
+		res = parsing.parse(writer, [self.rootdir], False)		
 		self.assertEqual(4, len(res))
 	
 if __name__ == '__main__':

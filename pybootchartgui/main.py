@@ -84,7 +84,8 @@ def main(argv=None):
 			return 2
 
 		res = parsing.parse(writer, args, options.prune)
-		if options.interactive or options.format == None:
+		
+		if options.interactive or options.output == None:
 			gui.show(res)
 		else:
 			filename = _get_filename(args, options)

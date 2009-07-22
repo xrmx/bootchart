@@ -24,7 +24,7 @@ def render(writer, res, options, filename):
         "svg": (lambda w,h: cairo.SVGSurface(filename, w, h), lambda sfc: 0)
     }
 
-    if format is None:
+    if options.format is None:
         format = filename.rsplit('.',1)[1];
 
     if not(format in handlers):

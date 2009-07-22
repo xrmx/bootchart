@@ -42,6 +42,8 @@ def _mk_options_parser():
 			  help="print all messages")
 	parser.add_option("--profile", action="store_true", dest="profile", default=False,
 			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
+	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
+			  help="show process ids in the bootchart as 'processname [pid]'")	
 	return parser
 
 class Writer:
@@ -101,11 +103,11 @@ def main(argv=None):
 		res = parsing.parse(writer, args, options.prune)
 		
 		if options.interactive or options.output == None:
-			gui.show(res)
+			gui.show(res, options)
 		else:
 			filename = _get_filename(args, options)
 			def render():
-				batch.render(writer, res, options.format, filename)
+				batch.render(writer, res, options, filename)
 			if options.profile:
 				import cProfile
 				import pstats

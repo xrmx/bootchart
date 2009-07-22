@@ -208,6 +208,7 @@ sec_w = 25 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
+OPTIONS = None
 
 
 def extents(headers, cpu_stats, disk_stats, proc_tree):
@@ -218,9 +219,13 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 #
 # Render the chart.
 # 
-def render(ctx, headers, cpu_stats, disk_stats, proc_tree):
+def render(ctx, options, headers, cpu_stats, disk_stats, proc_tree):
 	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
 
+	global OPTIONS
+	OPTIONS = options
+	print options.show_pid
+	
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
@@ -318,7 +323,9 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
-	draw_label_in_box(ctx, PROC_TEXT_COLOR, proc.cmd, x, y + proc_h - 4, w, rect[0] + rect[2])
+	cmdString = (proc.cmd + " [" + str(proc.pid) + "]") if OPTIONS.show_pid else proc.cmd
+
+	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w, rect[0] + rect[2])
 
 	next_y = y + proc_h
 	for child in proc.child_list:

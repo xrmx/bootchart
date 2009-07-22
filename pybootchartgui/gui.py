@@ -28,10 +28,11 @@ class PyBootchartWidget(gtk.DrawingArea):
 		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
-	def __init__(self, res):
+	def __init__(self, res, options):
 		gtk.DrawingArea.__init__(self)
 
 		self.res = res
+		self.options = options
 
 		self.set_flags(gtk.CAN_FOCUS)
 
@@ -71,7 +72,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		cr.paint()
                 cr.scale(self.zoom_ratio, self.zoom_ratio)
                 cr.translate(-self.x, -self.y)
-		draw.render(cr, *self.res)
+		draw.render(cr, self.options, *self.res)
 
 	def position_changed(self):
 		self.emit("position-changed", self.x, self.y)
@@ -233,7 +234,7 @@ class PyBootchartWindow(gtk.Window):
 	</ui>
 	'''
 
-	def __init__(self, res):
+	def __init__(self, res, options):
 		gtk.Window.__init__(self)
 
 		window = self
@@ -242,7 +243,7 @@ class PyBootchartWindow(gtk.Window):
 		vbox = gtk.VBox()
 		window.add(vbox)
 
-		self.widget = PyBootchartWidget(res)
+		self.widget = PyBootchartWidget(res, options)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()
@@ -282,7 +283,7 @@ class PyBootchartWindow(gtk.Window):
 
 		self.show_all()
 
-def show(res):
-	win = PyBootchartWindow(res)
+def show(res, options):
+	win = PyBootchartWindow(res, options)
 	win.connect('destroy', gtk.main_quit)
 	gtk.main()

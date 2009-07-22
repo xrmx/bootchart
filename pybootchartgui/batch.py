@@ -17,7 +17,7 @@ import cairo
 
 import draw
 
-def render(writer, res, format, filename):
+def render(writer, res, options, filename):
     handlers = {
         "png": (lambda w,h: cairo.ImageSurface(cairo.FORMAT_ARGB32,w,h), lambda sfc: sfc.write_to_png(filename)),
         "pdf": (lambda w,h: cairo.PDFSurface(filename, w, h), lambda sfc: 0),
@@ -36,7 +36,7 @@ def render(writer, res, format, filename):
     w = max(w, draw.MIN_IMG_W)
     surface = make_surface(w,h)
     ctx = cairo.Context(surface)
-    draw.render(ctx, *res)
+    draw.render(ctx, options, *res)
     write_surface(surface)
     writer.status("bootchart written to '%s'" % filename)
 

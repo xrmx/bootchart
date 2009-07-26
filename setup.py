@@ -1,7 +1,9 @@
 from distutils.core import setup
 
+idStr = '$Id$'
+
 setup(name = 'pybootchartgui',
-      version = '$Id$',
+      version = 'r' + idStr.split()[2],
       description = 'Python bootchart graph utility',
 
       packages = ['pybootchartgui'],

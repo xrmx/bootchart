@@ -30,7 +30,7 @@ def _mk_options_parser():
 			  help="start in active mode")
 	parser.add_option("-f", "--format", dest="format", default = None,
 			  help="image format (...); default format ...")
-	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
+	parser.add_option("-o", "--output", dest="output", metavar="PATH", default="bootchart.png",
 			  help="output path (file or directory) where charts are stored")
 	parser.add_option("-n", "--no-prune", action="store_false", dest="prune", default=True,
 			  help="do not prune the process tree")
@@ -97,8 +97,9 @@ def main(argv=None):
 		writer = _mk_writer(options)
 
 		if len(args) == 0:
-			parser.error("insufficient arguments, expected at least one path.")
-			return 2
+			print "No path given, trying /var/log/bootchart.tgz"
+			args = [ "/var/log/bootchart.tgz" ]
+			
 
 		res = parsing.parse(writer, args, options.prune)
 		

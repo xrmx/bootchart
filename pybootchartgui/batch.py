@@ -26,6 +26,8 @@ def render(writer, res, options, filename):
 
     if options.format is None:
         format = filename.rsplit('.',1)[1];
+    else:
+        format = options.format
 
     if not(format in handlers):
         writer.error("Unknown format '%s'." % format)

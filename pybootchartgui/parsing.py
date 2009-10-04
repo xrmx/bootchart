@@ -133,7 +133,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	not sda1, sda2 etc. The format of relevant lines should be:
 	{major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
 	"""
-	DISK_REGEX = 'hd.$|sd.$'
+	DISK_REGEX = 'hd.$|sd.$|vd.$'
 	
 	def is_relevant_line(linetokens):
 		return len(linetokens) == 14 and re.match(DISK_REGEX, linetokens[2])

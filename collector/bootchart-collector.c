@@ -73,6 +73,8 @@
 #define IOPRIO_CLASS_SHIFT 13
 #define IOPRIO_RT_HIGHEST  (0 | (IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT))
 
+const char *proc_path;
+
 /* if we are running vs. a high prio I/O process we still want logging */
 void
 set_io_prio (void)
@@ -389,7 +391,7 @@ get_tgid_taskstats (pid_t pid)
 
 	tgits = *ts;
 
-	snprintf (proc_task_buffer, 1023, "/proc/%d/task", pid);
+	snprintf (proc_task_buffer, 1023, "%s/%d/task", proc_path, pid);
 	tdir = opendir (proc_task_buffer);
 	if (!tdir)
 		return &tgits;
@@ -485,7 +487,7 @@ dump_proc (BufferFile *file, const char *name)
 	int  fd;
 	char filename[PATH_MAX];
 
-	sprintf (filename, "/proc/%s/stat", name);
+	sprintf (filename, "%s/%s/stat", proc_path, name);
 
 	fd = open (filename, O_RDONLY);
 	if (fd < 0)
@@ -603,7 +605,6 @@ main (int   argc,
 	struct rlimit     rlim;
 	struct timespec   timeout;
 	const char       *output_dir;
-	const char       *proc_path;
 	const char       *hz_string;
 	int               stat_fd, disk_fd, uptime_fd;
 	DIR              *proc;
@@ -616,7 +617,7 @@ main (int   argc,
 		&stat_fd, &disk_fd, &uptime_fd, NULL
 	};
 	const char *fd_names[] = {
-		"/proc/stat", "/proc/diskstats", "/proc/uptime", NULL
+		"/stat", "/diskstats", "/uptime", NULL
 	};
 
 	/* defaults */
@@ -709,17 +710,21 @@ main (int   argc,
 	setrlimit (RLIMIT_CORE, &rlim);
 	set_io_prio ();
 
-	proc = opendir ("/proc");
+	proc = opendir (proc_path);
 	if (! proc) {
-		perror ("opendir /proc");
+		perror ("opendir proc");
 		exit (1);
 	}
 
 	for (i = 0; fds [i]; i++) {
-		*fds[i] = open (fd_names[i], O_RDONLY);
+		char *path = malloc (strlen (proc_path) + strlen (fd_names[i]) + 1);
+		strcpy (path, proc_path);
+		strcat (path, fd_names[i]);
+
+		*fds[i] = open (path, O_RDONLY);
 		if (*fds[i] < 0) {
 			fprintf (stderr, "error opening '%s': %s'\n",
-				 fd_names[i], strerror (errno));
+				 path, strerror (errno));
 			exit (1);
 		}
 	}

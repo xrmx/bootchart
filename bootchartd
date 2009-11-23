@@ -165,6 +165,7 @@ stop()
 	# cleanup
 	rm -f klog
 	umount proc
+	rmdir proc
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	if [ -z "$LAZY_UMOUNT" ]; then

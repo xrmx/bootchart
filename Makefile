@@ -1,3 +1,7 @@
+VER=0.0.2
+PKG_NAME=bootchart2
+PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
+
 CC = gcc
 CFLAGS = -g -Wall -Os
 
@@ -19,6 +23,7 @@ py-install-compile:
 		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py
 
 install: all py-install-compile
+	mkdir -p $RPM_BUILD_ROOT/lib/bootchart/mnt
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
@@ -26,9 +31,6 @@ install: all py-install-compile
 clean:
 	-rm -f bootchart-collector collector/*.o
 
-VER=0.0.1
-PKG_NAME=bootchart2
-PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \

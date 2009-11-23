@@ -56,7 +56,7 @@ def _parse_timed_blocks(file):
             except ValueError:
                 raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
 	blocks = file.read().split('\n\n')
-        return [parse(block) for block in blocks if block.strip()]
+        return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 	
 def _parse_proc_ps_log(writer, file):
 	"""
@@ -71,6 +71,7 @@ def _parse_proc_ps_log(writer, file):
         timed_blocks = _parse_timed_blocks(file)
 	for time, lines in timed_blocks:
 		for line in lines:
+			if line is '': continue
 			tokens = line.split(' ')
 
 			offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]		

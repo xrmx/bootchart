@@ -96,7 +96,7 @@ wait_boot()
 
 	# early_login in FC4 starts gdm early, so fall back to mingetty
 	local early_login="no"
-	grep -q early_login /proc/cmdline && early_login="yes"
+	grep -q early_login proc/cmdline && early_login="yes"
 	if [ "x$runlevel" = "x2" -o "x$runlevel" = "x3" -o "$early_login" = "yes" ]; then
 		exit_proc="mingetty agetty rungetty getty"
 	fi
@@ -193,9 +193,9 @@ log_header()
 	echo "title = Boot chart for $(hostname) ($(date))"
 	echo "system.uname = $(uname -srvm)"
 	echo "system.release = $(lsb_release -sd)"
-	echo "system.cpu = $(grep '^model name' /proc/cpuinfo)"\
-         "($(grep -c '^model name' /proc/cpuinfo))"
-	echo "system.kernel.options = $(sed q /proc/cmdline)"
+	echo "system.cpu = $(grep '^model name' proc/cpuinfo)"\
+         "($(grep -c '^model name' proc/cpuinfo))"
+	echo "system.kernel.options = $(sed q proc/cmdline)"
     ) > header
 }
 
@@ -205,6 +205,9 @@ if [ $$ -eq 1 ]; then
 	IN_INIT="yes"
 	echo "Starting bootchart logging"
 	start &
+
+	# wait a fixed time for us to get started
+	usleep 100000
 	
 	# Optionally, an alternative init(1) process may be specified using
 	# the kernel command line (e.g. "bootchart_init=/sbin/initng")

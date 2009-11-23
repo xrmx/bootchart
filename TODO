@@ -1,0 +1,53 @@
+* Push me to github ...
+
+* render I/O data backwards ... :-)
+	+ what steps in this data do we get ?
+
+* include the "exit conditions" into the source code (?)
+	+ compiled in ? or on the command-line ?
+	+ -- <exit procs> ...
+
+Ensure the kernel goodness gets charted too (!?)
+
+pacct
+	+ deals with short lived processes that fork others
+		+ gets parenting correct ... [!] 
+		+ logs -all- processes, not just some (?)
+
+	* Just parse & read the binary Pacct files ...
+		+ should be good enough; for short lived foo ...
+
+Test with an initrd
+
+FIXME:
+	+ make the 'extents' thing work [!]
+	+ if we have a short chart, it should be less wide.
+
+Make pybootchartgui input default to /var/log/bootchart.tgz ...
+
+Make pybootchartgui use pacct output [!]
+
+Graph the swap / I/O delay stuff inside the bar (?)
+
+
+Account for the time taken to run the bootchart-collector ...
+	+ scale all other times by this ammount [!] ;-)
+	+ to make it -appear- as if it doesn't impact the system :-)
+
+Scale time discontinuously ? [ make the first seconds much longer ? ]
+
+Incorporate Arjan's kernel boot time introspection pieces ?
+
+Remove 'merge_logger' - no longer necessary - it's just one app ...
+	+ potentially we should hide / remove it though :-)
+
+* Merged from elsewhere:
+
+	+ why process the data in python ? can't we do it earlier ?
+		+ adjust the previous sample etc.
+	+ helps to have the raw data - but we can do much better [!]
+
+Process taskstats in advance
+	+ elide all non-useful lines:
+		+ ie. no-changes in various fields
+

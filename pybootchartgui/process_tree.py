@@ -34,14 +34,17 @@ class ProcessTree:
           are merged together.
 
     """
-    LOGGER_PROC = 'bootchartd'
+    LOGGER_PROC = 'bootchart-colle'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, writer, psstats, monitoredApp, prune, for_testing = False):
+    def __init__(self, writer, kernel, psstats, monitoredApp, prune, for_testing = False):
         self.writer = writer
         self.process_tree = []
-	self.psstats = psstats
-	self.process_list = sorted(psstats.process_list, key = lambda p: p.pid)
+
+        # tack the kernel data onto psstats for now ...
+#	self.psstats = psstats
+        process_list = kernel + psstats.process_list
+	self.process_list = sorted(process_list, key = lambda p: p.pid)
 	self.sample_period = psstats.sample_period
 
 	self.build()
@@ -84,6 +87,8 @@ class ProcessTree:
     def sort(self, process_subtree):
         """Sort process tree."""
         for p in process_subtree:
+# FIXME should we sort by CPU usage too ?
+# FIXME: we should collapse time-less parents ...
             p.child_list.sort(key = lambda p: p.pid)
             self.sort(p.child_list)
 

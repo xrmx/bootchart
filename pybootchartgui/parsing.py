@@ -105,6 +105,89 @@ def _parse_proc_ps_log(writer, file):
 	writer.info("%d samples, avg. sample length %f" % (len(timed_blocks), avgSampleLength))
 	writer.info("process list size: %d" % len(processMap.values()))
 	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
+
+def _parse_taskstats_log(writer, file):
+	"""
+	 * See bootchart-collector.c for details.
+	 * 
+	 * { pid, ppid, comm, cpu_run_real_total, blkio_delay_total, swapin_delay_total }
+	 *
+	"""
+	processMap = {}
+	pidRewrites = {}
+	ltime = None
+        timed_blocks = _parse_timed_blocks(file)
+	for time, lines in timed_blocks:
+		# we have no 'stime' from taskstats, so prep 'init'
+		if ltime is None:
+			process = Process(writer, 1, 'init', 0, 0)
+			processMap[1] = process
+			ltime = time
+			continue
+		for line in lines:
+			if line is '': continue
+			tokens = line.split(' ')
+
+			opid, ppid, cmd = float(tokens[0]), int(tokens[1]), tokens[2]
+			cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[3]), long(tokens[4]), long(tokens[5]),
+
+			# when the process name changes, we re-write the pid.
+			if pidRewrites.has_key(opid):
+				pid = pidRewrites[opid];
+			else:
+				pid = opid;
+
+			cmd = cmd.strip('(').strip(')')
+			if processMap.has_key(pid):
+				process = processMap[pid]
+				if process.cmd != cmd:
+					pid += 0.001
+					pidRewrites[opid] = pid;
+#					print "process mutation ! '%s' vs '%s' pid %s -> pid %s\n" % (process.cmd, cmd, opid, pid)
+					process = Process(writer, pid, cmd, ppid, time)
+					processMap[pid] = process
+				else:
+					process.cmd = cmd;
+			else:
+				process = Process(writer, pid, cmd, ppid, time)
+				processMap[pid] = process
+
+			delta_cpu_ns = (int) (cpu_ns - process.last_cpu_ns)
+			delta_blkio_delay_ns = (int) (blkio_delay_ns - process.last_blkio_delay_ns)
+			delta_swapin_delay_ns = (int) (swapin_delay_ns - process.last_swapin_delay_ns)
+
+			# make up some state data ...
+			if delta_cpu_ns > 0:
+				state = "R"
+			elif delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
+				state = "D"
+			else:
+				state = "S"
+
+			interval_in_ns = 1000000.0 * (time - ltime) # ms to ns
+
+			# hackley nastiness - we want to show these more clearly / sensibly
+			if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
+				cpuSample = CPUSample('null', delta_cpu_ns / interval_in_ns, 0.0,
+						      delta_blkio_delay_ns / interval_in_ns,
+						      delta_swapin_delay_ns / interval_in_ns)
+			process.samples.append(ProcessSample(time, state, cpuSample))
+			
+			process.last_cpu_ns = cpu_ns
+			process.last_blkio_delay_ns = blkio_delay_ns
+			process.last_swapin_delay_ns = swapin_delay_ns
+		ltime = time
+
+	startTime = timed_blocks[0][0]
+	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
+
+	for process in processMap.values():
+		process.set_parent(processMap)
+
+	for process in processMap.values():
+		process.calc_stats(avgSampleLength)
+		
+	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
 	
 def _parse_proc_stat_log(file):
 	samples = []
@@ -161,8 +244,79 @@ def _parse_proc_disk_stat_log(file, numCpu):
 		disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
 	
 	return disk_stats
+
+# if we boot the kernel with: initcall_debug printk.time=1 we can
+# get all manner of interesting data from the dmesg output
+# We turn this into a pseudo-process tree: each event is
+# characterised by a 
+# we don't try to detect a "kernel finished" state - since the kernel
+# continues to do interesting things after init is called.
+def _parse_dmesg(writer, file):
+	timestamp_re = re.compile ("^\[\S*([^\]]*)\S*]\s+(.*)$")
+	split_re = re.compile ("^(\S+)\s+([\S\+_-]+) (.*)$")
+	processMap = {}
+	idx = 0
+	inc = 1.0 / 1000000
+	kernel = Process(writer, idx, "k-boot", 0, 0.1)
+	processMap['k-boot'] = kernel;
+	for line in file.read().split('\n'):
+		t = timestamp_re.match (line)
+		if t is None:
+#			print "duff timestamp " + line
+			continue
+
+		time_ms = float (t.group(1)) * 1000
+		m = split_re.match (t.group(2))
+
+		if m is None:
+			continue
+#	        print "match: '%s'" % (m.group(1))
+		type = m.group(1)
+		func = m.group(2)
+		rest = m.group(3)
+
+		if t.group(2).startswith ('Write protecting the') or \
+		   t.group(2).startswith ('Freeing unused kernel memory'):
+			kernel.duration = time_ms / 10
+			continue
+
+#	        print "foo: '%s' '%s' '%s' '%s'" % (timestamp, type, func, rest)
+		if type == "calling":
+			ppid = kernel.pid
+			p = re.match ("\@ (\d+)", rest)
+			if p is not None:
+				ppid = float (p.group(1)) / 1000
+#				print "match: '%s' ('%g') at '%s'" % (func, ppid, time_ms)
+			name = func.split ('+', 1) [0]
+			idx += inc
+			processMap[func] = Process(writer, ppid + idx, name, ppid, time_ms / 10)
+		elif type == "initcall":
+#			print "finished: '%s' at '%s'" % (func, time_ms)
+			process = processMap[func]
+			process.duration = (time_ms / 10) - process.start_time
+				
+		elif type == "async_waiting" or type == "async_continuing":
+			continue # ignore
+
+	return processMap.values()
 	
-	
+# create a start / end sample ...
+#               else:
+#		       print "no match: '%s' '%s' '%s'" % (timestamp, method, rest)
+
+# async_waiting
+#	+ create bogus CPU time samples between ?
+#		+ back propagate those / fill the time ?
+#		+ or ...
+#	+ 
+
+#  - nice have this in parallel [!?] :-) ...
+#     - what fun !
+# [    0.000000] ACPI: FACP 3f4fc000 000F4 (v04 INTEL  Napa     00000001 MSFT 01000013)
+# ...
+# [    0.039993] calling  migration_init+0x0/0x6b @ 1
+# [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
+
 def get_num_cpus(headers):
     """Get the number of CPUs from the system.cpu header property. As the
     CPU utilization graphs are relative, the number of CPUs currently makes
@@ -199,8 +353,12 @@ def _do_parse(writer, state, name, file):
         state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
     elif name == "proc_ps.log":
         state.ps_stats = _parse_proc_ps_log(writer, file)
+    elif name == "taskstats.log":
+        state.ps_stats = _parse_taskstats_log(writer, file)
     elif name == "proc_stat.log":
         state.cpu_stats = _parse_proc_stat_log(file)
+    elif name == "dmesg":
+       state.kernel = _parse_dmesg(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state
@@ -249,5 +407,5 @@ def parse(writer, paths, prune):
     if not state.valid():
         raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
     monitored_app = state.headers.get("profile.process")
-    proc_tree = ProcessTree(writer, state.ps_stats, monitored_app, prune)
+    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune)
     return (state.headers, state.cpu_stats, state.disk_stats, proc_tree)

@@ -204,7 +204,7 @@ header_h = 280
 bar_h = 55
 # offsets
 off_x, off_y = 10, 10
-sec_w = 25 # the width of a second
+sec_w = 50 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
@@ -219,7 +219,7 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 #
 # Render the chart.
 # 
-def render(ctx, options, headers, cpu_stats, disk_stats, proc_tree):
+def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
 	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
 
 	global OPTIONS
@@ -346,14 +346,16 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 		if last_tx != -1 and abs(last_tx - tx) <= tw:
 			tw -= last_tx - tx
 			tx = last_tx
+		tw = max (tw, 1) # nice to see at least something
              
 		last_tx = tx + tw
 		state = get_proc_state( sample.state )
 
-		color = STATE_COLORS[state]        
+		color = STATE_COLORS[state]
 		if state == STATE_RUNNING:
-			alpha = sample.cpu_sample.user + sample.cpu_sample.sys
+			alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
+#			print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
 		elif state == STATE_SLEEPING:
 			continue
 

@@ -22,14 +22,15 @@ class DiskStatSample:
 		self.diskdata = [ a + b for a, b in zip(self.diskdata, new_diskdata) ]
 
 class CPUSample:
-	def __init__(self, time, user, sys, io):
+	def __init__(self, time, user, sys, io = 0.0, swap = 0.0):
 		self.time = time
 		self.user = user
 		self.sys = sys
 		self.io = io
+		self.swap = swap
 
 	def __str__(self):
-		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io);
+		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap);
 		
 class ProcessSample:
 	def __init__(self, time, state, cpu_sample):
@@ -63,6 +64,9 @@ class Process:
 		
 		self.last_user_cpu_time = None
 		self.last_sys_cpu_time = None
+		self.last_cpu_ns = 0;
+		self.last_blkio_delay_ns = 0;
+		self.last_swapin_delay_ns = 0;
 	
 	def __str__(self):
 		return " ".join([str(self.pid), self.cmd, str(self.ppid), '[ ' + str(len(self.samples)) + ' samples ]' ])

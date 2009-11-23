@@ -49,6 +49,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.connect("position-changed", self.on_position_changed)
 
 		self.zoom_ratio = 1.0
+		self.xscale = 1.0
                 self.x, self.y = 0.0, 0.0
 
 		self.chart_width, self.chart_height = draw.extents(*res)
@@ -72,7 +73,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 		cr.paint()
                 cr.scale(self.zoom_ratio, self.zoom_ratio)
                 cr.translate(-self.x, -self.y)
-		draw.render(cr, self.options, *self.res)
+# FIXME ERROR FOO ! xscale ...
+		draw.render(cr, self.options, self.xscale, *self.res)
 
 	def position_changed(self):
 		self.emit("position-changed", self.x, self.y)

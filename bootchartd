@@ -51,20 +51,25 @@ start()
 	cd "$LOG_DIR"
 	[ -n "$LAZY_UMOUNT" ] && umount -nfl "$LOG_DIR"
 
+	# use dmsg for debugging
+	mknod kmsg c 1 11
+	echo "bootchartd started" >> kmsg
+
+	# Mount a copy of /proc just for us ...
+	mkdir proc
+	mount -n -t proc none proc
+
 	# Enable process accounting if configured
 	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
 		> kernel_pacct
 		accton kernel_pacct
+		echo "bootchartd pacct started" >> kmsg
 	fi
-	
-	# Wait for /proc to be mounted
-	while [ ! -f /proc/stat ]; do usleep 100000; done
-	usleep 250000
 
 	#
 	# Run loggers in background
 	#
-	/lib/bootchart/bootchart-collector $SAMPLE_HZ &
+	/lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ &
 
 	if [ -n "$IN_INIT" ]; then
 		# If we were called during init, wait for the boot process to end
@@ -156,6 +161,10 @@ stop()
 
 	# if it hung - clean it up at least
 	pkill -9 -f /lib/bootchart/bootchart-collector
+
+	# cleanup
+	rm -f klog
+	umount proc
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	if [ -z "$LAZY_UMOUNT" ]; then

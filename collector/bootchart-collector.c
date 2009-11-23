@@ -587,6 +587,13 @@ error:
 	return 0;
 }
 
+static void
+usage ()
+{
+	fprintf (stderr, "Usage: bootchart-collector [-r] [-p /proc/path] [-o /output/path] HZ\n");
+	exit (1);
+}
+
 int
 main (int   argc,
       char *argv[])
@@ -595,13 +602,15 @@ main (int   argc,
 	sigset_t          mask, oldmask;
 	struct rlimit     rlim;
 	struct timespec   timeout;
-	const char       *output_dir = ".";
+	const char       *output_dir;
+	const char       *proc_path;
+	const char       *hz_string;
 	int               stat_fd, disk_fd, uptime_fd;
 	DIR              *proc;
 	BufferFile       *stat_file, *disk_file;
 	BufferFile       *per_pid_file;
 	unsigned long     reltime = 0;
-	int               arg = 1, rel = 0, i;
+	int               rel, i;
 	int		  use_taskstat;
 	int               *fds[] = {
 		&stat_fd, &disk_fd, &uptime_fd, NULL
@@ -610,21 +619,49 @@ main (int   argc,
 		"/proc/stat", "/proc/diskstats", "/proc/uptime", NULL
 	};
 
-	if ((argc > arg) && (! strcmp (argv[arg], "-r"))) {
-		rel = 1;
-		arg++;
+	/* defaults */
+	rel = 0;
+	proc_path = "/proc";
+	output_dir = ".";
+	hz_string = "10";
+
+	for (i = 1; i < argc; i++) {
+		if (!argv[i]) continue;
+		if (argv[i][0] == '-') {
+			switch (argv[i][1]) {
+			case 'r':
+				rel = 1;
+				break;
+			case 'o':
+				if (i < argc - 1)
+					output_dir = argv[++i];
+				else {
+					fprintf (stderr, "Error: -o takes a directory argument\n");
+					usage();
+				}
+				break;
+			case 'p':
+				if (i < argc - 1)
+					proc_path = argv[++i];
+				else {
+					fprintf (stderr, "Error: -p takes a proc mount-point path\n");
+					usage();
+				}
+				break;
+			default:
+				fprintf (stderr, "Error: unknown option '%s'\n", argv[i]);
+				usage();
+				break;
+			}
+		} else
+			hz_string = argv[i];
 	}
 
-	if (argc <= arg) {
-		fprintf (stderr, "Usage: %s [-r] HZ [DIR]\n", argv[0]);
-		exit (1);
-	}
-
-	if (argc > arg) {
+	{
 		unsigned long  hz;
 		char          *endptr;
 
-		hz = strtoul (argv[arg], &endptr, 10);
+		hz = strtoul (hz_string, &endptr, 10);
 		if (*endptr) {
 			fprintf (stderr, "%s: HZ not an integer\n", argv[0]);
 			exit (1);
@@ -637,15 +674,7 @@ main (int   argc,
 			timeout.tv_sec = 1;
 			timeout.tv_nsec = 0;
 		}
-
-		arg++;
 	}
-
-	if (argc > arg) {
-		output_dir = argv[arg];
-		arg++;
-	}
-
 
 	sigemptyset (&mask);
 	sigaddset (&mask, SIGTERM);

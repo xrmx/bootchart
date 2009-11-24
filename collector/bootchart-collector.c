@@ -393,19 +393,27 @@ get_tgid_taskstats (pid_t pid)
 
 	snprintf (proc_task_buffer, 1023, "%s/%d/task", proc_path, pid);
 	tdir = opendir (proc_task_buffer);
-	if (!tdir)
+	if (!tdir) {
+//		fprintf (stderr, "no task data for %d (at '%s')\n", pid, proc_task_buffer);
 		return &tgits;
+	}
 
 	while ((tent = readdir (tdir)) != NULL) {
 		pid_t tpid;
 		if (!isdigit (tent->d_name[0]))
 			continue;
+
+//		fprintf (stderr, "read taskstats data from %d/%s\n", pid, tent->d_name);
 		tpid = atoi (tent->d_name);
 		if (pid != tpid) {
 			struct taskstats *ts = get_taskstats (tpid);
 
-			if (!ts)
+			if (!ts) {
+//				fprintf (stderr, "error no taskstats %d\n", tpid);
 				continue;
+			}
+
+//			fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total);
 
 			/* aggregate */
 			tgits.cpu_run_real_total += ts->cpu_run_real_total;
@@ -413,6 +421,8 @@ get_tgid_taskstats (pid_t pid)
 			tgits.blkio_delay_total += ts->blkio_delay_total;
 		}
 	}
+	closedir (tdir);
+
 	return &tgits;
 }
 

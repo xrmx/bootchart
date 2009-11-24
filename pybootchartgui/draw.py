@@ -224,7 +224,6 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
 
 	global OPTIONS
 	OPTIONS = options
-	print options.show_pid
 	
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)

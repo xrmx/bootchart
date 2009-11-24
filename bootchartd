@@ -30,7 +30,7 @@ else
         exit 1
 fi
 
-if test -z "`which accton >& /dev/null`"; then
+if test -z "`which accton 2> /dev/null`"; then
     PROCESS_ACCOUNTING="no"
 fi
 

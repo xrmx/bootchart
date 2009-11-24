@@ -124,7 +124,7 @@ def _parse_taskstats_log(writer, file):
 			process = Process(writer, 1, 'init', 0, 0)
 			processMap[1] = process
 			ltime = time
-			continue
+#			continue
 		for line in lines:
 			if line is '': continue
 			tokens = line.split(' ')
@@ -139,7 +139,7 @@ def _parse_taskstats_log(writer, file):
 				pid = opid;
 
 			cmd = cmd.strip('(').strip(')')
-			if processMap.has_key(pid):
+			if pid in processMap:
 				process = processMap[pid]
 				if process.cmd != cmd:
 					pid += 0.001
@@ -152,6 +152,7 @@ def _parse_taskstats_log(writer, file):
 			else:
 				process = Process(writer, pid, cmd, ppid, time)
 				processMap[pid] = process
+				print "create process pid %d" % (pid)
 
 			delta_cpu_ns = (int) (cpu_ns - process.last_cpu_ns)
 			delta_blkio_delay_ns = (int) (blkio_delay_ns - process.last_blkio_delay_ns)
@@ -166,6 +167,8 @@ def _parse_taskstats_log(writer, file):
 				state = "S"
 
 			interval_in_ns = 1000000.0 * (time - ltime) # ms to ns
+			if interval_in_ns == 0:
+				interval_in_ns = 1
 
 			# hackley nastiness - we want to show these more clearly / sensibly
 			if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
@@ -252,6 +255,12 @@ def _parse_proc_disk_stat_log(file, numCpu):
 # characterised by a 
 # we don't try to detect a "kernel finished" state - since the kernel
 # continues to do interesting things after init is called.
+#
+# sample input:
+# [    0.000000] ACPI: FACP 3f4fc000 000F4 (v04 INTEL  Napa     00000001 MSFT 01000013)
+# ...
+# [    0.039993] calling  migration_init+0x0/0x6b @ 1
+# [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
 def _parse_dmesg(writer, file):
 	timestamp_re = re.compile ("^\[\S*([^\]]*)\S*]\s+(.*)$")
 	split_re = re.compile ("^(\S+)\s+([\S\+_-]+) (.*)$")
@@ -259,7 +268,7 @@ def _parse_dmesg(writer, file):
 	idx = 0
 	inc = 1.0 / 1000000
 	kernel = Process(writer, idx, "k-boot", 0, 0.1)
-	processMap['k-boot'] = kernel;
+	processMap['k-boot'] = kernel
 	for line in file.read().split('\n'):
 		t = timestamp_re.match (line)
 		if t is None:
@@ -300,23 +309,40 @@ def _parse_dmesg(writer, file):
 			continue # ignore
 
 	return processMap.values()
+
+# read LE int32
+def _read_le_int32(file):
+	bytes = file.read(4)
+	return (ord(bytes[0]))       | (ord(bytes[1]) << 8) | \
+	       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
 	
-# create a start / end sample ...
-#               else:
-#		       print "no match: '%s' '%s' '%s'" % (timestamp, method, rest)
+#
+# Parse binary pacct accounting file output
+# cf. /usr/include/linux/acct.h
+#
+# FIXME - we don't (yet) use this ... really instead
+# of this it would be nice to know who forked a process,
+# rather than (per-se) it's self-selected parent.
+#
+def _parse_pacct(writer, file):
+	pidMap = {}
+	pidMap[0] = 0
 
-# async_waiting
-#	+ create bogus CPU time samples between ?
-#		+ back propagate those / fill the time ?
-#		+ or ...
-#	+ 
+	while file.read(1) != "": # ignore flags
+		ver = file.read(1)
+		if ord(ver) < 3:
+			print "Invalid version 0x%x" % (ord(ver))
+			return None
 
-#  - nice have this in parallel [!?] :-) ...
-#     - what fun !
-# [    0.000000] ACPI: FACP 3f4fc000 000F4 (v04 INTEL  Napa     00000001 MSFT 01000013)
-# ...
-# [    0.039993] calling  migration_init+0x0/0x6b @ 1
-# [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
+		file.seek (14, 1)     # user, group etc.
+		pid = _read_le_int32 (file)
+		ppid = _read_le_int32 (file)
+		print "Parent of %d is %d" % (pid, ppid)
+		pidMap[pid] = ppid
+		file.seek (4 + 4 + 16, 1) # timings
+		file.seek (16, 1)         # acct_comm
+		
+	return pidMap;
 
 def get_num_cpus(headers):
     """Get the number of CPUs from the system.cpu header property. As the
@@ -360,6 +386,8 @@ def _do_parse(writer, state, name, file):
         state.cpu_stats = _parse_proc_stat_log(file)
     elif name == "dmesg":
        state.kernel = _parse_dmesg(writer, file)
+    elif name == "kernel_pacct":
+       state.pacct = _parse_pacct(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state

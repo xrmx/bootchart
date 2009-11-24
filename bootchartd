@@ -30,7 +30,9 @@ else
         exit 1
 fi
 
-if test -z "`which accton 2> /dev/null`"; then
+# fork 'which' and it has no PATH ...
+if [ ! -x "/sbin/accton" ] && [ ! -x "/usr/sbin/accton" ]; then
+    echo "No accton - though it is configured";
     PROCESS_ACCOUNTING="no"
 fi
 
@@ -225,6 +227,7 @@ if [ $$ -eq 1 ]; then
                         break
                 fi
 	done
+	export PATH=$OLDPATH
 	exec $init $*
 fi
 

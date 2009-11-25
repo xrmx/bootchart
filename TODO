@@ -1,6 +1,10 @@
 * render I/O data backwards ... :-)
 	+ what steps in this data do we get ?
 
+* Add a cumulative graph view:
+	+ showing who used how much CPU over what time ...
+		+ pretty colors [etc.]
+
 * include the "exit conditions" into the source code (?)
 	+ compiled in ? or on the command-line ?
 	+ -- <exit procs> ...

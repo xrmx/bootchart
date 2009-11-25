@@ -152,7 +152,6 @@ def _parse_taskstats_log(writer, file):
 			else:
 				process = Process(writer, pid, cmd, ppid, time)
 				processMap[pid] = process
-				print "create process pid %d" % (pid)
 
 			delta_cpu_ns = (int) (cpu_ns - process.last_cpu_ns)
 			delta_blkio_delay_ns = (int) (blkio_delay_ns - process.last_blkio_delay_ns)
@@ -337,7 +336,7 @@ def _parse_pacct(writer, file):
 		file.seek (14, 1)     # user, group etc.
 		pid = _read_le_int32 (file)
 		ppid = _read_le_int32 (file)
-		print "Parent of %d is %d" % (pid, ppid)
+#		print "Parent of %d is %d" % (pid, ppid)
 		pidMap[pid] = ppid
 		file.seek (4 + 4 + 16, 1) # timings
 		file.seek (16, 1)         # acct_comm

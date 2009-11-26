@@ -1,3 +1,7 @@
+Account for the time taken to run the bootchart-collector ...
+	+ scale all other times by this ammount [!] ;-)
+	+ to make it -appear- as if it doesn't impact the system :-)
+
 * render I/O data backwards ... :-)
 	+ what steps in this data do we get ?
 
@@ -9,15 +13,6 @@
 	+ compiled in ? or on the command-line ?
 	+ -- <exit procs> ...
 
-Ensure the kernel goodness gets charted too (!?)
-
-pacct
-	+ deals with short lived processes that fork others
-		+ gets parenting correct ... [!] 
-		+ logs -all- processes, not just some (?)
-	* Just parse & read the binary Pacct files ...
-		+ should be good enough; for short lived foo ...
-
 Test with an initrd
 
 FIXME:
@@ -27,9 +22,6 @@ FIXME:
 Graph the swap / I/O delay stuff inside the bar (?)
 
 
-Account for the time taken to run the bootchart-collector ...
-	+ scale all other times by this ammount [!] ;-)
-	+ to make it -appear- as if it doesn't impact the system :-)
 
 Scale time discontinuously ? [ make the first seconds much longer ? ]
 

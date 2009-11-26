@@ -47,7 +47,8 @@ def _mk_options_parser():
 	parser.add_option("--crop-after", dest="crop_after", metavar="PROCESS", default=None,
 			  help="crop chart when idle after PROCESS is started")
 	parser.add_option("--annotate", action="append", dest="annotate", metavar="PROCESS", default=None,
-			  help="annotate position where PROCESS is started")
+			  help="annotate position where PROCESS is started; can be specified multiple times. " +
+			       "To create a single annotation when any one of a set of processes is started, use commas to separate the names")
 	parser.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
 			  help="filename to write annotation points to")
 	return parser

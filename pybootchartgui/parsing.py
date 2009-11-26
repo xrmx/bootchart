@@ -430,10 +430,98 @@ def parse_paths(writer, state, paths):
             state = parse_file(writer, state, path)
     return state
 
-def parse(writer, paths, prune):
+def crop(writer, crop_after, state):
+    names = [x[:15] for x in crop_after.split(",")]
+    for proc in state.ps_stats.process_list:
+        if proc.cmd in names:
+            writer.info("selected proc '%s' from list (start %d)"
+			% (proc.cmd, proc.start_time))
+	    break
+    else:
+        writer.info("no selected proc in list")
+        return
+
+    def is_idle_at(util, start, j):
+        k = j + 1
+	while k < len(util) and util[k][0] < start + 300:
+            k += 1
+	k = min(k, len(util)-1)
+
+	if util[j][1] >= 0.25:
+            return False
+
+	avgload = sum(u[1] for u in util[j:k+1]) / (k-j+1)
+	if avgload < 0.25:
+            return True
+	else:
+            return False
+    def is_idle(util, start):
+        for j in range(0, len(util)):
+            if util[j][0] < start:
+                continue
+	    return is_idle_at(util, start, j)
+	else:
+            return False
+
+    cpu_util = [(sample.time, sample.user + sample.sys + sample.io) for sample in state.cpu_stats]
+    disk_util = [(sample.time, sample.util) for sample in state.disk_stats]
+
+    for i in range(0, len(cpu_util)):
+        if cpu_util[i][0] < proc.start_time:
+            continue
+	if is_idle_at(cpu_util, cpu_util[i][0], i) \
+	   and is_idle(disk_util, cpu_util[i][0]):
+            idle = cpu_util[i][0]
+	    break
+    else:
+        writer.info("selected proc not found in tree")
+        return
+
+    crop = idle + 300
+    writer.info("cropping at time %d" % crop)
+    while len(state.cpu_stats) \
+		and state.cpu_stats[-1].time > crop:
+        state.cpu_stats.pop()
+    while len(state.disk_stats) \
+		and state.disk_stats[-1].time > crop:
+        state.disk_stats.pop()
+
+    state.ps_stats.end_time = crop
+    while len(state.ps_stats.process_list) \
+		and state.ps_stats.process_list[-1].start_time > crop:
+        state.ps_stats.process_list.pop()
+    for proc in state.ps_stats.process_list:
+        proc.duration=min(proc.duration,crop-proc.start_time)
+	while len(proc.samples) \
+		    and proc.samples[-1].time >crop:
+            proc.samples.pop()
+
+    return idle
+
+
+def parse(writer, paths, prune, crop_after, annotate):
     state = parse_paths(writer, ParserState(), paths)
     if not state.valid():
         raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
+
+    # Crop the chart to the end of the first idle period after the given
+    # process
+    if crop_after:
+        idle = crop(writer, crop_after, state)
+    else:
+        idle = None
+    # Annotate other times as the first start point of given process lists
+    times = [ idle ]
+    if annotate:
+        for procnames in annotate:
+            names = [x[:15] for x in procnames.split(",")]
+            for proc in state.ps_stats.process_list:
+                if proc.cmd in names:
+		    times.append(proc.start_time)
+		    break
+	    else:
+                times.append(None)
+
     monitored_app = state.headers.get("profile.process")
-    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune)
-    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree)
+    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle)
+    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree, times)

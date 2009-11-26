@@ -28,6 +28,8 @@ BORDER_COLOR = (0.63, 0.63, 0.63, 1.0)
 TICK_COLOR = (0.92, 0.92, 0.92, 1.0)
 # 5-second tick line color.
 TICK_COLOR_BOLD = (0.86, 0.86, 0.86, 1.0)
+# Annotation colour
+ANNOTATION_COLOR = (0.63, 0.0, 0.0, 0.5)
 # Text color.
 TEXT_COLOR = (0.0, 0.0, 0.0, 1.0)
 
@@ -169,6 +171,22 @@ def draw_box_ticks(ctx, rect, sec_w):
 
 	ctx.set_line_cap(cairo.LINE_CAP_BUTT)
 
+def draw_annotations(ctx, proc_tree, times, rect, sec_w):
+    ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
+    ctx.set_source_rgba(*ANNOTATION_COLOR)
+    ctx.set_dash([4,4])
+
+    for time in times:
+	if time is not None:
+	    x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration)
+
+	    ctx.move_to(rect[0] + x, rect[1] + 1)
+	    ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
+	    ctx.stroke()
+
+    ctx.set_line_cap(cairo.LINE_CAP_BUTT)
+    ctx.set_dash([])
+
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
 	ctx.set_line_width(0.5)
 	x_shift = proc_tree.start_time
@@ -211,7 +229,7 @@ MIN_IMG_W = 800
 OPTIONS = None
 
 
-def extents(headers, cpu_stats, disk_stats, proc_tree):
+def extents(headers, cpu_stats, disk_stats, proc_tree, times):
 	w = (proc_tree.duration * sec_w / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 	return (w,h)
@@ -219,8 +237,8 @@ def extents(headers, cpu_stats, disk_stats, proc_tree):
 #
 # Render the chart.
 # 
-def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
-	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree)
+def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, times):
+	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree, times)
 
 	global OPTIONS
 	OPTIONS = options
@@ -230,7 +248,11 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
 	w -= 2*off_x    
 	# draw the title and headers
-	curr_y = draw_header(ctx, headers, off_x, proc_tree.duration)
+	if proc_tree.idle:
+	    duration = proc_tree.idle
+	else:
+	    duration = proc_tree.duration
+	curr_y = draw_header(ctx, headers, off_x, duration)
     
 	# render bar legend
 	ctx.set_font_size(LEGEND_FONT_SIZE)
@@ -241,6 +263,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
 	# render I/O wait
         chart_rect = (off_x, curr_y+30, w, bar_h)
 	draw_box_ticks(ctx, chart_rect, sec_w)
+	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
 	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], proc_tree) 
 	# render CPU load
 	draw_chart(ctx, CPU_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats], proc_tree)
@@ -254,6 +277,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
         # render I/O utilization
 	chart_rect = (off_x, curr_y+30, w, bar_h)
 	draw_box_ticks(ctx, chart_rect, sec_w)			
+	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
 	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.util) for sample in disk_stats], proc_tree)
 				
 	# render disk throughput
@@ -271,12 +295,12 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree):
 
 
 	# draw process boxes
-	draw_process_bar_chart(ctx, proc_tree, curr_y + bar_h, w, h)
+	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, h)
 
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
 	
-def draw_process_bar_chart(ctx, proc_tree, curr_y, w, h):
+def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
 	draw_legend_box(ctx, "Unint.sleep (I/O)", 	PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
 	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
@@ -287,7 +311,8 @@ def draw_process_bar_chart(ctx, proc_tree, curr_y, w, h):
 	
 	draw_box_ticks(ctx, chart_rect, sec_w)
 	draw_5sec_labels(ctx, chart_rect, sec_w)
-        
+	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
+
 	y = curr_y+60
 	for root in proc_tree.process_tree:        
 		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)

@@ -37,7 +37,7 @@ class ProcessTree:
     LOGGER_PROC = 'bootchart-colle'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, writer, kernel, psstats, monitoredApp, prune, for_testing = False):
+    def __init__(self, writer, kernel, psstats, monitoredApp, prune, idle, for_testing = False):
         self.writer = writer
         self.process_tree = []
 
@@ -53,6 +53,7 @@ class ProcessTree:
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
         self.duration = self.end_time - self.start_time
+        self.idle = idle
 
         if for_testing:
             return

@@ -44,6 +44,12 @@ def _mk_options_parser():
 			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
 	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
 			  help="show process ids in the bootchart as 'processname [pid]'")	
+	parser.add_option("--crop-after", dest="crop_after", metavar="PROCESS", default=None,
+			  help="crop chart when idle after PROCESS is started")
+	parser.add_option("--annotate", action="append", dest="annotate", metavar="PROCESS", default=None,
+			  help="annotate position where PROCESS is started")
+	parser.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
+			  help="filename to write annotation points to")
 	return parser
 
 class Writer:
@@ -101,11 +107,22 @@ def main(argv=None):
 			args = [ "/var/log/bootchart.tgz" ]
 			
 
-		res = parsing.parse(writer, args, options.prune)
+		res = parsing.parse(writer, args, options.prune,
+				    options.crop_after, options.annotate)
 		
 		if options.interactive or options.output == None:
 			gui.show(res, options)
 		else:
+			if options.annotate_file:
+				f = open(options.annotate_file, "w")
+				try:
+					for time in res[-1]:
+						if time is not None:
+							print >>f, time
+						else:
+							print >>f
+				finally:
+					f.close()
 			filename = _get_filename(args, options)
 			def render():
 				batch.render(writer, res, options, filename)

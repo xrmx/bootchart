@@ -4,3 +4,5 @@
 bootchart-collector
 *.pyo
 *.tar.bz2
+*.orig
+*.rej

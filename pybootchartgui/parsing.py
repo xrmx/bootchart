@@ -165,15 +165,12 @@ def _parse_taskstats_log(writer, file):
 			else:
 				state = "S"
 
-			interval_in_ns = 1000000.0 * (time - ltime) # ms to ns
-			if interval_in_ns == 0:
-				interval_in_ns = 1
-
-			# hackley nastiness - we want to show these more clearly / sensibly
+# FIXME - we really need to render these more accurately - retaining higher precision to rendering.
+			ms_to_ns = 1000000;
 			if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
-				cpuSample = CPUSample('null', delta_cpu_ns / interval_in_ns, 0.0,
-						      delta_blkio_delay_ns / interval_in_ns,
-						      delta_swapin_delay_ns / interval_in_ns)
+				cpuSample = CPUSample('null', delta_cpu_ns / ms_to_ns, 0.0,
+						      delta_blkio_delay_ns / ms_to_ns,
+						      delta_swapin_delay_ns / ms_to_ns)
 			process.samples.append(ProcessSample(time, state, cpuSample))
 			
 			process.last_cpu_ns = cpu_ns

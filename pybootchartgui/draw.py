@@ -299,6 +299,34 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
+
+	draw_cuml_graph(ctx, proc_tree, 5, h, w, 500)
+
+
+def accumulate_time(name_to_cuml_t, proc):
+	if not proc.cmd in name_to_cuml_t:
+		name_to_cuml_t[proc.cmd] = 0.0
+	for sample in proc.samples :    
+		name_to_cuml_t[proc.cmd] += sample.cpu_sample.user + sample.cpu_sample.sys
+
+	for c in proc.child_list:
+		accumulate_time (name_to_cuml_t, c)
+
+
+def draw_cuml_graph(ctx, proc_tree, x, y, width, height):
+	name_to_cuml_t = {}
+	# wow - this structure is horrible for recursion...
+	for root in proc_tree.process_tree:        
+		accumulate_time (name_to_cuml_t, root)
+
+	sorted_names = name_to_cuml_t.keys()
+	sorted_names.sort(key = lambda p: name_to_cuml_t[p])
+	total_time = 0;
+	for t in name_to_cuml_t.values():
+		total_time += t;
+	for a in sorted_names:
+		print "%s\t%d->%g%%" % (a, name_to_cuml_t[a], 100.0 * name_to_cuml_t[a] / total_time)
+
 	
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
@@ -377,7 +405,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 
 		color = STATE_COLORS[state]
 		if state == STATE_RUNNING:
-			alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
+			alpha = 1.0 #min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 #			print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
 		elif state == STATE_SLEEPING:

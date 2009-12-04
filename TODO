@@ -44,3 +44,7 @@ Remove 'merge_logger' - no longer necessary - it's just one app ...
 Process taskstats in advance
 	+ elide all non-useful lines:
 		+ ie. no-changes in various fields
+
+* Export ODF, with a number of pie charts in it etc.
+	+ export cumulative data for rendering in ods ?
+	+ rather than adding manual rendering - which sucks (!?)

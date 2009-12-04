@@ -17,6 +17,19 @@ James Remnant. This has been subsequently re-written by Michael Meeks
 to use the higher granularity 'taskstat' data available via a twisted
 netlink interface.
 
+
+			    Using bootchart2 ?
+			   --------------------
+
+	After install, simply add these options to your kernel
+command-line, normally in /boot/grub/menu.lst:
+
+	initcall_debug printk.time=y quiet init=/sbin/bootchartd ...
+
+	Then - after bootup, run 'pybootchartgui -i' to get an interactive
+chart rendering tool.
+
+
 			    Why bootchart2 ?
 			   ------------------
 
@@ -47,4 +60,3 @@ netlink interface.
 
 	For potential future work, see the TODO, and/or mail the authors,
 all patches welcome.
-

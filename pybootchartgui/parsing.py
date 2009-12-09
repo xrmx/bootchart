@@ -286,7 +286,7 @@ def _parse_dmesg(writer, file):
 			kernel.duration = time_ms / 10
 			continue
 
-#	        print "foo: '%s' '%s' '%s' '%s'" % (timestamp, type, func, rest)
+#	        print "foo: '%s' '%s' '%s'" % (type, func, rest)
 		if type == "calling":
 			ppid = kernel.pid
 			p = re.match ("\@ (\d+)", rest)
@@ -298,8 +298,11 @@ def _parse_dmesg(writer, file):
 			processMap[func] = Process(writer, ppid + idx, name, ppid, time_ms / 10)
 		elif type == "initcall":
 #			print "finished: '%s' at '%s'" % (func, time_ms)
-			process = processMap[func]
-			process.duration = (time_ms / 10) - process.start_time
+			if func in processMap:
+				process = processMap[func]
+				process.duration = (time_ms / 10) - process.start_time
+			else:
+				print "corrupted init call for %s" % (func)
 				
 		elif type == "async_waiting" or type == "async_continuing":
 			continue # ignore

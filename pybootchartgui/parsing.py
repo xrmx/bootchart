@@ -153,9 +153,9 @@ def _parse_taskstats_log(writer, file):
 				process = Process(writer, pid, cmd, ppid, time)
 				processMap[pid] = process
 
-			delta_cpu_ns = (int) (cpu_ns - process.last_cpu_ns)
-			delta_blkio_delay_ns = (int) (blkio_delay_ns - process.last_blkio_delay_ns)
-			delta_swapin_delay_ns = (int) (swapin_delay_ns - process.last_swapin_delay_ns)
+			delta_cpu_ns = (float) (cpu_ns - process.last_cpu_ns)
+			delta_blkio_delay_ns = (float) (blkio_delay_ns - process.last_blkio_delay_ns)
+			delta_swapin_delay_ns = (float) (swapin_delay_ns - process.last_swapin_delay_ns)
 
 			# make up some state data ...
 			if delta_cpu_ns > 0:
@@ -165,12 +165,12 @@ def _parse_taskstats_log(writer, file):
 			else:
 				state = "S"
 
-# FIXME - we really need to render these more accurately - retaining higher precision to rendering.
-			ms_to_ns = 1000000;
+			# retain the ns timing information into a CPUSample - that tries
+			# with the old-style to be a %age of CPU used in this time-slice.
 			if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
-				cpuSample = CPUSample('null', delta_cpu_ns / ms_to_ns, 0.0,
-						      delta_blkio_delay_ns / ms_to_ns,
-						      delta_swapin_delay_ns / ms_to_ns)
+				cpuSample = CPUSample('null', delta_cpu_ns, 0.0,
+						      delta_blkio_delay_ns,
+						      delta_swapin_delay_ns)
 			process.samples.append(ProcessSample(time, state, cpuSample))
 			
 			process.last_cpu_ns = cpu_ns

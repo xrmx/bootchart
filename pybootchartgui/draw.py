@@ -300,7 +300,9 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
 
-	draw_cuml_graph(ctx, proc_tree, 5, h, w, 500)
+#	draw a cumulative CPU time per-process graph at the bottom ...
+#	see from the wiggles in it where we're waiting / blocking (?)
+#	draw_cuml_graph(ctx, proc_tree, 5, h, w, 500)
 
 
 def accumulate_time(name_to_cuml_t, proc):
@@ -405,7 +407,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 
 		color = STATE_COLORS[state]
 		if state == STATE_RUNNING:
-			alpha = 1.0 #min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
+			alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 #			print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
 		elif state == STATE_SLEEPING:

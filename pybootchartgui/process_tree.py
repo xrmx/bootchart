@@ -43,7 +43,10 @@ class ProcessTree:
 
         # tack the kernel data onto psstats for now ...
 #	self.psstats = psstats
-        process_list = kernel + psstats.process_list
+        if kernel is None:
+            process_list = psstats.process_list
+        else:
+            process_list = kernel + psstats.process_list
 	self.process_list = sorted(process_list, key = lambda p: p.pid)
 	self.sample_period = psstats.sample_period
 

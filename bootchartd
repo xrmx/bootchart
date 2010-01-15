@@ -107,6 +107,7 @@ wait_boot()
 			# Give the exit process some time to start
 			stopinitrd=$( pidof stopinitrd )
 			if [ -n "$stopinitrd" ] ; then
+				umount proc
 				# move initrd logs somewhere safe (?)
 				mv $LOG_DIR/* /dev/shm/
 				wait

@@ -19,12 +19,20 @@
 # $ /sbin/bootchartd start; sleep 30; /sbin/bootchartd stop
 #
 
+# FIXME:
+#     - test with our initrd first ... [mkinitrd etc.]
+# FIXME:
+#     - fix for profiling a running system ... [ get timings right ]
+#     - fixme - we need a 'from init' thingit ...
 # FIXME: split this into fragments of sharable shell
 #     - so we can use re-them in the Debian / Ubuntu world ...
 #     - ...
 
 # Whack everything in a handy tmpfs: /dev ...
 JAIL="/dev/.bootchart"
+
+# set to -v to get the collector to dump things
+DEBUG=-v
 
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
@@ -53,13 +61,20 @@ fi
 # Start the boot logger.
 start()
 {
-	if [ -n "$IN_INIT" ]; then
-		# FIXME - check /dev exists, or mount it ... at this stage ?
-		echo "in init !"
+	if [ -e $JAIL/proc_stat.log ]; then
+		return # two collectors create problems.
 	fi
 
-	mkdir -p $JAIL
-	cd $JAIL
+	# we have to create this, in the init system,
+	# otherwise we create real files in the /dev dir
+	# behind the mount which then cripple 'run-init'
+	if [ ! -f /dev/null ]; then
+		mount -t tmpfs udev /dev
+	fi
+	if [ ! -d $JAIL ]; then
+		mkdir -p $JAIL
+	fi
+	pushd $JAIL 
 
 	# use dmsg for debugging
 	if [ ! -c kmsg ]; then
@@ -69,37 +84,43 @@ start()
 
 	# setup the jail so we can run the collector inside it [ why bother !? ]
 	if [ -n "$IN_INIT" ]; then
+		echo "bootchartd init" >> kmsg
 		if [ "`uname -m`" = "x86_64" ]
 		then
 			mkdir $JAIL/lib64
 			cp /lib64/ld-linux-x86-64.so.* $JAIL/lib64
 		else
+			mkdir -p $JAIL/lib
 			cp /lib/ld-linux.so.* $JAIL/lib
 		fi
 		cp /lib/libc.so.* $JAIL/lib
-		cp /lib/bootchart/collector $JAIL/lib/bootchart
-		mkdir $JAIL/lib $JAIL/lib/bootchart
+
+		mkdir $JAIL/lib/bootchart
+		cp /lib/bootchart/bootchart-collector $JAIL/lib/bootchart
 	fi
 
 	# Mount a copy of /proc just for us ...
-	if [ ! -e proc ]; then
+	if [ ! -d "proc" ]; then
 		mkdir proc
+	fi
+	if [ ! -f "proc/stat" ]; then
 		mount -n -t proc none proc
 	fi
 
 	# Enable process accounting if configured
-	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
-		> kernel_pacct
-		$ACCTON kernel_pacct
-		echo "bootchartd pacct started" >> kmsg
+	if [ ! -f kernel_pacct ]; then
+		if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
+			> kernel_pacct
+			$ACCTON kernel_pacct
+			echo "bootchartd pacct started" >> kmsg
+		fi
 	fi
     
 	if [ -n "$IN_INIT" ]; then
-		mkdir $JAIL/log
-		chroot $JAIL /lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ 2>/dev/null &
-		exit 0
+		chroot $JAIL /lib/bootchart/bootchart-collector $DEBUG -p proc $SAMPLE_HZ # 2>/dev/null &
+
 	else
-		/lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ &
+		/lib/bootchart/bootchart-collector $DEBUG -p proc $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
 			# If a command was passed, run it
@@ -111,6 +132,7 @@ start()
 #			manual start/stop - wait for a 'stop'
 		fi
 	fi
+	popd 
 }
 
 # Wait for the boot process to end.
@@ -205,8 +227,10 @@ log_header()
 }
 
 if [ $$ -eq 1 ]; then
-	# Started by the kernel.  Start the logger in background and exec
-	# init(1).
+	# Either started by the kernel - in which case, we start the
+        # logger in background and exec init [ re-using this pid (1) ]
+	# Or - started after the initrd has completed, in which case
+	# we try to do nothing much.
 	IN_INIT="yes"
 	echo "Starting bootchart logging"
 	start &
@@ -236,10 +260,10 @@ fi
 
 case "$1" in
 	"init")
+		# FIXME: does this path ever occur ??
 		# Started by the init script
 		IN_INIT="yes"
-		echo "Starting bootchart logging"
-		start &
+		echo "Starting bootchart logging from an 'init' script" > /dev/kmsg
 		;;
 	"start")
 		# Started by the user

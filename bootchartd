@@ -31,9 +31,6 @@
 # Whack everything in a handy tmpfs: /dev ...
 JAIL="/dev/.bootchart"
 
-# set to -v to get the collector to dump things
-DEBUG=-v
-
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 
@@ -117,10 +114,10 @@ start()
 	fi
     
 	if [ -n "$IN_INIT" ]; then
-		chroot $JAIL /lib/bootchart/bootchart-collector $DEBUG -p proc $SAMPLE_HZ # 2>/dev/null &
+		chroot $JAIL /lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ # 2>/dev/null &
 
 	else
-		/lib/bootchart/bootchart-collector $DEBUG -p proc $SAMPLE_HZ &
+		/lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
 			# If a command was passed, run it

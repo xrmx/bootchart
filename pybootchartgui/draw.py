@@ -18,6 +18,9 @@ import cairo
 import math
 import re
 
+# should we render a cumulative CPU time chart
+WITH_CUMULATIVE_CHART = False # True
+
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
 
@@ -80,7 +83,7 @@ SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
 # Signature font.
 SIG_FONT_SIZE = 14
 # Signature text.
-SIGNATURE = "http://code.google.com/p/pybootchartgui"
+SIGNATURE = "http://github.com/mmeeks/bootchart"
 	
 # Process dependency line color.
 DEP_COLOR = (0.75, 0.75, 0.75, 1.0)
@@ -226,12 +229,15 @@ sec_w = 50 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
+CUML_HEIGHT = 500
 OPTIONS = None
 
 
 def extents(headers, cpu_stats, disk_stats, proc_tree, times):
 	w = (proc_tree.duration * sec_w / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
+	if WITH_CUMULATIVE_CHART:
+		h += CUML_HEIGHT + 4*off_y
 	return (w,h)
 
 #
@@ -246,7 +252,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
-	w -= 2*off_x    
+	w -= 2*off_x
 	# draw the title and headers
 	if proc_tree.idle:
 	    duration = proc_tree.idle
@@ -293,41 +299,22 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	label = "%dMB/s" % round((max_sample.tput) / 1024.0)
 	draw_text(ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
-
 	# draw process boxes
-	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, h)
-
+	proc_height = h
+	if WITH_CUMULATIVE_CHART:
+		proc_height -= CUML_HEIGHT
+	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, proc_height)
+	
+	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
-	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, h - off_y - 5)
+	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 5)
 
-#	draw a cumulative CPU time per-process graph at the bottom ...
-#	see from the wiggles in it where we're waiting / blocking (?)
-#	draw_cuml_graph(ctx, proc_tree, 5, h, w, 500)
+#	draw a cumulative CPU time per-application graph
+	if WITH_CUMULATIVE_CHART:
+	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
+		draw_box_ticks(ctx, cuml_rect, sec_w)
+		draw_cuml_graph(ctx, proc_tree, cuml_rect)
 
-
-def accumulate_time(name_to_cuml_t, proc):
-	if not proc.cmd in name_to_cuml_t:
-		name_to_cuml_t[proc.cmd] = 0.0
-	for sample in proc.samples :    
-		name_to_cuml_t[proc.cmd] += sample.cpu_sample.user + sample.cpu_sample.sys
-
-	for c in proc.child_list:
-		accumulate_time (name_to_cuml_t, c)
-
-
-def draw_cuml_graph(ctx, proc_tree, x, y, width, height):
-	name_to_cuml_t = {}
-	# wow - this structure is horrible for recursion...
-	for root in proc_tree.process_tree:        
-		accumulate_time (name_to_cuml_t, root)
-
-	sorted_names = name_to_cuml_t.keys()
-	sorted_names.sort(key = lambda p: name_to_cuml_t[p])
-	total_time = 0;
-	for t in name_to_cuml_t.values():
-		total_time += t;
-	for a in sorted_names:
-		print "%s\t%d->%g%%" % (a, name_to_cuml_t[a], 100.0 * name_to_cuml_t[a] / total_time)
 
 	
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
@@ -432,3 +419,55 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 		ctx.line_to(px, py)
 	ctx.stroke()
         ctx.set_dash([])
+
+
+
+#
+# Rotate the data into sets of cumulative samples per unit time.
+#
+
+def accumulate_at_time(acc, time, cmd, sample):
+	# create a hash per time-slot
+	if not time in acc:
+		c = {}
+		acc[time] = c;
+
+	# accumulate across processes with the same name
+	name_to_cuml = acc[time]
+	if not cmd in name_to_cuml:
+		name_to_cuml[cmd] = 0.0
+	name_to_cuml[cmd] += sample
+
+
+def accumulate_time(acc, proc):
+	time_so_far = 0.0
+	for sample in proc.samples:
+		time_so_far += sample.cpu_sample.user + sample.cpu_sample.sys
+		accumulate_at_time (acc, sample.time, proc.cmd, time_so_far)
+
+	for c in proc.child_list:
+		time_so_far += accumulate_time (acc, c)
+
+	return time_so_far
+
+
+def draw_cuml_graph(ctx, proc_tree, chart_bounds):
+	acc = {}
+	height = chart_bounds[3] - chart_bounds[1]
+
+	total_time = 0.0
+	for root in proc_tree.process_tree:
+		total_time += accumulate_time (acc, root)
+
+	print "total time: %g pix-per-ns %g" % (total_time, height/total_time)
+
+	sorted_times = acc.keys()
+	sorted_times.sort()
+
+
+#	sorted_names = name_to_cuml_t.keys()
+#	sorted_names.sort(key = lambda p: name_to_cuml_t[p])
+#	for t in name_to_cuml_t.values():
+#		total_time += t;
+#	for a in sorted_names:
+#		print "%s\t%d->%g%%" % (a, name_to_cuml_t[a], 100.0 * name_to_cuml_t[a] / total_time)

@@ -1,16 +1,16 @@
 #!/bin/bash
 #
-# FIXME: re-write this header ...
-#
 # Bootchart logger script
 # Ziga Mahkovec  <ziga.mahkovec@klika.si>
+# Michael Meeks  <michael.meeks@novell.com>
 #
-# This script is used for data collection for the bootchart
-# boot performance visualization tool (http://www.bootchart.org).
+# This script is used for data collection for the bootchart2
+# boot performance visualization tool.
 #
 # To profile the boot process, bootchartd should be called instead of
 # /sbin/init.  Modify the kernel command line to include:
-# init=/sbin/bootchartd
+# 
+# init=/sbin/bootchartd initcall_debug printk.time=y quiet
 #
 # bootchartd will then start itself in background and exec /sbin/init
 # (or an alternative init process if specified using bootchart_init=)
@@ -18,10 +18,6 @@
 # To profile a running system, run:
 # $ /sbin/bootchartd start; sleep 30; /sbin/bootchartd stop
 #
-
-# FIXME:
-#     - fix for profiling a running system ... [ get timings right ]
-#     - fixme - we need a 'from init' thingit ...
 
 # Whack everything in a handy tmpfs: /dev ...
 JAIL_INITRD="/dev/.bootchart"
@@ -206,13 +202,14 @@ stop()
 	dmesg > dmesg
 
 	# cleanup
-	rm -f klog
+	rm -f kmsg
 	umount proc
 	rmdir proc
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	rm -f header dmesg $pacct *.log
-	cd ..
+
+	cd /
 	rmdir $JAIL
 
 	# Render the chart if configured (and the renderer is installed)

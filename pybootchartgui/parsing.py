@@ -258,7 +258,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 # [    0.039993] calling  migration_init+0x0/0x6b @ 1
 # [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
 def _parse_dmesg(writer, file):
-	timestamp_re = re.compile ("^\[\S*([^\]]*)\S*]\s+(.*)$")
+ 	timestamp_re = re.compile ("^\[\s*(\d+\.\d+)\s*]\s+(.*)$")
 	split_re = re.compile ("^(\S+)\s+([\S\+_-]+) (.*)$")
 	processMap = {}
 	idx = 0

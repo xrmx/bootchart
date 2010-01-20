@@ -20,8 +20,6 @@
 #
 
 # FIXME:
-#     - test with our initrd first ... [mkinitrd etc.]
-# FIXME:
 #     - fix for profiling a running system ... [ get timings right ]
 #     - fixme - we need a 'from init' thingit ...
 
@@ -115,7 +113,6 @@ start()
 
 	# Otherwise start in a chroot jail
 	elif [ -n "$IN_INIT" ]; then
-		mkdir $JAIL/log
 		chroot $JAIL /lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ # 2>/dev/null &
 
 	# Otherwise, manually launched to profile something
@@ -214,7 +211,9 @@ stop()
 	rmdir proc
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
-#	rm -Rf $JAIL
+	rm -f header dmesg $pacct *.log
+	cd ..
+	rmdir $JAIL
 
 	# Render the chart if configured (and the renderer is installed)
 	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then

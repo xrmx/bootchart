@@ -24,9 +24,6 @@
 # FIXME:
 #     - fix for profiling a running system ... [ get timings right ]
 #     - fixme - we need a 'from init' thingit ...
-# FIXME: split this into fragments of sharable shell
-#     - so we can use re-them in the Debian / Ubuntu world ...
-#     - ...
 
 # Whack everything in a handy tmpfs: /dev ...
 JAIL="/dev/.bootchart"
@@ -58,16 +55,21 @@ fi
 # Start the boot logger.
 start()
 {
-	if [ -e $JAIL/proc_stat.log ]; then
-		return # two collectors create problems.
-	fi
+	# we have no control over the (usually rather mindless) scripts
+	# that will mount, and populate /dev - however we have to wait
+	# for them; otherwise we can't share the /dev tmpfs for our logs
+	# and have to modify each system to mount --move our file-system.
+	while [ ! -e /dev/console ]; do
+	    usleep 10000
+	done
+	echo "/dev/console now exists"
+	ls -l /dev/console
+	ls -l /dev/random
+	while [ ! -e /dev/random ]; do
+	    usleep 10000
+	done
+	echo "/dev/random now exists"
 
-	# we have to create this, in the init system,
-	# otherwise we create real files in the /dev dir
-	# behind the mount which then cripple 'run-init'
-	if [ ! -f /dev/null ]; then
-		mount -t tmpfs udev /dev
-	fi
 	if [ ! -d $JAIL ]; then
 		mkdir -p $JAIL
 	fi
@@ -103,6 +105,8 @@ start()
 	if [ ! -f "proc/stat" ]; then
 		mount -n -t proc none proc
 	fi
+	echo "mounts:"
+	cat proc/mounts
 
 	# Enable process accounting if configured
 	if [ ! -f kernel_pacct ]; then
@@ -113,9 +117,16 @@ start()
 		fi
 	fi
     
-	if [ -n "$IN_INIT" ]; then
+	# Ensure we don't start ourselves a second time during init
+	if [ -e proc_stat.log ]; then
+		echo "bootchart collector already running" >> kmsg
+
+	# Otherwise start in a chroot jail
+	elif [ -n "$IN_INIT" ]; then
+		mkdir $JAIL/log
 		chroot $JAIL /lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ # 2>/dev/null &
 
+	# Otherwise, manually launched to profile something
 	else
 		/lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ &
 
@@ -224,16 +235,36 @@ log_header()
 }
 
 if [ $$ -eq 1 ]; then
-	# Either started by the kernel - in which case, we start the
+        # Either started by the kernel - in which case, we start the
         # logger in background and exec init [ re-using this pid (1) ]
-	# Or - started after the initrd has completed, in which case
-	# we try to do nothing much.
+        # Or - started after the initrd has completed, in which case
+        # we try to do nothing much.
 	IN_INIT="yes"
 	echo "Starting bootchart logging"
-	start &
 
-	# wait a fixed time for us to get started
-	usleep 100000
+	# Are we running in the initrd ?
+	if [ ! -e /dev/random ]; then
+		start &
+		# wait a fixed 0.5 sec for us to get spun up, before
+		# letting init get underway, so we catch all of it's
+		# initial goodness
+		usleep 500000
+		FIXME: bogus - we have to race - ...
+	else # running inside the main system
+		echo "acute oddness - why can't we detect this !?" >> /dev/kmsg
+		ls -al /dev >> /dev/kmsg
+		if [ -c /dev/.bootchart/kmsg ]; then
+			echo "bootchart - has kmsg" >> /dev/kmsg
+		fi
+		if [ -d /dev/.bootchart ]; then
+			echo "bootchart: start wait for completion" >> /dev/kmsg
+			wait_boot &
+		else # perhaps we had no initrd
+			echo "bootchart: no initrd used; starting" >> /dev/kmsg
+			start &
+			wait_boot &
+		fi
+	fi
 	
 	# Optionally, an alternative init(1) process may be specified using
 	# the kernel command line (e.g. "bootchart_init=/sbin/initng")
@@ -252,16 +283,12 @@ if [ $$ -eq 1 ]; then
                 fi
 	done
 	export PATH=$OLDPATH
+
+	# switch to - either the initrd's init, or the main system's
 	exec $init $*
 fi
 
 case "$1" in
-	"init")
-		# FIXME: does this path ever occur ??
-		# Started by the init script
-		IN_INIT="yes"
-		echo "Starting bootchart logging from an 'init' script" > /dev/kmsg
-		;;
 	"start")
 		# Started by the user
 		shift

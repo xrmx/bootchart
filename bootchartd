@@ -200,6 +200,7 @@ stop()
 	fi
 
 	find_jail
+	cd $JAIL
 
 	# Write system information
 	log_header

@@ -61,7 +61,7 @@ start()
 	if [ ! -d $JAIL ]; then
 		mkdir -p $JAIL
 	fi
-	pushd $JAIL > /dev/null
+	cd $JAIL
 
 	# use dmsg for debugging
 	if [ ! -c kmsg ]; then
@@ -125,7 +125,6 @@ start()
 #			manual start/stop - wait for a 'stop'
 		fi
 	fi
-	popd > /dev/null
 }
 
 # Wait for the boot process to end.
@@ -170,6 +169,7 @@ find_jail()
     if [ -d $JAIL_INITRD ]; then
 	if [ ! -d $JAIL_MAIN ] || [ $JAIL_INITRD -nt $JAIL_MAIN ]; then
 	    JAIL=$JAIL_INITRD;
+	    return
 	fi
     fi
     JAIL=$JAIL_MAIN;
@@ -193,6 +193,10 @@ stop()
 	fi
 
 	find_jail
+	if [ ! -d $JAIL ]; then
+		echo "Can't find bootchart output in $JAIL - aborting"
+		exit 1
+	fi
 	cd $JAIL
 
 	# Write system information
@@ -208,8 +212,8 @@ stop()
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	rm -f header dmesg $pacct *.log
-
-	cd /
+	rm -Rf $JAIL/lib
+	cd ..
 	rmdir $JAIL
 
 	# Render the chart if configured (and the renderer is installed)

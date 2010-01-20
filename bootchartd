@@ -59,21 +59,14 @@ start()
 	# that will mount, and populate /dev - however we have to wait
 	# for them; otherwise we can't share the /dev tmpfs for our logs
 	# and have to modify each system to mount --move our file-system.
-	while [ ! -e /dev/console ]; do
-	    usleep 10000
+	while [ ! -e /dev/console ] || [ ! -e /dev/random ]; do
+	    usleep 5000
 	done
-	echo "/dev/console now exists"
-	ls -l /dev/console
-	ls -l /dev/random
-	while [ ! -e /dev/random ]; do
-	    usleep 10000
-	done
-	echo "/dev/random now exists"
 
 	if [ ! -d $JAIL ]; then
 		mkdir -p $JAIL
 	fi
-	pushd $JAIL 
+	pushd $JAIL > /dev/null
 
 	# use dmsg for debugging
 	if [ ! -c kmsg ]; then
@@ -105,8 +98,6 @@ start()
 	if [ ! -f "proc/stat" ]; then
 		mount -n -t proc none proc
 	fi
-	echo "mounts:"
-	cat proc/mounts
 
 	# Enable process accounting if configured
 	if [ ! -f kernel_pacct ]; then
@@ -140,7 +131,7 @@ start()
 #			manual start/stop - wait for a 'stop'
 		fi
 	fi
-	popd 
+	popd > /dev/null
 }
 
 # Wait for the boot process to end.
@@ -245,11 +236,6 @@ if [ $$ -eq 1 ]; then
 	# Are we running in the initrd ?
 	if [ ! -e /dev/random ]; then
 		start &
-		# wait a fixed 0.5 sec for us to get spun up, before
-		# letting init get underway, so we catch all of it's
-		# initial goodness
-		usleep 500000
-		FIXME: bogus - we have to race - ...
 	else # running inside the main system
 		echo "acute oddness - why can't we detect this !?" >> /dev/kmsg
 		ls -al /dev >> /dev/kmsg

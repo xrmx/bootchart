@@ -2,6 +2,11 @@
 	+ Ensure that we merge up a sub-process' CPU usage into the
 	  parent process when we hide very short running processes.
 
+	+ the renderer - should not show the kernel etc.
+		- if it is > 5 mins from start etc.
+
+	+ re-add JAIL deletion into the bootchartd script ...
+
 ** Features:
 
 	Woah, there is some -serious- rounding error on the sample

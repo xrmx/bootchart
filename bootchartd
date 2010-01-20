@@ -26,7 +26,8 @@
 #     - fixme - we need a 'from init' thingit ...
 
 # Whack everything in a handy tmpfs: /dev ...
-JAIL="/dev/.bootchart"
+JAIL_INITRD="/dev/.bootchart"
+JAIL_MAIN="/tmp/.bootchart"
 
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
@@ -165,6 +166,21 @@ wait_boot()
 	done;
 }
 
+#
+# This is all madness; the collector should store it's sample data
+# in memory, and write it out only when triggered: after the
+# system is up. Then having another mount over the top of it's
+# root is no issue.
+#
+find_jail()
+{
+    if [ -d $JAIL_INITRD ]; then
+	if [ ! -d $JAIL_MAIN ] || [ $JAIL_INITRD -nt $JAIL_MAIN ]; then
+	    JAIL=$JAIL_INITRD;
+	fi
+    fi
+    JAIL=$JAIL_MAIN;
+}
 
 # Stop the boot logger.
 # Some final log files are created and then all log files
@@ -183,7 +199,7 @@ stop()
 		pacct=kernel_pacct
 	fi
 
-	cd $JAIL
+	find_jail
 
 	# Write system information
 	log_header
@@ -233,6 +249,8 @@ if [ $$ -eq 1 ]; then
 	IN_INIT="yes"
 	echo "Starting bootchart logging"
 
+	JAIL=$JAIL_INITRD
+
 	# Are we running in the initrd ?
 	if [ ! -e /dev/random ]; then
 		start &
@@ -246,6 +264,7 @@ if [ $$ -eq 1 ]; then
 			echo "bootchart: start wait for completion" >> /dev/kmsg
 			wait_boot &
 		else # perhaps we had no initrd
+			JAIL=$JAIL_MAIN
 			echo "bootchart: no initrd used; starting" >> /dev/kmsg
 			start &
 			wait_boot &
@@ -274,6 +293,7 @@ if [ $$ -eq 1 ]; then
 	exec $init $*
 fi
 
+find_jail
 case "$1" in
 	"start")
 		# Started by the user

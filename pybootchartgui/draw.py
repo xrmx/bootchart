@@ -423,25 +423,7 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
         ctx.set_dash([])
 
 
-
-#
-# Rotate the data into sets of cumulative samples per unit time.
-#
-
-def accumulate_at_time(acc, time, cmd, sample):
-	# create a hash per time-slot
-	if not time in acc:
-		c = {}
-		acc[time] = c;
-
-	# accumulate across processes with the same name
-	name_to_cuml = acc[time]
-	if not cmd in name_to_cuml:
-		name_to_cuml[cmd] = 0.0
-	name_to_cuml[cmd] += sample
-
-
-def accumulate_time(acc, proc):
+def accumulate_time(times, proc):
 
 	# elide the bootchart collector - it is quite distorting
 	if proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle':
@@ -450,16 +432,17 @@ def accumulate_time(acc, proc):
 	time_so_far = 0.0
 	for sample in proc.samples:
 		time_so_far += sample.cpu_sample.user + sample.cpu_sample.sys
-		accumulate_at_time (acc, sample.time, proc.cmd, 
-				    sample.cpu_sample.user + sample.cpu_sample.sys)
+		if not sample.time in times:
+			times[sample.time] = 1
+
 
 	for c in proc.child_list:
-		time_so_far += accumulate_time (acc, c)
+		time_so_far += accumulate_time (times, c)
 
 	return time_so_far
 
 
-def make_color(idx):
+def make_color():
 	h = random.random()
 	s = 0.5
 	v = 1.0
@@ -468,60 +451,128 @@ def make_color(idx):
 
 
 def draw_cuml_graph(ctx, proc_tree, chart_bounds):
-	acc = {}
-
-	# same colors each time ...
-	random.seed (0)
+	time_hash = {}
 
 	total_time = 0.0
 	for root in proc_tree.process_tree:
-		total_time += accumulate_time (acc, root)
+		total_time += accumulate_time (time_hash, root)
+
+	# all the sample times
+	times = time_hash.keys()
+	times.sort()
+	if len (times) < 2:
+		print "degenerate boot chart"
+		return;
 
 	pix_per_ns = chart_bounds[3] / total_time
 	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
 
 # Algorithm:
-#	find and 
-#	render bottom up
-#	
+#	render in 'pid' order: process_list is in that order
+#	elide all pids with zero cuml
+#	render bottom up, left to right with polygons.
+#	store an array of 'dy' keyed by time.
+#	takes a data-structure:
+#		first cmd, then time ... - wow - this is nearly what we have already ;-)
+#		we don't need to pre-aggregate the data either, or use more memory (?)
+#		or do we ?
+#		do we do this by pid instead then ?
+#		** We uses changes to reduce polygon count **
+#		- how do we find the time below ? - look at the last entry ...
+#			as we insert a timestamp, look at 'last' etc.
+#		** always render a 'step' not a linear ramp.
 
-# FIXME: we need to be -much- more clever to reduce the polygon count here
+	below = {}
+	for time in times:
+		below[time] = chart_bounds[1] + chart_bounds[3]
 
-#	Build it up as a stack of vertial bars ...
-	apps = {}
-	keys = []
-	colors = []
-	for time in acc.keys():
-		for cmd in acc[time].keys():
-			if not cmd in apps:
-				apps[cmd] = 0.0;
-				keys.append (cmd)
-				colors.append (make_color (len (colors)))
-			apps[cmd] += acc[time][cmd]
-		
-		tx = chart_bounds[0] + round(((time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration))
-		ty = chart_bounds[1] + chart_bounds[3]
-#		print "time %g" % time
-		ctx.set_line_width(1.0)
-		for i in range (len(keys)):
-			cmd = keys[i]
-			dy = round (apps[cmd] * pix_per_ns)
-			ctx.set_source_rgba (*colors[i])
-			ctx.move_to(tx, ty)
-			ctx.line_to(tx + 1, ty - dy)
-#			print "line args: %g %g %g" % (tx, ty, ty-dy)
-			ctx.stroke()
-#			print "app '%s': dy %g from %g (ns)" % (cmd, dy, apps[cmd])
-			ty -= dy
+	# same colors each time we render
+	random.seed (0)
 
+	ctx.set_line_width(1)
+
+	# FIXME: we really need to aggregate by process name
+
+	# FIXME: we -really- don't want to do this with
+	#        old-style boot-chart data ...
+
+	# render each pid in order
+	for proc in proc_tree.process_list:
+		row = {}
+		cuml = 0.0
+
+#		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (proc.samples))
+		for sample in proc.samples:
+			cuml += sample.cpu_sample.user + sample.cpu_sample.sys
+			row[sample.time] = cuml;
+
+		# hide really tiny processes
+		if cuml * pix_per_ns < 4:
+			continue
+
+		last_time = times[0]
+		y = last_below = below[last_time]
+		last_cuml = cuml = 0.0
+		ctx.set_source_rgba(*make_color ())
+
+		if proc.cmd == 'modprobe':
+			ctx.set_source_rgba(0,0,0,1)
+			
+		for time in times:
+			render_seg = False
+
+			# did the underlying trend increase ?
+			if below[time] != last_below:
+				last_below = below[last_time]
+				last_cuml = cuml
+				render_seg = True
+
+			# did we move up a pixel increase ?
+			if time in row:
+				nc = round (row[time] * pix_per_ns)
+				if nc != cuml:
+					last_cuml = cuml
+					cuml = nc
+					render_seg = True
+
+
+#			if last_cuml > cuml:
+#				assert fail ... - un-sorted process samples
+
+			# draw the trailing rectangle from the last time to
+			# before now, at the height of the last segment.
+			if render_seg:
+				w = round ((time - last_time) * chart_bounds[2] / proc_tree.duration) - 1
+				if True: # w > 0:
+					x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
+					ctx.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
+					ctx.fill()
+#					ctx.stroke()
+					last_time = time
+				y = below [time] - cuml
+
+			row[time] = y
+
+		# render the last segment
+		x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
+		y = below[last_time] - cuml
+		ctx.rectangle (x, y, chart_bounds[2] - x, cuml)
+		ctx.fill()
+#		ctx.stroke()
+
+		# render legend if it will fit
+		if cuml > 12:
+			label = "foo %s" % proc.cmd
+			extnts = ctx.text_extents(label)
+			label_w = extnts[2]
+			label_h = extnts[3]
+			draw_text(ctx, label, TEXT_COLOR,
+				  chart_bounds[0] + chart_bounds[2] - off_x * 2 - label_w,
+				  y - (cuml - label_h) / 2)
+			
+
+		below = row
 
 	# FIXME: print a legend box with the colors
-	# in the top left ... and some %ages (?)
-
-#	sorted_names = name_to_cuml_t.keys()
-#	sorted_names.sort(key = lambda p: name_to_cuml_t[p])
-#	for t in name_to_cuml_t.values():
-#		total_time += t;
-#	for a in sorted_names:
-#		print "%s\t%d->%g%%" % (a, name_to_cuml_t[a], 100.0 * name_to_cuml_t[a] / total_time)
+	# in the top left ... and some total (ns) / %ages (?)

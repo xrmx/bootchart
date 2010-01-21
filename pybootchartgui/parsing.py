@@ -157,6 +157,7 @@ def _parse_taskstats_log(writer, file):
 			delta_blkio_delay_ns = (float) (blkio_delay_ns - process.last_blkio_delay_ns)
 			delta_swapin_delay_ns = (float) (swapin_delay_ns - process.last_swapin_delay_ns)
 
+
 			# make up some state data ...
 			if delta_cpu_ns > 0:
 				state = "R"
@@ -168,10 +169,11 @@ def _parse_taskstats_log(writer, file):
 			# retain the ns timing information into a CPUSample - that tries
 			# with the old-style to be a %age of CPU used in this time-slice.
 			if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
+#				print "proc %s cpu_ns %g delta_cpu %g" % (cmd, cpu_ns, delta_cpu_ns)
 				cpuSample = CPUSample('null', delta_cpu_ns, 0.0,
 						      delta_blkio_delay_ns,
 						      delta_swapin_delay_ns)
-			process.samples.append(ProcessSample(time, state, cpuSample))
+				process.samples.append(ProcessSample(time, state, cpuSample))
 			
 			process.last_cpu_ns = cpu_ns
 			process.last_blkio_delay_ns = blkio_delay_ns

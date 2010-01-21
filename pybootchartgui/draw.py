@@ -312,7 +312,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 5)
 
 #	draw a cumulative CPU time per-application graph
-	if WITH_CUMULATIVE_CHART:
+	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect)
 		draw_box_ticks(ctx, cuml_rect, sec_w)
@@ -482,6 +482,8 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 
 	ctx.set_line_width(1)
 
+	legends = []
+
 	# render each pid in order
 	for proc in proc_tree.process_list:
 		row = {}
@@ -493,7 +495,8 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 #		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (proc.samples))
 		for sample in proc.samples:
 			cuml += sample.cpu_sample.user + sample.cpu_sample.sys
-			row[sample.time] = cuml;
+			row[sample.time] = cuml
+		process_total_time = cuml
 
 		# hide really tiny processes
 		if cuml * pix_per_ns <= 2:
@@ -557,9 +560,20 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 			draw_text(ctx, label, TEXT_COLOR,
 				  chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
 				  y + (cuml + label_h) / 2)
-			
+			if proc in legends:
+				print "ARGH - duplicate process in list !"
+
+		legends.append ((proc, process_total_time))
 
 		below = row
 
 	# FIXME: print a legend box with the colors
 	# in the top left ... and some total (ns) / %ages (?)
+
+	legends.sort(lambda a,b: cmp (a[1], b[1]))
+
+	i = 0
+	for proc in legends:
+	# FIXME - need a colors hash [!] - what to what ?
+		i = 1
+	

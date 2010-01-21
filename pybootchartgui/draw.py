@@ -309,13 +309,12 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
-	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 5)
+	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
 #	draw a cumulative CPU time per-application graph
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect)
-		draw_box_ticks(ctx, cuml_rect, sec_w)
 
 	
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
@@ -483,6 +482,8 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 	ctx.set_line_width(1)
 
 	legends = []
+	labels = []
+	pid_to_color = {}
 
 	# render each pid in order
 	for proc in proc_tree.process_list:
@@ -505,10 +506,14 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 		last_time = times[0]
 		y = last_below = below[last_time]
 		last_cuml = cuml = 0.0
-		ctx.set_source_rgba(*make_color ())
 
-		if proc.cmd == 'modprobe':
-			ctx.set_source_rgba(0,0,0,1)
+		# make and store color
+		color = make_color ()
+		pid_to_color[proc.pid] = color
+		ctx.set_source_rgba(*color)
+
+#		if proc.cmd == 'modprobe':
+#			ctx.set_source_rgba(0,0,0,1)
 			
 		for time in times:
 			render_seg = False
@@ -557,9 +562,9 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 			label_w = extnts[2]
 			label_h = extnts[3]
 #			print "Text extents %g by %g" % (label_w, label_h)
-			draw_text(ctx, label, TEXT_COLOR,
-				  chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
-				  y + (cuml + label_h) / 2)
+			labels.append((label,
+				       chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
+				       y + (cuml + label_h) / 2))
 			if proc in legends:
 				print "ARGH - duplicate process in list !"
 
@@ -567,13 +572,30 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 
 		below = row
 
-	# FIXME: print a legend box with the colors
-	# in the top left ... and some total (ns) / %ages (?)
+	# render grid-lines over the top
+	draw_box_ticks(ctx, chart_bounds, sec_w)
 
-	legends.sort(lambda a,b: cmp (a[1], b[1]))
+	# render labels
+	for l in labels:
+		draw_text(ctx, l[0], TEXT_COLOR, l[1], l[2])
+
+	# Render legends
+	font_height = 20
+	label_width = 300
+	LEGENDS_PER_COL = 15
+	LEGENDS_TOTAL = 45
+	draw_text(ctx, "Cumulative CPU usage, by process", TEXT_COLOR,
+		  chart_bounds[0] + off_x, chart_bounds[1] + font_height)
 
 	i = 0
-	for proc in legends:
-	# FIXME - need a colors hash [!] - what to what ?
-		i = 1
-	
+	legends.sort(lambda a,b: cmp (b[1], a[1]))
+	for t in legends:
+		proc = t[0]
+		time = t[1]
+		x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
+		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 3)
+		str = "%s - %.0f(ms) (%2.2f%%)" % (proc.cmd, time/1000000, (time/total_time) * 100.0)
+		draw_legend_box(ctx, str, pid_to_color [proc.pid], x, y, leg_s)
+		i = i + 1
+		if i >= LEGENDS_TOTAL:
+			break

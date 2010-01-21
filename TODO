@@ -1,4 +1,6 @@
 ** Bugs:
+	+ get the -real- CPU counts right [!] ... uh huh ?
+
 	+ Ensure that we merge up a sub-process' CPU usage into the
 	  parent process when we hide very short running processes.
 

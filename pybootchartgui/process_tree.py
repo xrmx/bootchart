@@ -41,8 +41,6 @@ class ProcessTree:
         self.writer = writer
         self.process_tree = []
 
-        # tack the kernel data onto psstats for now ...
-#	self.psstats = psstats
         if kernel is None:
             process_list = psstats.process_list
         else:
@@ -281,8 +279,9 @@ class ProcessTree:
         return num_removed
 
     def __merge_processes(self, p1, p2):
-        """Merges two process samples."""
+        """Merges two process' samples."""
         p1.samples.extend(p2.samples)
+        p1.samples.sort( key = lambda p: p.time )
         p1time = p1.start_time
         p2time = p2.start_time
         p1.start_time = min(p1time, p2time)

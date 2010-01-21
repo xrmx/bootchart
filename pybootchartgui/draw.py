@@ -17,9 +17,11 @@
 import cairo
 import math
 import re
+import random
+import colorsys
 
 # should we render a cumulative CPU time chart
-WITH_CUMULATIVE_CHART = False # True
+WITH_CUMULATIVE_CHART = False
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -451,19 +453,53 @@ def accumulate_time(acc, proc):
 	return time_so_far
 
 
+def make_color(idx):
+	h = random.random()
+	s = 0.5
+	v = 1.0
+	c = colorsys.hsv_to_rgb (h, s, v)
+	return (c[0], c[1], c[2], 1.0)
+
+
 def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 	acc = {}
-	height = chart_bounds[3] - chart_bounds[1]
 
 	total_time = 0.0
 	for root in proc_tree.process_tree:
 		total_time += accumulate_time (acc, root)
 
-	print "total time: %g pix-per-ns %g" % (total_time, height/total_time)
+	pix_per_ns = chart_bounds[3] / total_time
+	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
-	sorted_times = acc.keys()
-	sorted_times.sort()
+# FIXME: far better to draw horizontal, pixel-aligned rectangles :-)
+#        we know that to the right of a pixel, will always be that color.
 
+#	Just draw vertical lines for now
+	apps = {}
+	keys = []
+	colors = []
+	for time in acc.keys():
+		for cmd in acc[time].keys():
+			if not cmd in apps:
+				apps[cmd] = 0.0;
+				keys.append (cmd)
+				colors.append (make_color (len (colors)))
+			apps[cmd] += acc[time][cmd]
+		
+		tx = chart_bounds[0] + round(((time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration))
+		ty = chart_bounds[1] + chart_bounds[3]
+#		print "time %g" % time
+		for i in range (len(keys)):
+			cmd = keys[i]
+			dy = round (apps[cmd] * pix_per_ns)
+			ctx.set_source_rgba (*colors[i])
+			ctx.move_to(tx, ty)
+			ctx.line_to(tx + 1, ty - dy)
+			ctx.stroke()
+#			print "app '%s': dy %g from %g (ns)" % (cmd, dy, apps[cmd])
+			ty -= dy
+
+	
 
 #	sorted_names = name_to_cuml_t.keys()
 #	sorted_names.sort(key = lambda p: name_to_cuml_t[p])

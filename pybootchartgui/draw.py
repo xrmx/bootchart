@@ -231,7 +231,7 @@ sec_w = 50 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
-CUML_HEIGHT = 500
+CUML_HEIGHT = 1000
 OPTIONS = None
 
 
@@ -442,10 +442,16 @@ def accumulate_at_time(acc, time, cmd, sample):
 
 
 def accumulate_time(acc, proc):
+
+	# elide the bootchart collector - it is quite distorting
+	if proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle':
+		return 0.0
+
 	time_so_far = 0.0
 	for sample in proc.samples:
 		time_so_far += sample.cpu_sample.user + sample.cpu_sample.sys
-		accumulate_at_time (acc, sample.time, proc.cmd, time_so_far)
+		accumulate_at_time (acc, sample.time, proc.cmd, 
+				    sample.cpu_sample.user + sample.cpu_sample.sys)
 
 	for c in proc.child_list:
 		time_so_far += accumulate_time (acc, c)
@@ -464,6 +470,9 @@ def make_color(idx):
 def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 	acc = {}
 
+	# same colors each time ...
+	random.seed (0)
+
 	total_time = 0.0
 	for root in proc_tree.process_tree:
 		total_time += accumulate_time (acc, root)
@@ -471,10 +480,15 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 	pix_per_ns = chart_bounds[3] / total_time
 	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
-# FIXME: far better to draw horizontal, pixel-aligned rectangles :-)
-#        we know that to the right of a pixel, will always be that color.
 
-#	Just draw vertical lines for now
+# Algorithm:
+#	find and 
+#	render bottom up
+#	
+
+# FIXME: we need to be -much- more clever to reduce the polygon count here
+
+#	Build it up as a stack of vertial bars ...
 	apps = {}
 	keys = []
 	colors = []
@@ -489,17 +503,21 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 		tx = chart_bounds[0] + round(((time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration))
 		ty = chart_bounds[1] + chart_bounds[3]
 #		print "time %g" % time
+		ctx.set_line_width(1.0)
 		for i in range (len(keys)):
 			cmd = keys[i]
 			dy = round (apps[cmd] * pix_per_ns)
 			ctx.set_source_rgba (*colors[i])
 			ctx.move_to(tx, ty)
 			ctx.line_to(tx + 1, ty - dy)
+#			print "line args: %g %g %g" % (tx, ty, ty-dy)
 			ctx.stroke()
 #			print "app '%s': dy %g from %g (ns)" % (cmd, dy, apps[cmd])
 			ty -= dy
 
-	
+
+	# FIXME: print a legend box with the colors
+	# in the top left ... and some %ages (?)
 
 #	sorted_names = name_to_cuml_t.keys()
 #	sorted_names.sort(key = lambda p: name_to_cuml_t[p])

@@ -364,6 +364,7 @@ class ParserState:
         self.headers = None
 	self.disk_stats = None
 	self.ps_stats = None
+	self.taskstats = None
 	self.cpu_stats = None
 	self.kernel = None
 
@@ -384,6 +385,7 @@ def _do_parse(writer, state, name, file):
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "taskstats.log":
         state.ps_stats = _parse_taskstats_log(writer, file)
+	state.taskstats = True
     elif name == "proc_stat.log":
         state.cpu_stats = _parse_proc_stat_log(file)
     elif name == "dmesg":
@@ -528,5 +530,5 @@ def parse(writer, paths, prune, crop_after, annotate):
                 times.append(None)
 
     monitored_app = state.headers.get("profile.process")
-    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle)
+    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)
     return (state.headers, state.cpu_stats, state.disk_stats, proc_tree, times)

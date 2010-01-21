@@ -21,7 +21,7 @@ import random
 import colorsys
 
 # should we render a cumulative CPU time chart
-WITH_CUMULATIVE_CHART = False
+WITH_CUMULATIVE_CHART = True
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -238,7 +238,7 @@ OPTIONS = None
 def extents(headers, cpu_stats, disk_stats, proc_tree, times):
 	w = (proc_tree.duration * sec_w / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
-	if WITH_CUMULATIVE_CHART:
+	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		h += CUML_HEIGHT + 4*off_y
 	return (w,h)
 
@@ -303,7 +303,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 
 	# draw process boxes
 	proc_height = h
-	if WITH_CUMULATIVE_CHART:
+	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		proc_height -= CUML_HEIGHT
 	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, proc_height)
 	
@@ -314,9 +314,8 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 #	draw a cumulative CPU time per-application graph
 	if WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
-		draw_box_ticks(ctx, cuml_rect, sec_w)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect)
-
+		draw_box_ticks(ctx, cuml_rect, sec_w)
 
 	
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
@@ -422,11 +421,13 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.stroke()
         ctx.set_dash([])
 
+# elide the bootchart collector - it is quite distorting
+def elide_bootchart(proc):
+	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
 
 def accumulate_time(times, proc):
 
-	# elide the bootchart collector - it is quite distorting
-	if proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle':
+	if elide_bootchart(proc):
 		return 0.0
 
 	time_so_far = 0.0
@@ -467,22 +468,11 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 	pix_per_ns = chart_bounds[3] / total_time
 	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
+	# FIXME: we really need to aggregate by process name
+	# FIXME: we have duplicates in the process list too [!] - why !?
+	# FIXME: rendering a legend would be nice too ...
 
-# Algorithm:
-#	render in 'pid' order: process_list is in that order
-#	elide all pids with zero cuml
-#	render bottom up, left to right with polygons.
-#	store an array of 'dy' keyed by time.
-#	takes a data-structure:
-#		first cmd, then time ... - wow - this is nearly what we have already ;-)
-#		we don't need to pre-aggregate the data either, or use more memory (?)
-#		or do we ?
-#		do we do this by pid instead then ?
-#		** We uses changes to reduce polygon count **
-#		- how do we find the time below ? - look at the last entry ...
-#			as we insert a timestamp, look at 'last' etc.
-#		** always render a 'step' not a linear ramp.
-
+	# Render bottom up, left to right 
 	below = {}
 	for time in times:
 		below[time] = chart_bounds[1] + chart_bounds[3]
@@ -492,15 +482,13 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 
 	ctx.set_line_width(1)
 
-	# FIXME: we really need to aggregate by process name
-
-	# FIXME: we -really- don't want to do this with
-	#        old-style boot-chart data ...
-
 	# render each pid in order
 	for proc in proc_tree.process_list:
 		row = {}
 		cuml = 0.0
+
+		if elide_bootchart(proc):
+			continue
 
 #		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (proc.samples))
 		for sample in proc.samples:
@@ -508,7 +496,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 			row[sample.time] = cuml;
 
 		# hide really tiny processes
-		if cuml * pix_per_ns < 4:
+		if cuml * pix_per_ns <= 2:
 			continue
 
 		last_time = times[0]
@@ -536,20 +524,18 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 					cuml = nc
 					render_seg = True
 
-
 #			if last_cuml > cuml:
 #				assert fail ... - un-sorted process samples
 
 			# draw the trailing rectangle from the last time to
 			# before now, at the height of the last segment.
 			if render_seg:
-				w = round ((time - last_time) * chart_bounds[2] / proc_tree.duration) - 1
-				if True: # w > 0:
-					x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
-					ctx.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
-					ctx.fill()
-#					ctx.stroke()
-					last_time = time
+				w = math.ceil ((time - last_time) * chart_bounds[2] / proc_tree.duration) + 1
+				x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
+				ctx.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
+				ctx.fill()
+#				ctx.stroke()
+				last_time = time
 				y = below [time] - cuml
 
 			row[time] = y
@@ -562,14 +548,15 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 #		ctx.stroke()
 
 		# render legend if it will fit
-		if cuml > 12:
-			label = "foo %s" % proc.cmd
+		if cuml > 8:
+			label = proc.cmd
 			extnts = ctx.text_extents(label)
 			label_w = extnts[2]
 			label_h = extnts[3]
+#			print "Text extents %g by %g" % (label_w, label_h)
 			draw_text(ctx, label, TEXT_COLOR,
-				  chart_bounds[0] + chart_bounds[2] - off_x * 2 - label_w,
-				  y - (cuml - label_h) / 2)
+				  chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
+				  y + (cuml + label_h) / 2)
 			
 
 		below = row

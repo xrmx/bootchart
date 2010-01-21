@@ -7,15 +7,10 @@
 	+ the renderer - should not show the kernel etc.
 		- if it is > 5 mins from start etc.
 
+	* actually use the 'xscale' factor in draw.render [etc.]
+		+ to get horizontal zoom
+
 ** Features:
-
-	Woah, there is some -serious- rounding error on the sample
-data ... what is a CPU sample !? ...
-	We need to upgrade the samples to 'ns' underneath, currently
-we only see a ms at a time - which sucks [!] lets up-res the
-old-style / bog-standard samples.
-
-
 
 Account for the time taken to run the bootchart-collector ...
 	+ scale all other times by this ammount [!] ;-)

@@ -37,10 +37,10 @@ class ProcessTree:
     LOGGER_PROC = 'bootchart-colle'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, writer, kernel, psstats, monitoredApp, prune, idle, for_testing = False):
+    def __init__(self, writer, kernel, psstats, monitoredApp, prune, idle, taskstats, for_testing = False):
         self.writer = writer
         self.process_tree = []
-
+        self.taskstats = taskstats
         if kernel is None:
             process_list = psstats.process_list
         else:

@@ -1,8 +1,9 @@
 ** Bugs:
-	+ get the -real- CPU counts right [!] ... uh huh ?
-
-	+ Ensure that we merge up a sub-process' CPU usage into the
-	  parent process when we hide very short running processes.
+	+ merge processes for CPU counts:
+		+ if the ns count is -identical- (and non-zero) it is the same process
+			+ need to back-merge somehow ?
+				:-)
+			+ or can we do this by pid ? [ prolly ! ]
 
 	+ fix for profiling a running system ... [ get the origin right ! ]
 

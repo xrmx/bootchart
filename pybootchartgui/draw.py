@@ -465,7 +465,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds):
 		return;
 
 	pix_per_ns = chart_bounds[3] / total_time
-	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
+#	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
 	# FIXME: we really need to aggregate by process name
 	# FIXME: we have duplicates in the process list too [!] - why !?

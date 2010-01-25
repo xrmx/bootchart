@@ -145,7 +145,7 @@ def _parse_taskstats_log(writer, file):
 					pid += 0.001
 					pidRewrites[opid] = pid;
 #					print "process mutation ! '%s' vs '%s' pid %s -> pid %s\n" % (process.cmd, cmd, opid, pid)
-					process = Process(writer, pid, cmd, ppid, time)
+					process = process.split (writer, pid, cmd, ppid, time)
 					processMap[pid] = process
 				else:
 					process.cmd = cmd;
@@ -218,10 +218,18 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	not sda1, sda2 etc. The format of relevant lines should be:
 	{major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
 	"""
-	disk_regex_re = re.compile ('[hsv]d.$')
+	disk_regex_re = re.compile ('^[hsv]d.$')
 	
+	# this gets called an awful lot.
 	def is_relevant_line(linetokens):
-		return len(linetokens) == 14 and disk_regex_re.match(linetokens[2])
+		if len(linetokens) != 14:
+			return False
+		disk = linetokens[2]
+		if len (disk) != 3:
+			return False
+		if disk == 'sda':
+			return True
+		return disk_regex_re.match(disk)
 	
 	disk_stat_samples = []
 
@@ -324,8 +332,12 @@ def _read_le_int32(file):
 # FIXME - we don't (yet) use this ... really instead
 # of this it would be nice to know who forked a process,
 # rather than (per-se) it's self-selected parent.
+# In essence having a custom kernel profiling module
+# instead.
 #
 def _parse_pacct(writer, file):
+	return None # performance - saves 1/2 a second.
+
 	pidMap = {}
 	pidMap[0] = 0
 

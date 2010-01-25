@@ -55,18 +55,28 @@ class Process:
 		self.cmd = cmd
 		self.ppid = ppid
 		self.start_time = start_time
+		self.duration = 0
 		self.samples = []
 		self.parent = None
 		self.child_list = []
-		
-		self.duration = 0
+
 		self.active = None
-		
 		self.last_user_cpu_time = None
 		self.last_sys_cpu_time = None
+
 		self.last_cpu_ns = 0;
 		self.last_blkio_delay_ns = 0;
 		self.last_swapin_delay_ns = 0;
+
+	# split this process' run - triggered by a name change
+	def split(self, writer, pid, cmd, ppid, start_time):
+		split = Process (writer, pid, cmd, ppid, start_time)
+
+		split.last_cpu_ns = self.last_cpu_ns;
+		split.last_blkio_delay_ns = self.last_blkio_delay_ns;
+		split.last_swapin_delay_ns = self.last_swapin_delay_ns;
+
+		return split
 	
 	def __str__(self):
 		return " ".join([str(self.pid), self.cmd, str(self.ppid), '[ ' + str(len(self.samples)) + ' samples ]' ])

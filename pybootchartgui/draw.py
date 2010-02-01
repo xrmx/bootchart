@@ -235,7 +235,7 @@ CUML_HEIGHT = 1000
 OPTIONS = None
 
 
-def extents(headers, cpu_stats, disk_stats, proc_tree, times):
+def extents(headers, cpu_stats, disk_stats, proc_tree, times, filename):
 	w = (proc_tree.duration * sec_w / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
@@ -245,8 +245,8 @@ def extents(headers, cpu_stats, disk_stats, proc_tree, times):
 #
 # Render the chart.
 # 
-def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, times):
-	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree, times)
+def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
+	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree, times, filename)
 
 	global OPTIONS
 	OPTIONS = options

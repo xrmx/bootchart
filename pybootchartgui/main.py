@@ -106,7 +106,7 @@ def main(argv=None):
 		if len(args) == 0:
 			print "No path given, trying /var/log/bootchart.tgz"
 			args = [ "/var/log/bootchart.tgz" ]
-			
+
 
 		res = parsing.parse(writer, args, options.prune,
 				    options.crop_after, options.annotate)

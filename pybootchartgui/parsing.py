@@ -379,6 +379,7 @@ class ParserState:
 	self.taskstats = None
 	self.cpu_stats = None
 	self.kernel = None
+	self.filename = None
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and self.ps_stats != None and self.cpu_stats != None
@@ -409,6 +410,8 @@ def _do_parse(writer, state, name, file):
     return state
 
 def parse_file(writer, state, filename):
+    if state.filename is None:
+	state.filename = filename
     basename = os.path.basename(filename)
     if not(basename in _relevant_files):
         writer.info("ignoring '%s' as it is not relevant" % filename)
@@ -422,6 +425,7 @@ def parse_paths(writer, state, paths):
         if not(os.path.exists(path)):
             writer.warn("warning: path '%s' does not exist, ignoring." % path)
             continue
+	state.filename = path
         if os.path.isdir(path):
             files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
             files.sort()
@@ -543,4 +547,4 @@ def parse(writer, paths, prune, crop_after, annotate):
 
     monitored_app = state.headers.get("profile.process")
     proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)
-    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree, times)
+    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree, times, state.filename)

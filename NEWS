@@ -1,0 +1,3 @@
+bootchart2 0.0.8
+	+ add a filename string to the window title in interactive mode
+	+ add a NEWS file

@@ -52,6 +52,8 @@ chart rendering tool.
 	* better rendering - render to png, or svg, with added event
 	  annotation support.
 
+	* cumulative, and total CPU time graphing in the boot-chart.
+
 	* and no doubt more by the time this is actually read.
 
 

@@ -240,7 +240,7 @@ class PyBootchartWindow(gtk.Window):
 		gtk.Window.__init__(self)
 
 		window = self
-		window.set_title('Bootchart')
+		window.set_title("Bootchart %s" % res[5])
 		window.set_default_size(750, 550)
 		vbox = gtk.VBox()
 		window.add(vbox)

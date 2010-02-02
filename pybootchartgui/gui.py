@@ -73,7 +73,6 @@ class PyBootchartWidget(gtk.DrawingArea):
 		cr.paint()
                 cr.scale(self.zoom_ratio, self.zoom_ratio)
                 cr.translate(-self.x, -self.y)
-# FIXME ERROR FOO ! xscale ...
 		draw.render(cr, self.options, self.xscale, *self.res)
 
 	def position_changed(self):
@@ -92,6 +91,17 @@ class PyBootchartWidget(gtk.DrawingArea):
 	    self.x = 0
 	    self.position_changed()
 
+	def set_xscale(self, xscale):
+	    self.xscale = xscale
+	    self.chart_width, self.chart_height = draw.extents(self.xscale, *self.res)
+	    self.zoom_image (self.zoom_ratio)
+
+	def on_expand(self, action):
+            self.set_xscale (self.xscale * 1.5)
+
+	def on_contract(self, action):
+            self.set_xscale (self.xscale / 1.5)
+
 	def on_zoom_in(self, action):
             self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
 
@@ -103,6 +113,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
 	def on_zoom_100(self, action):
             self.zoom_image(1.0)
+	    self.set_xscale(1.0)
 
         POS_INCREMENT = 100
 
@@ -228,6 +239,9 @@ class PyBootchartWindow(gtk.Window):
 	ui = '''
 	<ui>
 		<toolbar name="ToolBar">
+			<toolitem action="Expand"/>
+			<toolitem action="Contract"/>
+			<separator/>
 			<toolitem action="ZoomIn"/>
 			<toolitem action="ZoomOut"/>
 			<toolitem action="ZoomFit"/>
@@ -260,6 +274,8 @@ class PyBootchartWindow(gtk.Window):
 
 		# Create actions
 		actiongroup.add_actions((
+			('Expand', gtk.STOCK_ADD, None, None, None, self.widget.on_expand),
+			('Contract', gtk.STOCK_REMOVE, None, None, None, self.widget.on_contract),
 			('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget.on_zoom_in),
 			('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget.on_zoom_out),
 			('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, None, self.widget.on_zoom_fit),

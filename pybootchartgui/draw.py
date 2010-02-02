@@ -61,7 +61,7 @@ FILE_OPEN_COLOR = (0.20, 0.71, 0.71, 1.0)
 # Process border color.
 PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
-PROC_COLOR_D = (0.76, 0.48, 0.48, 0.125)
+PROC_COLOR_D = (0.76, 0.48, 0.48, 0.5)
 # Running process color.
 PROC_COLOR_R = CPU_COLOR
 # Sleeping process color.

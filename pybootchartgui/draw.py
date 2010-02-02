@@ -227,7 +227,7 @@ header_h = 280
 bar_h = 55
 # offsets
 off_x, off_y = 10, 10
-sec_w = 50 # the width of a second
+sec_w_base = 50 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
@@ -235,8 +235,8 @@ CUML_HEIGHT = 1000
 OPTIONS = None
 
 
-def extents(headers, cpu_stats, disk_stats, proc_tree, times, filename):
-	w = (proc_tree.duration * sec_w / 100) + 2*off_x
+def extents(xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
+	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2*off_y
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		h += CUML_HEIGHT + 4*off_y
@@ -246,11 +246,12 @@ def extents(headers, cpu_stats, disk_stats, proc_tree, times, filename):
 # Render the chart.
 # 
 def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
-	(w, h) = extents(headers, cpu_stats, disk_stats, proc_tree, times, filename)
+	(w, h) = extents(xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename)
 
 	global OPTIONS
 	OPTIONS = options
-	
+
+	sec_w = int (xscale * sec_w_base)
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
@@ -305,7 +306,7 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	proc_height = h
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		proc_height -= CUML_HEIGHT
-	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, proc_height)
+	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, proc_height, sec_w)
 	
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
@@ -314,10 +315,10 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 #	draw a cumulative CPU time per-application graph
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
-		draw_cuml_graph(ctx, proc_tree, cuml_rect)
+		draw_cuml_graph(ctx, proc_tree, cuml_rect, sec_w)
 
 	
-def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
+def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h, sec_w):
 	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
 	draw_legend_box(ctx, "Unint.sleep (I/O)", 	PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
 	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
@@ -450,7 +451,7 @@ def make_color():
 	return (c[0], c[1], c[2], 1.0)
 
 
-def draw_cuml_graph(ctx, proc_tree, chart_bounds):
+def draw_cuml_graph(ctx, proc_tree, chart_bounds, sec_w):
 	time_hash = {}
 
 	total_time = 0.0

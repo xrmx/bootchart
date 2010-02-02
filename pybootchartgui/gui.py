@@ -52,7 +52,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.xscale = 1.0
                 self.x, self.y = 0.0, 0.0
 
-		self.chart_width, self.chart_height = draw.extents(*res)
+		self.chart_width, self.chart_height = draw.extents(self.xscale, *res)
 		self.hadj = None
 		self.vadj = None
 

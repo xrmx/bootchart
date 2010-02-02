@@ -69,6 +69,26 @@ start()
 	fi
 	echo "bootchartd started" >> kmsg
 
+	# Mount a copy of /proc just for us ...
+	if [ ! -d "proc" ]; then
+		mkdir proc
+	fi
+	if [ ! -f "proc/stat" ]; then
+		mount -n -t proc none proc
+	fi
+
+	# If we were started during the initrd, -but- we have no
+	# init=/sbin/bootchart, then there will be no-one to stop
+	# the collector will just keep
+	# running with no-one to stop it, so bail here.
+	if [ "$JAIL" == "$JAIL_INITRD" ]; then
+	    if ! grep -q init=/sbin/bootchartd proc/cmdline; then
+		echo "aborting initrd bootchart setup - init not set."
+		umount proc
+		return
+	    fi
+	fi
+
 	# setup the jail so we can run the collector inside it [ why bother !? ]
 	if [ -n "$IN_INIT" ]; then
 		echo "bootchartd init" >> kmsg
@@ -84,14 +104,6 @@ start()
 
 		mkdir $JAIL/lib/bootchart
 		cp /lib/bootchart/bootchart-collector $JAIL/lib/bootchart
-	fi
-
-	# Mount a copy of /proc just for us ...
-	if [ ! -d "proc" ]; then
-		mkdir proc
-	fi
-	if [ ! -f "proc/stat" ]; then
-		mount -n -t proc none proc
 	fi
 
 	# Enable process accounting if configured
@@ -137,6 +149,11 @@ wait_boot()
  	# Don't exit until *all* the mandatory procs are running. Only used if exit_proc
  	# is unset.
  	local mandatory_procs="nautilus mutter"
+
+	# Wait for /proc first - without it we have issues
+	while [ ! -e /proc/cmdline ]; do
+	    usleep 5000
+	done
 
 	# early_login in FC4 starts gdm early, so fall back to mingetty
 	local early_login="no"

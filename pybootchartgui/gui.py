@@ -92,8 +92,10 @@ class PyBootchartWidget(gtk.DrawingArea):
 	    self.position_changed()
 
 	def set_xscale(self, xscale):
+	    old_mid_x = self.x + self.hadj.page_size / 2
 	    self.xscale = xscale
 	    self.chart_width, self.chart_height = draw.extents(self.xscale, *self.res)
+	    new_x = old_mid_x 
 	    self.zoom_image (self.zoom_ratio)
 
 	def on_expand(self, action):

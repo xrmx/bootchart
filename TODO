@@ -1,4 +1,7 @@
 ** Bugs:
+	+ horizontal zoom - should keep view horiz centered:
+	  but does not - cf. set_xscale
+
 	+ merge processes for CPU counts:
 		+ if the ns count is -identical- (and non-zero) it is the same process
 			+ need to back-merge somehow ?

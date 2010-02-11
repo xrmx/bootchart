@@ -128,10 +128,6 @@ class PyBootchartWidget(gtk.DrawingArea):
                         self.y -= self.POS_INCREMENT/self.zoom_ratio
                 elif event.keyval == gtk.keysyms.Down:
                         self.y += self.POS_INCREMENT/self.zoom_ratio
-                elif event.keyval == gtk.keysyms.Page_Up:
-                        self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
-                elif event.keyval == gtk.keysyms.Page_Down:
-                        self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
                 else:
                         return False                
                 self.queue_draw()

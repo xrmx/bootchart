@@ -242,6 +242,12 @@ def extents(xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
 		h += CUML_HEIGHT + 4*off_y
 	return (w,h)
 
+def clip_visible(clip, rect):
+	xmax = max (clip[0], rect[0])
+	ymax = max (clip[1], rect[1])
+	xmin = min (clip[0] + clip[2], rect[0] + rect[2])
+	ymin = min (clip[1] + clip[3], rect[1] + rect[3])
+	return (xmin > xmax and ymin > ymax)
 #
 # Render the chart.
 # 
@@ -250,6 +256,9 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 
 	global OPTIONS
 	OPTIONS = options
+
+	# x, y, w, h
+	clip = ctx.clip_extents()
 
 	sec_w = int (xscale * sec_w_base)
 	ctx.set_line_width(1.0)
@@ -271,11 +280,12 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 
 	# render I/O wait
         chart_rect = (off_x, curr_y+30, w, bar_h)
-	draw_box_ticks(ctx, chart_rect, sec_w)
-	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
-	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], proc_tree) 
-	# render CPU load
-	draw_chart(ctx, CPU_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats], proc_tree)
+	if clip_visible (clip, chart_rect):
+		draw_box_ticks(ctx, chart_rect, sec_w)
+		draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
+		draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], proc_tree) 
+		# render CPU load
+		draw_chart(ctx, CPU_COLOR, True, chart_rect, [(sample.time, sample.user + sample.sys) for sample in cpu_stats], proc_tree)
 
 	curr_y = curr_y + 30 + bar_h
 
@@ -285,13 +295,15 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 
         # render I/O utilization
 	chart_rect = (off_x, curr_y+30, w, bar_h)
-	draw_box_ticks(ctx, chart_rect, sec_w)			
-	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
-	draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.util) for sample in disk_stats], proc_tree)
+	if clip_visible (clip, chart_rect):
+		draw_box_ticks(ctx, chart_rect, sec_w)			
+		draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
+		draw_chart(ctx, IO_COLOR, True, chart_rect, [(sample.time, sample.util) for sample in disk_stats], proc_tree)
 				
 	# render disk throughput
 	max_sample = max(disk_stats, key=lambda s: s.tput)
-	draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, [(sample.time, sample.tput) for sample in disk_stats], proc_tree)
+	if clip_visible (clip, chart_rect):
+		draw_chart(ctx, DISK_TPUT_COLOR, False, chart_rect, [(sample.time, sample.tput) for sample in disk_stats], proc_tree)
 	
 	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
@@ -315,7 +327,8 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 #	draw a cumulative CPU time per-application graph
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
-		draw_cuml_graph(ctx, proc_tree, cuml_rect, sec_w)
+		if clip_visible (clip, cuml_rect):
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, sec_w)
 
 	
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h, sec_w):

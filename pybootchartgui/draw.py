@@ -346,9 +346,9 @@ def draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y, w, h, sec_w):
 	draw_annotations(ctx, proc_tree, times, chart_rect, sec_w)
 
 	y = curr_y+60
-	for root in proc_tree.process_tree:        
+	for root in proc_tree.process_tree:
 		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
-		y  = y + proc_h * proc_tree.num_nodes([root])
+		y = y + proc_h * proc_tree.num_nodes([root])
 
 
 def draw_header(ctx, headers, off_x, duration):
@@ -386,6 +386,8 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 	next_y = y + proc_h
 	for child in proc.child_list:
+		if next_y > clip[1] + clip[3]:
+			break 
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])

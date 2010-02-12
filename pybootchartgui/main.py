@@ -117,9 +117,10 @@ def main(argv=None):
 			if options.annotate_file:
 				f = open(options.annotate_file, "w")
 				try:
-					for time in res[-1]:
+					for time in res[4]:
 						if time is not None:
-							print >>f, time
+							# output as ms
+							print >>f, time * 10
 						else:
 							print >>f
 				finally:

@@ -318,7 +318,8 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	proc_height = h
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		proc_height -= CUML_HEIGHT
-	draw_process_bar_chart(ctx, proc_tree, times, curr_y + bar_h, w, proc_height, sec_w)
+
+	draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y + bar_h, w, proc_height, sec_w)
 	
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
@@ -328,10 +329,10 @@ def render(ctx, options, xscale, headers, cpu_stats, disk_stats, proc_tree, time
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y*2)
 		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, sec_w)
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w)
 
 	
-def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h, sec_w):
+def draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y, w, h, sec_w):
 	draw_legend_box(ctx, "Running (%cpu)", 		PROC_COLOR_R, off_x    , curr_y + 45, leg_s)		
 	draw_legend_box(ctx, "Unint.sleep (I/O)", 	PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
 	draw_legend_box(ctx, "Sleeping", 		PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
@@ -346,7 +347,7 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h, sec_w):
 
 	y = curr_y+60
 	for root in proc_tree.process_tree:        
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
+		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
 		y  = y + proc_h * proc_tree.num_nodes([root])
 
 
@@ -372,11 +373,11 @@ def draw_header(ctx, headers, off_x, duration):
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
+def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	w = ((proc.duration) * rect[2] / proc_tree.duration)
 
-	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
 	ipid = int(proc.pid)
 	cmdString = (proc.cmd + " [" + str(ipid) + "]") if OPTIONS.show_pid and ipid is not 0 else proc.cmd
@@ -385,19 +386,26 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 
 	next_y = y + proc_h
 	for child in proc.child_list:
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect)
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])
 		
 	return x, y
 
 
-def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
+def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
 	last_tx = -1
-	for sample in proc.samples :    
+	for sample in proc.samples :
 		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+
+		# samples are sorted chronologically
+		if tx < clip[0]:
+			continue
+		if tx > clip[0] + clip[2]:
+			break
+
 		tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
 		if last_tx != -1 and abs(last_tx - tx) <= tw:
 			tw -= last_tx - tx
@@ -465,7 +473,7 @@ def make_color():
 	return (c[0], c[1], c[2], 1.0)
 
 
-def draw_cuml_graph(ctx, proc_tree, chart_bounds, sec_w):
+def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	time_hash = {}
 
 	total_time = 0.0
@@ -599,16 +607,25 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, sec_w):
 	label_width = 300
 	LEGENDS_PER_COL = 15
 	LEGENDS_TOTAL = 45
-	draw_text(ctx, "Cumulative CPU usage, by process", TEXT_COLOR,
-		  chart_bounds[0] + off_x, chart_bounds[1] + font_height)
+	ctx.set_font_size(TITLE_FONT_SIZE)
+	dur_secs = duration / 100
+	cpu_secs = total_time / 1000000000
+
+	# misleading - with multiple CPUs ...
+	idle = ((dur_secs - cpu_secs) / dur_secs) * 100.0
+	label = "Cumulative CPU usage, by process; total CPU: " \
+		" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
+	draw_text(ctx, label, TEXT_COLOR, chart_bounds[0] + off_x,
+		  chart_bounds[1] + font_height)
 
 	i = 0
 	legends.sort(lambda a,b: cmp (b[1], a[1]))
+	ctx.set_font_size(TEXT_FONT_SIZE)
 	for t in legends:
 		proc = t[0]
 		time = t[1]
 		x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
-		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 3)
+		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
 		str = "%s - %.0f(ms) (%2.2f%%)" % (proc.cmd, time/1000000, (time/total_time) * 100.0)
 		draw_legend_box(ctx, str, pid_to_color [proc.pid], x, y, leg_s)
 		i = i + 1

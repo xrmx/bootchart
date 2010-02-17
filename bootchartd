@@ -23,6 +23,13 @@
 JAIL_INITRD="/dev/.bootchart"
 JAIL_MAIN="/tmp/.bootchart"
 
+# some people don't have usleep
+if [ -x /bin/usleep]; then
+	USLEEP="/bin/usleep"
+else
+	USLEEP="busybox usleep"
+fi
+
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 
@@ -55,7 +62,7 @@ start()
 	# for them; otherwise we can't share the /dev tmpfs for our logs
 	# and have to modify each system to mount --move our file-system.
 	while [ ! -e /dev/console ] || [ ! -e /dev/random ]; do
-	    usleep 5000
+	    $USLEEP 5000
 	done
 
 	if [ ! -d $JAIL ]; then
@@ -152,7 +159,7 @@ wait_boot()
 
 	# Wait for /proc first - without it we have issues
 	while [ ! -e /proc/cmdline ]; do
-	    usleep 5000
+	    $USLEEP 5000
 	done
 
 	# early_login in FC4 starts gdm early, so fall back to mingetty
@@ -171,7 +178,7 @@ wait_boot()
 			stop
 			return
 		fi
-		usleep 200000
+		$USLEEP 200000
 	done;
 }
 
@@ -205,7 +212,7 @@ stop()
 	# Stop process accounting if configured
 	local pacct=
 	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
-		accton
+		$ACCTON
 		pacct=kernel_pacct
 	fi
 
@@ -287,7 +294,7 @@ if [ $$ -eq 1 ]; then
 			start &
 			# wait a little, until the collector is going, before allowing
 			# the rest of the system to charge ahead, so we catch it
-			usleep 500000
+			$USLEEP 500000
 			echo "bootchart continuing boot" >> /dev/kmsg
 			wait_boot &
 		fi

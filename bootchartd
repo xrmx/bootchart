@@ -24,7 +24,7 @@ JAIL_INITRD="/dev/.bootchart"
 JAIL_MAIN="/tmp/.bootchart"
 
 # some people don't have usleep
-if [ -x /bin/usleep]; then
+if [ -x /bin/usleep ]; then
 	USLEEP="/bin/usleep"
 else
 	USLEEP="busybox usleep"

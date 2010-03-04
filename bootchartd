@@ -282,10 +282,10 @@ if [ $$ -eq 1 ]; then
 	else # running inside the main system
 		echo "acute oddness - why can't we detect this !?" >> /dev/kmsg
 		ls -al /dev >> /dev/kmsg
-		if [ -c /dev/.bootchart/kmsg ]; then
+		if [ -c $JAIL_INITRD/kmsg ]; then
 			echo "bootchart - has kmsg" >> /dev/kmsg
 		fi
-		if [ -d /dev/.bootchart ]; then
+		if [ -d $JAIL_INITRD ]; then
 			echo "bootchart: start wait for completion" >> /dev/kmsg
 			wait_boot &
 		else # perhaps we had no initrd

@@ -212,7 +212,7 @@ stop()
 	# Stop process accounting if configured
 	local pacct=
 	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
-		$ACCTON
+		$ACCTON off
 		pacct=kernel_pacct
 	fi
 

@@ -85,7 +85,7 @@ start()
 	fi
 
 	# If we were started during the initrd, -but- we have no
-	# init=/sbin/bootchart, then there will be no-one to stop
+	# init=/sbin/bootchartd, then there will be no-one to stop
 	# the collector will just keep
 	# running with no-one to stop it, so bail here.
 	if [ "$JAIL" == "$JAIL_INITRD" ]; then

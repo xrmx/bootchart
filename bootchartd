@@ -20,8 +20,7 @@
 #
 
 # Whack everything in a handy tmpfs: /dev ...
-JAIL_INITRD="/dev/.bootchart"
-JAIL_MAIN="/tmp/.bootchart"
+JAIL="/dev/.bootchart"
 
 # some people don't have usleep
 if [ -x /bin/usleep ]; then
@@ -69,6 +68,9 @@ start()
 		mkdir -p $JAIL
 	fi
 	cd $JAIL
+	if [ -n "$IN_INITRD" ]; then
+		echo 1 > started_from_initrd
+	fi
 
 	# use dmsg for debugging
 	if [ ! -c kmsg ]; then
@@ -88,7 +90,7 @@ start()
 	# init=/sbin/bootchartd, then there will be no-one to stop
 	# the collector will just keep
 	# running with no-one to stop it, so bail here.
-	if [ "$JAIL" == "$JAIL_INITRD" ]; then
+	if [ -e $JAIL/started_from_initrd ]; then
 	    if ! grep -q init=/sbin/bootchartd proc/cmdline; then
 		echo "aborting initrd bootchart setup - init not set."
 		umount proc
@@ -182,23 +184,6 @@ wait_boot()
 	done;
 }
 
-#
-# This is all madness; the collector should store it's sample data
-# in memory, and write it out only when triggered: after the
-# system is up. Then having another mount over the top of it's
-# root is no issue.
-#
-find_jail()
-{
-    if [ -d $JAIL_INITRD ]; then
-	if [ ! -d $JAIL_MAIN ] || [ $JAIL_INITRD -nt $JAIL_MAIN ]; then
-	    JAIL=$JAIL_INITRD;
-	    return
-	fi
-    fi
-    JAIL=$JAIL_MAIN;
-}
-
 # Stop the boot logger.
 # Some final log files are created and then all log files
 # from the tmpfs are packaged and stored in $BOOTLOG_DEST.
@@ -216,7 +201,6 @@ stop()
 		pacct=kernel_pacct
 	fi
 
-	find_jail
 	if [ ! -d $JAIL ]; then
 		echo "Can't find bootchart output in $JAIL - aborting"
 		exit 1
@@ -274,22 +258,15 @@ if [ $$ -eq 1 ]; then
 	IN_INIT="yes"
 	echo "Starting bootchart logging"
 
-	JAIL=$JAIL_INITRD
-
 	# Are we running in the initrd ?
 	if [ ! -e /dev/random ]; then
+		IN_INITRD=yes
 		start &
 	else # running inside the main system
-		echo "acute oddness - why can't we detect this !?" >> /dev/kmsg
-		ls -al /dev >> /dev/kmsg
-		if [ -c $JAIL_INITRD/kmsg ]; then
-			echo "bootchart - has kmsg" >> /dev/kmsg
-		fi
-		if [ -d $JAIL_INITRD ]; then
+		if [ -e $JAIL/started_from_initrd ]; then
 			echo "bootchart: start wait for completion" >> /dev/kmsg
 			wait_boot &
 		else # perhaps we had no initrd
-			JAIL=$JAIL_MAIN
 			echo "bootchart: no initrd used; starting" >> /dev/kmsg
 			start &
 			# wait a little, until the collector is going, before allowing
@@ -322,7 +299,6 @@ if [ $$ -eq 1 ]; then
 	exec $init $*
 fi
 
-find_jail
 case "$1" in
 	"start")
 		# Started by the user

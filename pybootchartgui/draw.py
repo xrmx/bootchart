@@ -107,7 +107,7 @@ STATE_COLORS = [(0,0,0,0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, PROC_COLOR_
 
 # Convert ps process state to an int
 def get_proc_state(flag):
-	return "RSDTZXW".index(flag) + 1
+	return "RSDTZXW".find(flag) + 1
 	
 
 def draw_text(ctx, text, color, x, y):

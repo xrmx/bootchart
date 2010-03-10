@@ -154,7 +154,7 @@ wait_boot()
 	local runlevel=$( sed -n 's/.*:\(.*\):initdefault:.*/\1/gp' /etc/inittab )
 
 	# The processes we have to wait for
-	local exit_proc="kdm_greet xterm konsole metacity mutter compiz"
+	local exit_proc="kdm_greet xterm konsole gnome-terminal metacity mutter compiz ldm icewm-session"
  	# Don't exit until *all* the mandatory procs are running. Only used if exit_proc
  	# is unset.
  	local mandatory_procs="nautilus mutter"

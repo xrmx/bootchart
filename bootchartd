@@ -151,7 +151,7 @@ start()
 # Wait for the boot process to end.
 wait_boot()
 {
-	local runlevel=$( sed -n 's/.*:\(.*\):initdefault:.*/\1/gp' /etc/inittab )
+	local runlevel=$( sed -n '/^ *#/d; /^$/d; s/.*:\(.*\):initdefault:.*/\1/g; p; q' /etc/inittab )
 
 	# The processes we have to wait for
 	local exit_proc="kdm_greet xterm konsole gnome-terminal metacity mutter compiz ldm icewm-session"

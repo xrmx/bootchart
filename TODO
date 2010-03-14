@@ -1,4 +1,7 @@
 ** Bugs:
+
+	+ get 
+
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
 
@@ -60,4 +63,37 @@ Process taskstats in advance
 * Export ODF, with a number of pie charts in it etc.
 	+ export cumulative data for rendering in ods ?
 	+ rather than adding manual rendering - which sucks (!?)
+
+
+
+* Port / switch to pure C & copy from some memory-map ?
+	+ how can it be done ?
+		+ ptrace ? ...
+
+* How can we stop this guy in practice ?
+	+ what is the work flow ?
+	+ start tracing,
+	+ 2nd start [ in the run-time system ? ]
+	+ another caller deep into the boot ?
+		+ a shell-script wrapper of some kind that sleeps / re-calls ?
+
+
+                + bootchart-collector ...
+                        + collector/bootchart-collector.c
+                        + PidEntry - add a boolean:
+                        + dump_taskstat
+                                + check / set and dump
+                                + readlink /proc/pid/exe
+                                + & contents of /proc/pid/cmdline
+                        + whack these into a new buffer_file for forward/back
+                          compatibility.
+                + parsing.py (_do_parse)
+                        + parse the new file: 'parse_proc_extra' (or whatever)
+                        + we need to stop passing so many parameters
+                          around and just re-use ParserState I think,
+                          perhaps with a rename to ParseResults or something.
+                        + failing that - we could perhaps just post-process it
+                          to merge this data into the proc_tree
+                + draw.py:
+                        + look for OPTIONS.show_pid, simple print tweak.
 

@@ -14,46 +14,55 @@
 #include <sys/mman.h>
 #include <glib.h>
 
-/*
- * Allocation fun ...
- */
-
-// #define CHUNK_SIZE (128 * 1024)
-#define CHUNK_SIZE 128
-#define CHUNK_MAGIC "xp-dt!"
+/* Max ~ 128Mb of space for logging, should be enough */
+#define CHUNK_SIZE (128 * 1024)
+#define STACK_MAP_MAGIC "really-unique-stack-pointer-for-xp-detection-goodness"
 
 typedef struct _Chunk Chunk;
 struct _Chunk {
-  char   magic[8];
-  char	 dest_stream[64];
-  guint  head : 1;
-  long   length : 31;
-  Chunk *next;
+  char	 dest_stream[60];
+  long   length;
   char   data[0];
 };
 #define CHUNK_PAYLOAD (CHUNK_SIZE - sizeof (Chunk))
 
 typedef struct {
-  Chunk *head;
-  Chunk *cur;
+  char   magic[sizeof (STACK_MAP_MAGIC)];
+  Chunk *chunks[1024];
+  int    max_chunk;
+} StackMap;
+#define STACK_MAP_INIT { STACK_MAP_MAGIC, { 0, }, 0 }
+
+typedef struct {
+  StackMap *sm;
+  Chunk    *cur;
 } Buffer;
 
-static Chunk *chunk_alloc (const char *dest)
+static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 {
-  Chunk *p = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  memset (p, 0, sizeof (Chunk));
-  strncpy (p->magic, CHUNK_MAGIC, sizeof (p->magic));
-  strncpy (p->dest_stream, dest, sizeof (p->dest_stream));
-  return p;
+  Chunk *c;
+
+  /* if we run out of buffer, just keep writing to the last buffer */
+  if (sm->max_chunk == G_N_ELEMENTS (sm->chunks))
+    {
+      c = sm->chunks[sm->max_chunk - 1];
+      c->length = 0;
+      return c;
+    }
+
+  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  memset (c, 0, sizeof (Chunk));
+  strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
+  sm->chunks[sm->max_chunk++] = c;
+  return c;
 }
 
 static Buffer *
-buffer_new (const char *dest)
+buffer_new (StackMap *sm, const char *dest)
 {
   Buffer *b = g_new0 (Buffer, 1);
-  b->head = chunk_alloc (dest);
-  b->head->head = 1;
-  b->cur = b->head;
+  b->sm = sm;
+  b->cur = chunk_alloc (b->sm, dest);
   return b;
 }
 
@@ -72,21 +81,14 @@ static void buffer_append (Buffer *b, const char *str, long len)
       len -= append;
 
       if (c->length == CHUNK_PAYLOAD)
-	{
-	  c->next = chunk_alloc (c->dest_stream);
-	  b->cur = c->next;
-	}
+	  b->cur = chunk_alloc (b->sm, c->dest_stream);
     }
 }
 
 typedef struct {
-  size_t addr;
-} ChunkPtr;
-
-typedef struct {
-  int    pid;
-  int    mem;
-  GList *heads;
+  int pid;
+  int mem;
+  StackMap map;
 } DumpState;
 
 static DumpState *open_pid (const char *apid)
@@ -125,15 +127,25 @@ static void close_pid (DumpState *s)
   g_free (s);
 }
 
-/*
- * Work out where the linked lists are.
- */
-static void find_heads (DumpState *s)
+static StackMap *
+search_stack (char *stack, size_t len)
+{
+  char *p;
+  for (p = stack; p < stack + len; p++)
+    {
+      if (!strcmp (((StackMap *)p)->magic, STACK_MAP_MAGIC))
+	return (StackMap *)p;
+    }
+  return NULL;
+}
+
+static void find_chunks (DumpState *s)
 {
   FILE *maps;
   char buffer[4096];
   char *name;
   size_t result = 0;
+  StackMap *map;
 
   maps = fopen ((name = g_strdup_printf ("/proc/%d/maps", s->pid)), "r");
   g_free (name);
@@ -144,30 +156,31 @@ static void find_heads (DumpState *s)
       int len = g_strv_length (elems);
 
       /* anonymous maps only */
-      if (len > 1 && !strcmp (elems[len - 1], "0"))
+      if (len > 1 && strstr (elems[len - 1], "stack"))
 	{
 	  /* 0x12345-0x23456 */
 	  char *p = strchr (elems[0], '-');
 	  fprintf (stderr, "addrs: '%s'\n", elems[0]);
 	  if (p)
 	    {
-	      Chunk chunk;
+	      char *copy;
 	      size_t start, end;
 	      *p = '\0';
 	      start = strtoull (elems[0], NULL, 0x10);
 	      end = strtoull (p + 1, NULL, 0x10);
-	      memset (&chunk, 0, sizeof (chunk));
+
 	      fprintf (stderr, "map 0x%lx -> 0x%lx size: %dk from '%s'\n",
 		       (long) start, (long)end,
 		       (int)(end - start) / 1024, elems[0]);
-	      pread (s->mem, &chunk, sizeof (chunk), start);
-	      fprintf (stderr, "magic: '%s' dest '%s'\n", chunk.magic, chunk.dest_stream);
-	      if (!strcmp (chunk.magic, CHUNK_MAGIC))
-		{
-		  ChunkPtr *p = g_new0 (ChunkPtr, 1);
-		  p->addr = start;
-		  s->heads = g_list_prepend (s->heads, p);
-		}
+
+	      copy = g_malloc (end - start);
+	      pread (s->mem, copy, end - start, start);
+
+	      map = search_stack (copy, end- start);
+	      if (map)
+		  s->map = *map;
+
+	      g_free (copy);
 	    }
 	}
       g_strfreev (elems);
@@ -177,22 +190,20 @@ static void find_heads (DumpState *s)
 
 static void dump_buffers (DumpState *s)
 {
-  GList *l;
-  char buffer[CHUNK_SIZE];
-  Chunk *c = (Chunk *)&buffer;
+  int i;
 
-  fprintf (stderr, "%d heads\n", g_list_length (s->heads));
-  for (l = s->heads; l; l = l->next)
+  fprintf (stderr, "%d chunks\n", s->map.max_chunk);
+  for (i = 0; i < s->map.max_chunk; i++)
     {
-      ChunkPtr *p = l->data;
-      size_t addr = p->addr;
-      while (addr != 0)
-	{
-	  pread (s->mem, &buffer, CHUNK_SIZE, addr);
-	  fprintf (stderr, "Magic '%s', type: '%s'\n", c->magic, c->dest_stream);
-	  fwrite (c->data, 1, c->length, stderr);
-	  addr = (size_t) c->next;
-	}
+      char buffer[CHUNK_SIZE];
+      Chunk *c = (Chunk *)&buffer;
+      size_t addr = (size_t) s->map.chunks[i];
+
+      pread (s->mem, &buffer, CHUNK_SIZE, addr);
+      fprintf (stderr, "type: '%s' len %d\n",
+	       c->dest_stream, (int)c->length);
+      fwrite (c->data, 1, c->length, stderr);
+      fprintf (stderr, "\n");
     }
 }
 
@@ -202,9 +213,10 @@ int main (int argc, char **argv)
     {
       int i;
       Buffer *b[2];
+      StackMap sm = STACK_MAP_INIT;
       fprintf (stderr, "server\n");
-      b[0] = buffer_new ("fish");
-      b[1] = buffer_new ("heads");
+      b[0] = buffer_new (&sm, "fish");
+      b[1] = buffer_new (&sm, "heads");
       for (i = 0; i < 80; i++)
 	{
 	  char *txt = g_strdup_printf ("freznel mirrors are the future: %d\n", i);
@@ -227,7 +239,7 @@ int main (int argc, char **argv)
       state = open_pid (apid);
       if (state) 
 	{
-	  find_heads (state);
+	  find_chunks (state);
 	  dump_buffers (state);
 	  close_pid (state);
 	}

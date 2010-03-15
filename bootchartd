@@ -4,7 +4,7 @@
 # Ziga Mahkovec  <ziga.mahkovec@klika.si>
 # Michael Meeks  <michael.meeks@novell.com>
 #
-# This script is used for data collection for the bootchart2
+# This script is used for data collection for the bootchart2oo
 # boot performance visualization tool.
 #
 # To profile the boot process, bootchartd should be called instead of

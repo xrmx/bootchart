@@ -826,3 +826,30 @@ main (int   argc,
 
 	return 0;
 }
+
+/*
+ * Simplisitic fixes for now:
+ *     add a '--usleep <N>' mode
+ */
+
+/*
+ * When started:
+ *   a) are we in the initrd ? - if no /dev/random - yes ...
+ *	+ if in the initrd - just detach, someone else will stop us
+ *   * otherwise start-if-not-running & wait for some exit conditions ...
+ *     then cleanup (?)
+ */
+
+/*
+ * if (!/dev/random): in initrd [!] ...
+ 
+ */
+/*
+ * bootchartd --wait-for-dev
+ *	+ waits for /dev/console && /dev/random
+ */ 
+
+/*
+ * shell vs. other bits (?)
+ *     - we still need the shell wrapper for now
+ */

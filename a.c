@@ -18,8 +18,9 @@
  * Allocation fun ...
  */
 
-#define CHUNK_SIZE (128 * 1024)
-#define CHUNK_MAGIC "xp-data!"
+// #define CHUNK_SIZE (128 * 1024)
+#define CHUNK_SIZE 128
+#define CHUNK_MAGIC "xp-dt!"
 
 typedef struct _Chunk Chunk;
 struct _Chunk {
@@ -145,16 +146,22 @@ static void find_heads (DumpState *s)
       /* anonymous maps only */
       if (len > 1 && !strcmp (elems[len - 1], "0"))
 	{
+	  /* 0x12345-0x23456 */
 	  char *p = strchr (elems[0], '-');
+	  fprintf (stderr, "addrs: '%s'\n", elems[0]);
 	  if (p)
 	    {
 	      Chunk chunk;
-	      size_t start = strtoull (elems[0], NULL, 0x10);
-	      size_t end = strtoull (p + 1, NULL, 0x10);
+	      size_t start, end;
+	      *p = '\0';
+	      start = strtoull (elems[0], NULL, 0x10);
+	      end = strtoull (p + 1, NULL, 0x10);
 	      memset (&chunk, 0, sizeof (chunk));
-	      fprintf (stderr, "map 0x%llx -> 0x%llx size: %dk\n", start, end,
-		       (int)(end - start) / 1024);
+	      fprintf (stderr, "map 0x%lx -> 0x%lx size: %dk from '%s'\n",
+		       (long) start, (long)end,
+		       (int)(end - start) / 1024, elems[0]);
 	      pread (s->mem, &chunk, sizeof (chunk), start);
+	      fprintf (stderr, "magic: '%s' dest '%s'\n", chunk.magic, chunk.dest_stream);
 	      if (!strcmp (chunk.magic, CHUNK_MAGIC))
 		{
 		  ChunkPtr *p = g_new0 (ChunkPtr, 1);
@@ -184,22 +191,24 @@ static void dump_buffers (DumpState *s)
 	  pread (s->mem, &buffer, CHUNK_SIZE, addr);
 	  fprintf (stderr, "Magic '%s', type: '%s'\n", c->magic, c->dest_stream);
 	  fwrite (c->data, 1, c->length, stderr);
+	  addr = (size_t) c->next;
 	}
     }
 }
 
 int main (int argc, char **argv)
 {
-  Buffer *b;
   if (argc <= 1)
     {
       int i;
+      Buffer *b[2];
       fprintf (stderr, "server\n");
-      b = buffer_new ("fish");
-      for (i = 0; i < 1024 * 1024 * 8; i++)
+      b[0] = buffer_new ("fish");
+      b[1] = buffer_new ("heads");
+      for (i = 0; i < 80; i++)
 	{
-	  char *txt = g_strdup_printf ("name %d", i);
-	  buffer_append (b, txt, strlen (txt));
+	  char *txt = g_strdup_printf ("freznel mirrors are the future: %d\n", i);
+	  buffer_append (b[i%2], txt, strlen (txt));
 	  g_free (txt);
 	}
       fprintf (stderr, "logging complete.\n");
@@ -211,15 +220,17 @@ int main (int argc, char **argv)
   else
     {
       const char *apid;
-      gulong buffer_addr;
       DumpState *state;
 
       apid = argv[argc-1];
 
       state = open_pid (apid);
-      find_heads (state);
-      dump_buffers (state);
-      close_pid (state);
+      if (state) 
+	{
+	  find_heads (state);
+	  dump_buffers (state);
+	  close_pid (state);
+	}
     }
 
   return 0;

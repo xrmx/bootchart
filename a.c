@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE 600
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
+#define _BSD_SOURCE
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -10,40 +11,130 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ptrace.h>
+#include <sys/mman.h>
 #include <glib.h>
 
-#define BUFFER_SIZE (1024 * 1024 * 64)
+/*
+ * Allocation fun ...
+ */
 
-#define HEADER_MAGIC "xp-data!"
-struct _Header {
-  char            magic[8];
-  long            length;
-  struct _Header *next;
-  char            data[1];
+#define CHUNK_SIZE (128 * 1024)
+#define CHUNK_MAGIC "xp-data!"
+
+typedef struct _Chunk Chunk;
+struct _Chunk {
+  char   magic[8];
+  char	 dest_stream[64];
+  guint  head : 1;
+  long   length : 31;
+  Chunk *next;
+  char   data[0];
 };
-typedef struct _Header Header;
+#define CHUNK_PAYLOAD (CHUNK_SIZE - sizeof (Chunk))
 
 typedef struct {
-  int mem;
-  GList *buffers;
-} ProcessData;
+  Chunk *head;
+  Chunk *cur;
+} Buffer;
 
-static ProcessData *find_buffers (const char *apid)
+static Chunk *chunk_alloc (const char *dest)
+{
+  Chunk *p = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  memset (p, 0, sizeof (Chunk));
+  strncpy (p->magic, CHUNK_MAGIC, sizeof (p->magic));
+  strncpy (p->dest_stream, dest, sizeof (p->dest_stream));
+  return p;
+}
+
+static Buffer *
+buffer_new (const char *dest)
+{
+  Buffer *b = g_new0 (Buffer, 1);
+  b->head = chunk_alloc (dest);
+  b->head->head = 1;
+  b->cur = b->head;
+  return b;
+}
+
+static void buffer_append (Buffer *b, const char *str, long len)
+{
+  while (len > 0)
+    {
+      Chunk *c = b->cur;
+      long append;
+
+      append = MIN (len, CHUNK_PAYLOAD - c->length);
+      
+      strncpy (c->data + c->length, str, append);
+      str += append;
+      c->length += append;
+      len -= append;
+
+      if (c->length == CHUNK_PAYLOAD)
+	{
+	  c->next = chunk_alloc (c->dest_stream);
+	  b->cur = c->next;
+	}
+    }
+}
+
+typedef struct {
+  size_t addr;
+} ChunkPtr;
+
+typedef struct {
+  int    pid;
+  int    mem;
+  GList *heads;
+} DumpState;
+
+static DumpState *open_pid (const char *apid)
+{
+  int pid;
+  char *name;
+  DumpState *s;
+
+  pid = atoi (apid);
+  fprintf (stderr, "attach to pid %d\n", pid);
+
+  if (ptrace(PTRACE_ATTACH, pid, 0, 0))
+    {
+      fprintf (stderr, "cannot ptrace %d\n", pid);
+      return NULL;
+    }
+
+  s = g_new0 (DumpState, 1);
+  s->pid = pid;
+  s->mem = open ((name = g_strdup_printf ("/proc/%s/mem", apid)), O_RDONLY|O_LARGEFILE);
+  g_free (name);
+  if (s->mem < 0)
+    {
+      fprintf (stderr, "Failed to open memory map\n"); 
+      g_free (s);
+      return NULL;
+    }
+
+  return s;
+}
+
+static void close_pid (DumpState *s)
+{
+  ptrace (PTRACE_DETACH, s->pid, 0, 0);
+  close (s->mem);
+  g_free (s);
+}
+
+/*
+ * Work out where the linked lists are.
+ */
+static void find_heads (DumpState *s)
 {
   FILE *maps;
-  int  mem;
   char buffer[4096];
   char *name;
   size_t result = 0;
 
-  mem = open ((name = g_strdup_printf ("/proc/%s/mem", apid)), O_RDONLY|O_LARGEFILE);
-  g_free (name);
-  if (mem < 0)
-    {
-      fprintf (stderr, "Failed to open memory map\n"); 
-      return 0;
-    }
-  maps = fopen ((name = g_strdup_printf ("/proc/%s/maps", apid)), "r");
+  maps = fopen ((name = g_strdup_printf ("/proc/%d/maps", s->pid)), "r");
   g_free (name);
 
   while (!result && fgets (buffer, 4096, maps))
@@ -51,64 +142,84 @@ static ProcessData *find_buffers (const char *apid)
       char **elems = g_strsplit (g_strstrip (buffer), " ", -1);
       int len = g_strv_length (elems);
 
+      /* anonymous maps only */
       if (len > 1 && !strcmp (elems[len - 1], "0"))
 	{
 	  char *p = strchr (elems[0], '-');
 	  if (p)
 	    {
-	      Header header;
+	      Chunk chunk;
 	      size_t start = strtoull (elems[0], NULL, 0x10);
 	      size_t end = strtoull (p + 1, NULL, 0x10);
-	      memset (&header, 0, sizeof (header));
+	      memset (&chunk, 0, sizeof (chunk));
 	      fprintf (stderr, "map 0x%llx -> 0x%llx size: %dk\n", start, end,
 		       (int)(end - start) / 1024);
-	      pread (mem, &header, sizeof (header), 3009449992); // start);
-	      if (!strcmp (header.magic, HEADER_MAGIC))
+	      pread (s->mem, &chunk, sizeof (chunk), start);
+	      if (!strcmp (chunk.magic, CHUNK_MAGIC))
 		{
-		  fprintf (stderr, "bingo !\n");
+		  ChunkPtr *p = g_new0 (ChunkPtr, 1);
+		  p->addr = start;
+		  s->heads = g_list_prepend (s->heads, p);
 		}
 	    }
 	}
       g_strfreev (elems);
     }
   fclose (maps);
-  close (mem);
+}
 
-  return NULL;
+static void dump_buffers (DumpState *s)
+{
+  GList *l;
+  char buffer[CHUNK_SIZE];
+  Chunk *c = (Chunk *)&buffer;
+
+  fprintf (stderr, "%d heads\n", g_list_length (s->heads));
+  for (l = s->heads; l; l = l->next)
+    {
+      ChunkPtr *p = l->data;
+      size_t addr = p->addr;
+      while (addr != 0)
+	{
+	  pread (s->mem, &buffer, CHUNK_SIZE, addr);
+	  fprintf (stderr, "Magic '%s', type: '%s'\n", c->magic, c->dest_stream);
+	  fwrite (c->data, 1, c->length, stderr);
+	}
+    }
 }
 
 int main (int argc, char **argv)
 {
-  volatile Header *data;
+  Buffer *b;
   if (argc <= 1)
     {
+      int i;
       fprintf (stderr, "server\n");
-      data = g_malloc0 (BUFFER_SIZE);
-      strcpy ((char *)data->magic, HEADER_MAGIC);
-      strcpy ((char *)data->data, "this is an long essay packed with fun!");
-      while ((data->data[0] == 't'))
+      b = buffer_new ("fish");
+      for (i = 0; i < 1024 * 1024 * 8; i++)
+	{
+	  char *txt = g_strdup_printf ("name %d", i);
+	  buffer_append (b, txt, strlen (txt));
+	  g_free (txt);
+	}
+      fprintf (stderr, "logging complete.\n");
+      while (TRUE)
 	{
 	  g_usleep (1000*500);
 	}
     }
   else
     {
-      int pid;
       const char *apid;
       gulong buffer_addr;
+      DumpState *state;
 
       apid = argv[argc-1];
-      pid = atoi (apid);
-      fprintf (stderr, "attach to pid %d\n", pid);
 
-      if (ptrace(PTRACE_ATTACH, pid, 0, 0)) {
-		fprintf (stderr, "cannot ptrace %d\n", pid);
-		return;
-      }
-
-      buffer_addr = find_buffers (apid);
-
-      ptrace(PTRACE_DETACH, pid, 0, 0);
+      state = open_pid (apid);
+      find_heads (state);
+      dump_buffers (state);
+      close_pid (state);
     }
 
   return 0;

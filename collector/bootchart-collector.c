@@ -638,6 +638,15 @@ main (int   argc,
 
 	for (i = 1; i < argc; i++) {
 		if (!argv[i]) continue;
+
+		/* usleep can be hard to find */
+		if (i < argc - 1 && !strcmp (argv[i], "--usleep")) {
+		  long sleep = strtoul (argv[i+1], NULL, 0);
+		  usleep (sleep);
+		  exit (0);
+		}
+
+		/* normal mode args ... */
 		if (argv[i][0] == '-') {
 			switch (argv[i][1]) {
 			case 'r':

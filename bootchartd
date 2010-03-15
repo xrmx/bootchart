@@ -21,13 +21,10 @@
 
 # Whack everything in a handy tmpfs: /dev ...
 JAIL="/dev/.bootchart"
+COLLECTOR_BIN="/lib/bootchart/bootchart-collector"
 
-# some people don't have usleep
-if [ -x /bin/usleep ]; then
-	USLEEP="/bin/usleep"
-else
-	USLEEP="busybox usleep"
-fi
+# some initrds don't have usleep etc.
+USLEEP="$COLLECTOR_BIN --usleep"
 
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
@@ -112,7 +109,7 @@ start()
 		cp /lib/libc.so.* $JAIL/lib
 
 		mkdir $JAIL/lib/bootchart
-		cp /lib/bootchart/bootchart-collector $JAIL/lib/bootchart
+		cp $COLLECTOR_BIN $JAIL/lib/bootchart
 	fi
 
 	# Enable process accounting if configured

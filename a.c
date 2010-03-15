@@ -1,17 +1,27 @@
+#define _XOPEN_SOURCE 600
+#define _FILE_OFFSET_BITS 64
+#define _LARGEFILE64_SOURCE
+
 #include <stdio.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ptrace.h>
 #include <glib.h>
 
 #define BUFFER_SIZE (1024 * 1024 * 64)
-typedef long long addr_t;
 
-typedef struct {
-  char    magic[8];
-  long    length;
-  Header *next;
-  char    data[1];
-} Header;
+#define HEADER_MAGIC "xp-data!"
+struct _Header {
+  char            magic[8];
+  long            length;
+  struct _Header *next;
+  char            data[1];
+};
+typedef struct _Header Header;
 
 typedef struct {
   int mem;
@@ -20,13 +30,13 @@ typedef struct {
 
 static ProcessData *find_buffers (const char *apid)
 {
-  FILE *file;
+  FILE *maps;
   int  mem;
   char buffer[4096];
   char *name;
-  addr_t result = 0;
+  size_t result = 0;
 
-  mem = open ((name = g_strdup_printf ("/proc/%s/mem", apid)), 0);
+  mem = open ((name = g_strdup_printf ("/proc/%s/mem", apid)), O_RDONLY|O_LARGEFILE);
   g_free (name);
   if (mem < 0)
     {
@@ -36,7 +46,6 @@ static ProcessData *find_buffers (const char *apid)
   maps = fopen ((name = g_strdup_printf ("/proc/%s/maps", apid)), "r");
   g_free (name);
 
-  mem = open (mem, "r");
   while (!result && fgets (buffer, 4096, maps))
     {
       char **elems = g_strsplit (g_strstrip (buffer), " ", -1);
@@ -48,20 +57,24 @@ static ProcessData *find_buffers (const char *apid)
 	  if (p)
 	    {
 	      Header header;
-	      addr_t start = strtoll (elems[0], NULL, 0x10);
-	      addr_t end = strtoll (p + 1, NULL, 0x10);
+	      size_t start = strtoull (elems[0], NULL, 0x10);
+	      size_t end = strtoull (p + 1, NULL, 0x10);
+	      memset (&header, 0, sizeof (header));
 	      fprintf (stderr, "map 0x%llx -> 0x%llx size: %dk\n", start, end,
-		       (end - start) / 1024);
-	      lseek (mem, start, SEEK_SET);
-	      read (header, 
+		       (int)(end - start) / 1024);
+	      pread (mem, &header, sizeof (header), 3009449992); // start);
+	      if (!strcmp (header.magic, HEADER_MAGIC))
+		{
+		  fprintf (stderr, "bingo !\n");
+		}
 	    }
 	}
       g_strfreev (elems);
     }
   fclose (maps);
-  fclose (mem);
+  close (mem);
 
-  return result;
+  return NULL;
 }
 
 int main (int argc, char **argv)
@@ -71,22 +84,31 @@ int main (int argc, char **argv)
     {
       fprintf (stderr, "server\n");
       data = g_malloc0 (BUFFER_SIZE);
-      strcpy (data->magic, "buf-data");
-      strcpy (data->data, "this is an long essay packed with fun!");
-      while ((data[0] == 't'))
+      strcpy ((char *)data->magic, HEADER_MAGIC);
+      strcpy ((char *)data->data, "this is an long essay packed with fun!");
+      while ((data->data[0] == 't'))
 	{
 	  g_usleep (1000*500);
 	}
     }
   else
     {
+      int pid;
       const char *apid;
       gulong buffer_addr;
 
       apid = argv[argc-1];
-      fprintf (stderr, "attach to pid %s\n", apid);
+      pid = atoi (apid);
+      fprintf (stderr, "attach to pid %d\n", pid);
+
+      if (ptrace(PTRACE_ATTACH, pid, 0, 0)) {
+		fprintf (stderr, "cannot ptrace %d\n", pid);
+		return;
+      }
 
       buffer_addr = find_buffers (apid);
+
+      ptrace(PTRACE_DETACH, pid, 0, 0);
     }
 
   return 0;

@@ -1,25 +1,22 @@
 /* bootchart-collector
  *
- * Copyright © 2009 Canonical Ltd.
- * Author: Scott James Remnant <scott@netsplit.com>.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3 of the License.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-/*
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Author: Michael Meeks <michael.meeks@novell.com>
  * Copyright 2009 Novell, Inc.
- * 
- * URK ! - GPLv2 - code from Linux kernel.
+ * inspired by Scott James Remnant <scott@netsplit.com>'s work.
  */
 
 /* getdelays.c
@@ -55,38 +52,29 @@
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
 
-#undef HAVE_IO_PRIO
-#if defined(__i386__)
-#  define HAVE_IO_PRIO
-#  define __NR_ioprio_set 289
-#elif defined(__x86_64__)
-#  define HAVE_IO_PRIO
-#  define __NR_ioprio_set 251
-#elif defined(__powerpc__)
-#  define HAVE_IO_PRIO
-#  define __NR_ioprio_set 273
-#else /* not fatal */
-#  warning "Architecture does not support ioprio modification"
-#endif
-#define IOPRIO_WHO_PROCESS 1
-#define IOPRIO_CLASS_RT 1
-#define IOPRIO_CLASS_SHIFT 13
-#define IOPRIO_RT_HIGHEST  (0 | (IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT))
+/* ptrace transferable buffers */
+
+/* Max ~ 128Mb of space for logging, should be enough */
+#define CHUNK_SIZE (128 * 1024)
+#define STACK_MAP_MAGIC "really-unique-stack-pointer-for-xp-detection-goodness"
+
+struct _Chunk {
+  char	 dest_stream[60];
+  long   length;
+  char   data[0];
+};
+#define CHUNK_PAYLOAD (CHUNK_SIZE - sizeof (Chunk))
+
+typedef struct {
+  char   magic[sizeof (STACK_MAP_MAGIC)];
+  Chunk *chunks[1024];
+  int    max_chunk;
+} StackMap;
+#define STACK_MAP_INIT { STACK_MAP_MAGIC, { 0, }, 0 }
 
 const char *proc_path;
 
-/* if we are running vs. a high prio I/O process we still want logging */
-void
-set_io_prio (void)
-{
-#ifdef HAVE_IO_PRIO
-	if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, 0, IOPRIO_RT_HIGHEST) == -1)
-		perror("Can not set IO priority to top priority");
-#endif
-}
-
-#define BUFSIZE 524288
-
+/* pid uniqifying code */
 typedef struct {
 	pid_t pid;
 	pid_t ppid;
@@ -96,27 +84,53 @@ typedef struct {
 static PidEntry *
 get_pid_entry (pid_t pid)
 {
-	static PidEntry *pids = NULL;
-	static pid_t     pids_size = 0;
+  static PidEntry *pids = NULL;
+  static pid_t     pids_size = 0;
 
-	pid_t old_pids_size = pids_size;
-	if (pid >= pids_size) {
-		pids_size = pid + 512;
-		pids = realloc (pids, sizeof (PidEntry) * pids_size);
-		memset (pids + old_pids_size, 0, sizeof (PidEntry) * (pids_size - old_pids_size));
-	}
-	return pids + pid;
+  pid_t old_pids_size = pids_size;
+  if (pid >= pids_size)
+    {
+      pids_size = pid + 512;
+      pids = realloc (pids, sizeof (PidEntry) * pids_size);
+      memset (pids + old_pids_size, 0, sizeof (PidEntry) * (pids_size - old_pids_size));
+    }
+  return pids + pid;
 }
 
+
 typedef struct {
-	int    fd;
-	char   data[BUFSIZE];
-	size_t len;
+  StackMap *sm;
+  Chunk    *cur;
 } BufferFile;
 
-static BufferFile *
-buffer_file_new (const char *output_dir, const char *output_fname)
+static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 {
+  Chunk *c;
+
+  /* if we run out of buffer, just keep writing to the last buffer */
+  if (sm->max_chunk == G_N_ELEMENTS (sm->chunks))
+    {
+      c = sm->chunks[sm->max_chunk - 1];
+      c->length = 0;
+      return c;
+    }
+
+  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  memset (c, 0, sizeof (Chunk));
+  strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
+  sm->chunks[sm->max_chunk++] = c;
+  return c;
+}
+
+static BufferFile *
+buffer_file_new (StackMap *sm, const char *output_fname)
+{
+  BufferFile *b = malloc (sizeof (Buffer));
+  b->sm = sm;
+  b->cur = chunk_alloc (b->sm, dest);
+  return b;
+}
+
 	int fd;
 	char *fname;
 	BufferFile *file;
@@ -600,238 +614,184 @@ error:
 }
 
 static void
-usage ()
+dump_state (const char *output_path)
 {
-	fprintf (stderr, "Usage: bootchart-collector [-r] [-p /proc/path] [-o /output/path] HZ\n");
-	exit (1);
+  chdir (output_path);
+  /* ... */
 }
 
-int
-main (int   argc,
-      char *argv[])
+static void usage ()
 {
-	struct sigaction  act;
-	sigset_t          mask, oldmask;
-	struct rlimit     rlim;
-	struct timespec   timeout;
-	const char       *output_dir;
-	const char       *hz_string;
-	int               stat_fd, disk_fd, uptime_fd;
-	DIR              *proc;
-	BufferFile       *stat_file, *disk_file;
-	BufferFile       *per_pid_file;
-	unsigned long     reltime = 0;
-	int               rel, i;
-	int		  use_taskstat;
-	int               *fds[] = {
-		&stat_fd, &disk_fd, &uptime_fd, NULL
-	};
-	const char *fd_names[] = {
-		"/stat", "/diskstats", "/uptime", NULL
-	};
+  fprintf (stderr, "Usage: bootchart-collector [--usleep <usecs>] [--dump <path>] [/proc/mount] [HZ]\n");
+  fprintf (stderr, "swiss-army boot-charting tool.\n");
+  fprintf (stderr, "   --usleep <usecs>	sleeps for given number of usecs and exits.\n");
+  fprintf (stderr, "   --dump <path>	if another bootchart is running, dumps it's state to <path> and exits.\n");
+  fprintf (stderr, "   <otherwise>	stores profiling data from /proc/mount at frequency hz\n");
+  exit (1);
+}
 
-	/* defaults */
-	rel = 0;
-	proc_path = "/proc";
-	output_dir = ".";
-	hz_string = "10";
+int main (int argc, char *argv[])
+{
+  DIR *proc;
+  unsigned long hz = 0;
+  int i, use_taskstat;
+  int stat_fd, disk_fd, uptime_fd;
+  BufferFile *stat_file, *disk_file, *per_pid_file;
+  int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
+  const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
+  StackMap map = STACK_MAP_INIT; /* make me findable */
 
-	for (i = 1; i < argc; i++) {
-		if (!argv[i]) continue;
-
-		/* usleep can be hard to find */
-		if (i < argc - 1 && !strcmp (argv[i], "--usleep")) {
-		  long sleep = strtoul (argv[i+1], NULL, 0);
-		  usleep (sleep);
-		  exit (0);
-		}
-
-		/* normal mode args ... */
-		if (argv[i][0] == '-') {
-			switch (argv[i][1]) {
-			case 'r':
-				rel = 1;
-				break;
-			case 'o':
-				if (i < argc - 1)
-					output_dir = argv[++i];
-				else {
-					fprintf (stderr, "Error: -o takes a directory argument\n");
-					usage();
-				}
-				break;
-			case 'p':
-				if (i < argc - 1)
-					proc_path = argv[++i];
-				else {
-					fprintf (stderr, "Error: -p takes a proc mount-point path\n");
-					usage();
-				}
-				break;
-			default:
-				fprintf (stderr, "Error: unknown option '%s'\n", argv[i]);
-				usage();
-				break;
-			}
-		} else
-			hz_string = argv[i];
-	}
-
+  for (i = 1; i < argc; i++) 
+    {
+      if (!argv[i]) continue;
+    
+      /* commands with an argument */
+      if (i < argc - 1)
 	{
-		unsigned long  hz;
-		char          *endptr;
+	  const char *param = argv[i+1];
 
-		hz = strtoul (hz_string, &endptr, 10);
-		if (*endptr) {
-			fprintf (stderr, "%s: HZ not an integer\n", argv[0]);
-			exit (1);
-		}
+	  /* usleep can be hard to find */
+	  if (!strcmp (argv[i], "--usleep"))
+	    {
+	      long sleep = strtoul (param, NULL, 0);
+	      usleep (sleep);
+	      return 0;
+	    }
 
-		if (hz > 1) {
-			timeout.tv_sec = 0;
-			timeout.tv_nsec = 1000000000 / hz;
-		} else {
-			timeout.tv_sec = 1;
-			timeout.tv_nsec = 0;
-		}
+	  /* output mode */
+	  if (!strcmp (argv[i], "-d") ||
+	      !strcmp (argv[i], "--dump"))
+	    return dump_state (param);
 	}
 
-	sigemptyset (&mask);
-	sigaddset (&mask, SIGTERM);
-	sigaddset (&mask, SIGINT);
+      /* help */
+      if (!strcmp (argv[i], "-h") ||
+	  !strcmp (argv[i], "--help"))
+	usage();
+    }
+      
+  /* default mode args */
+  if (!proc_path)
+    proc_path = argv[i];
+  else if (!hz) {
+    hz = strtoul (argv[i], NULL, 0);
+    else
+      usage();
+  }
+      
+  /* defaults */
+  if (!proc_path)
+    proc_path = "/proc";
+  if (!hz)
+    hz = "50";
+      
+  proc = opendir (proc_path);
+  if (!proc)
+    {
+      fprintf (stderr, "Failed to open %s: %s\n", proc_path, strerror(errno));
+      return 1;
+    }
 
-	if (sigprocmask (SIG_BLOCK, &mask, &oldmask) < 0) {
-		perror ("sigprocmask");
-		exit (1);
+  for (i = 0; fds [i]; i++)
+    {
+      char *path = malloc (strlen (proc_path) + strlen (fd_names[i]) + 1);
+      strcpy (path, proc_path);
+      strcat (path, fd_names[i]);
+
+      *fds[i] = open (path, O_RDONLY);
+      if (*fds[i] < 0)
+	{
+	  fprintf (stderr, "error opening '%s': %s'\n",
+		   path, strerror (errno));
+	  exit (1);
 	}
+    }
 
-	act.sa_handler = sig_handler;
-	act.sa_flags = 0;
-	sigemptyset (&act.sa_mask);
+  stat_file = buffer_file_new (&sm, "proc_stat.log");
+  disk_file = buffer_file_new (&sm, "proc_diskstats.log");
+  if ( (use_taskstat = init_taskstat()) )
+    per_pid_file = buffer_file_new (&sm, "taskstats.log");
+  else
+    per_pid_file = buffer_file_new (&sm, "proc_ps.log");
 
-	if (sigaction (SIGTERM, &act, NULL) < 0) {
-		perror ("sigaction SIGTERM");
-		exit (1);
-	}
+  if (!stat_file || !disk_file || !per_pid_file)
+    {
+      fprintf (stderr, "Error opening an output file");
+      return 1;
+    }
 
-	if (sigaction (SIGINT, &act, NULL) < 0) {
-		perror ("sigaction SIGINT");
-		exit (1);
-	}
+  while (1)
+    {
+      char uptime[80];
+      size_t uptimelen;
+      unsigned long u;
+      struct dirent *ent;
 
-	/* Drop cores if we go wrong */
-	//	if (chdir ("/"))
-	//		;
+      u = get_uptime (uptime_fd);
+      if (!u)
+	return 1;
 
-	rlim.rlim_cur = RLIM_INFINITY;
-	rlim.rlim_max = RLIM_INFINITY;
+      uptimelen = sprintf (uptime, "%lu\n", u);
 
-	setrlimit (RLIMIT_CORE, &rlim);
-	set_io_prio ();
+      buffer_file_dump_frame_with_timestamp (stat_file, stat_fd,
+					     uptime, uptimelen);
+      buffer_file_dump_frame_with_timestamp (disk_file, disk_fd,
+					     uptime, uptimelen);
 
-	proc = opendir (proc_path);
-	if (! proc) {
-		perror ("opendir proc");
-		exit (1);
-	}
+      /* output data for each pid */
+      buffer_file_append (per_pid_file, uptime, uptimelen);
 
-	for (i = 0; fds [i]; i++) {
-		char *path = malloc (strlen (proc_path) + strlen (fd_names[i]) + 1);
-		strcpy (path, proc_path);
-		strcat (path, fd_names[i]);
+      rewinddir (proc);
+      while ((ent = readdir (proc)) != NULL) {
+	if (!isdigit (ent->d_name[0]))
+	  continue;
 
-		*fds[i] = open (path, O_RDONLY);
-		if (*fds[i] < 0) {
-			fprintf (stderr, "error opening '%s': %s'\n",
-				 path, strerror (errno));
-			exit (1);
-		}
-	}
-
-	stat_file = buffer_file_new (output_dir, "proc_stat.log");
-	disk_file = buffer_file_new (output_dir, "proc_diskstats.log");
-	if ( (use_taskstat = init_taskstat()) )
-		per_pid_file = buffer_file_new (output_dir, "taskstats.log");
+	if (use_taskstat)
+	  {
+	    pid_t pid = atoi (ent->d_name);
+	    dump_taskstat (per_pid_file, pid);
+	  }
 	else
-		per_pid_file = buffer_file_new (output_dir, "proc_ps.log");
+	  dump_proc (per_pid_file, ent->d_name);
+      }
+      buffer_file_append (per_pid_file, "\n", 1);
 
-	if (!stat_file || !disk_file || !per_pid_file) {
-		fprintf (stderr, "Error opening an output file");
-		exit (1);
+      usleep (10000000 / hz);
+    }
+
+  /*
+   * Theoretical cleanup code ... in fact we are always
+   * killed by the ptrace magic before here. Probably we
+   * could do better with some handshaking.
+   */
+  buffer_file_close (stat_file);
+  buffer_file_close (disk_file);
+
+  if (use_taskstat)
+    {
+      if (close (netlink_socket) < 0)
+	{
+	  perror ("failed to close netlink socket");
+	  exit (1);
 	}
+    }
+  buffer_file_close (per_pid_file);
 
-	if (rel) {
-		reltime = get_uptime (uptime_fd);
-		if (! reltime)
-			exit (1);
+  for (i = 0; fds [i]; i++)
+    {
+      if (close (*fds[i]) < 0)
+	{
+	  fprintf (stderr, "error closing file '%s': %s'\n",
+		   fd_names[i], strerror (errno));
+	  return 1;
 	}
+    }
 
-	for (;;) {
-		char          uptime[80];
-		size_t        uptimelen;
-		unsigned long u;
-		struct dirent *ent;
+  if (closedir (proc) < 0)
+    {
+      perror ("close /proc");
+      exit (1);
+    }
 
-		u = get_uptime (uptime_fd);
-		if (! u)
-			exit (1);
-
-		uptimelen = sprintf (uptime, "%lu\n", u - reltime);
-
-		buffer_file_dump_frame_with_timestamp (stat_file, stat_fd,
-						       uptime, uptimelen);
-		buffer_file_dump_frame_with_timestamp (disk_file, disk_fd,
-						       uptime, uptimelen);
-
-		/* output data for each pid */
-		buffer_file_append (per_pid_file, uptime, uptimelen);
-
-		rewinddir (proc);
-		while ((ent = readdir (proc)) != NULL) {
-			if (!isdigit (ent->d_name[0]))
-				continue;
-
-			if (use_taskstat) {
-				pid_t pid = atoi (ent->d_name);
-				dump_taskstat (per_pid_file, pid);
-			} else
-				dump_proc (per_pid_file, ent->d_name);
-		}
-		buffer_file_append (per_pid_file, "\n", 1);
-
-		if (pselect (0, NULL, NULL, NULL, &timeout, &oldmask) < 0) {
-			if (errno == EINTR) {
-				break;
-			} else {
-				perror ("pselect");
-				exit (1);
-			}
-		}
-	}
-
-	buffer_file_close (stat_file);
-	buffer_file_close (disk_file);
-
-	if (use_taskstat) {
-		if (close (netlink_socket) < 0) {
-			perror ("failed to close netlink socket");
-			exit (1);
-		}
-	}
-	buffer_file_close (per_pid_file);
-
-	for (i = 0; fds [i]; i++) {
-		if (close (*fds[i]) < 0) {
-			fprintf (stderr, "error closing file '%s': %s'\n",
-				 fd_names[i], strerror (errno));
-			exit (1);
-		}
-	}
-
-	if (closedir (proc) < 0) {
-		perror ("close /proc");
-		exit (1);
-	}
-
-	return 0;
+  return 0;
 }

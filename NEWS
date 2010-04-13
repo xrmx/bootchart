@@ -1,3 +1,18 @@
+bootchart2 0.10.0
+	+ rendering (Anders Norgaard)
+		+ fix for unknown exceptions
+	+ interactive UI (Michael)
+		+ much faster rendering by manual clipping
+		+ horizontal scaling
+		+ remove annoying page-up/down bindings
+	+ initrd portability & fixes (Federic Crozat)
+		+ port to Mandriva
+		+ improved process waiting
+		+ inittab commenting fix
+		+ improved initrd detection / jail tagging
+		+ fix for un-detectable accton behaviour change
+		+ implement a built-in usleep to help initrd deps (Michael)
+
 bootchart2 0.0.9
 	+ fix initrd bug
 

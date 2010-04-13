@@ -1,4 +1,4 @@
-bootchart2 0.10.0
+bootchart2 0.1.0
 	+ rendering (Anders Norgaard)
 		+ fix for unknown exceptions
 	+ interactive UI (Michael)

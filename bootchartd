@@ -171,7 +171,7 @@ wait_boot()
 		if [ -n "$exit_proc" -a -n "$( pidof $exit_proc )" ]; then
 			# give an unambiguous settle afterwards - so we get
 			# more post-login data for slow systems
-			sleep 20
+			$USLEEP 20000000
 
 			# Write / flush the log files
 			stop

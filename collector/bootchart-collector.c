@@ -32,6 +32,7 @@
  * Copyright (c) Jay Lan, SGI. 2006
  */
 
+#include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -621,7 +622,7 @@ main (int   argc,
 	BufferFile       *stat_file, *disk_file;
 	BufferFile       *per_pid_file;
 	unsigned long     reltime = 0;
-	int               rel, i;
+	int               mnt, rel, i;
 	int		  use_taskstat;
 	int               *fds[] = {
 		&stat_fd, &disk_fd, &uptime_fd, NULL
@@ -631,6 +632,7 @@ main (int   argc,
 	};
 
 	/* defaults */
+	mnt = 0;
 	rel = 0;
 	proc_path = "/proc";
 	output_dir = ".";
@@ -649,6 +651,9 @@ main (int   argc,
 		/* normal mode args ... */
 		if (argv[i][0] == '-') {
 			switch (argv[i][1]) {
+			case 'm':
+				mnt = 1;
+				break;
 			case 'r':
 				rel = 1;
 				break;
@@ -728,6 +733,12 @@ main (int   argc,
 
 	setrlimit (RLIMIT_CORE, &rlim);
 	set_io_prio ();
+
+	if (mnt && (mount ("none", proc_path, "proc",
+			   MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0)) {
+		perror ("mount /proc");
+		exit (1);
+	}
 
 	proc = opendir (proc_path);
 	if (! proc) {
@@ -830,6 +841,11 @@ main (int   argc,
 
 	if (closedir (proc) < 0) {
 		perror ("close /proc");
+		exit (1);
+	}
+
+	if (mnt && (umount (proc_path) < 0)) {
+		perror ("umount /proc");
 		exit (1);
 	}
 

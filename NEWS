@@ -1,4 +1,11 @@
-bootchart2 0.1.0
+bootchart2 0.10.1 (Kel Modderman)
+	+ collector arg -m should mount /proc
+	+ remove bogus vcsid code
+	+ split collector install in Makefile
+	+ remove bogus debug code
+	+ accept process names containing spaces
+
+bootchart2 0.10.0
 	+ rendering (Anders Norgaard)
 		+ fix for unknown exceptions
 	+ interactive UI (Michael)

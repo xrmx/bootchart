@@ -1,4 +1,4 @@
-VER=0.1.0
+VER=0.10.1
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
@@ -22,11 +22,13 @@ py-install-compile:
 		python $(PY_LIBDIR)/py_compile.py *.py ; \
 		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py
 
-install: all py-install-compile
-	mkdir -p $RPM_BUILD_ROOT/lib/bootchart/mnt
+install-collector: all
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
+
+install: all py-install-compile install-collector
+	mkdir -p $RPM_BUILD_ROOT/lib/bootchart/mnt
 
 clean:
 	-rm -f bootchart-collector collector/*.o

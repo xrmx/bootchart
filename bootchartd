@@ -61,10 +61,14 @@ start()
 	    $USLEEP 5000
 	done
 
-	if [ ! -d $JAIL ]; then
+	# on MeeGo /dev is created, gets populated, but is then
+	# readonly; wait for it to arrive.
+	while [ ! -d $JAIL ]; do
 		mkdir -p $JAIL
-	fi
+		$USLEEP 5000
+	done
 	cd $JAIL
+
 	if [ -n "$IN_INITRD" ]; then
 		echo 1 > started_from_initrd
 	fi

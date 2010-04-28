@@ -1,4 +1,5 @@
 ** Bugs:
+
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
 
@@ -17,6 +18,12 @@
 		+ to get horizontal zoom
 
 ** Features:
+
+* Use ptrace to extract the trace data from the daemon (cf. git branch)
+* Do taskstat based pid polling before /proc is mounted [ to capture that ]
+* Look for a taskstat interface to enumerate processes & pids ...
+* Use the netlink interface to follow forks accurately
+
 
 Account for the time taken to run the bootchart-collector ...
 	+ scale all other times by this ammount [!] ;-)

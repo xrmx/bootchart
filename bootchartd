@@ -220,6 +220,7 @@ stop()
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	rm -f header dmesg $pacct *.log
+	rm -f $JAIL/started_from_initrd
 	rm -Rf $JAIL/lib
 	cd ..
 	rmdir $JAIL

@@ -119,12 +119,14 @@ find_collector_pid (const char *proc_path)
   char exe_path[1024];
     
   proc = opendir (proc_path);
-  strcpy (exe_path, proc_path);
   while ((ent = readdir (proc)) != NULL) {
     char link_target[1024];
 
     if (!isdigit (ent->d_name[0]))
       continue;
+
+    strcpy (exe_path, proc_path);
+    strcat (exe_path, "/");
     strcat (exe_path, ent->d_name);
     strcat (exe_path, "/exe");
 
@@ -243,6 +245,7 @@ static DumpState *open_pid (int pid)
 
 static void close_pid (DumpState *s)
 {
+  ptrace (PTRACE_KILL, s->pid, 0, 0);
   ptrace (PTRACE_DETACH, s->pid, 0, 0);
   close (s->mem);
   free (s);
@@ -277,7 +280,7 @@ static void dump_buffers (DumpState *s)
 int
 dump_state (const char *output_path)
 {
-  int pid;
+  int pid, ret = 1;
   DumpState *state;
 
   chdir (output_path);
@@ -289,15 +292,14 @@ dump_state (const char *output_path)
   }
   fprintf (stderr, "Extracting profile data from pid %d\n", pid);
 
-  if (!(state = open_pid (pid)))
+  if (!(state = open_pid (pid))) 
     return 1;
 
   if (find_chunks (state)) {
     fprintf (stderr, "Couldn't find state structures on pid %d's stack\n", pid);
-    return 1;
-  }
-
-  dump_buffers (state);
+    ret = 1;
+  } else
+    dump_buffers (state);
 
   close_pid (state);
 

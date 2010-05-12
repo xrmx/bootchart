@@ -134,9 +134,9 @@ log_header()
 	echo "title = Boot chart for $(hostname) ($(date))"
 	echo "system.uname = $(uname -srvm)"
 	echo "system.release = $(lsb_release -sd)"
-	echo "system.cpu = $(grep '^model name' proc/cpuinfo)"\
-         "($(grep -c '^model name' proc/cpuinfo))"
-	echo "system.kernel.options = $(sed q proc/cmdline)"
+	echo "system.cpu = $(grep '^model name' /proc/cpuinfo)"\
+         "($(grep -c '^model name' /proc/cpuinfo))"
+	echo "system.kernel.options = $(sed q /proc/cmdline)"
     ) > header
 }
 
@@ -151,14 +151,14 @@ stop()
 	fi
 
 	cd $tmpdir
-	if ! /lib/bootchart/bootchart-collector --dump .; then
+	if ! /lib/bootchart/bootchart-collector --dump `pwd`; then
 	    echo "Can't extract boot chart from collector"
 	    # try harder in case it hung
 	    pkill -9 -f /lib/bootchart/bootchart-collector
 	    exit 1
 	fi
 
-	if [ ! -e dmesg ]; then
+	if [ ! -e proc_stat.log ]; then
 		echo "Can't find bootchart output in $tmpdir - aborting"
 		exit 1
 	fi

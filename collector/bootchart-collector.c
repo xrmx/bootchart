@@ -525,23 +525,12 @@ int main (int argc, char *argv[])
   StackMap map = STACK_MAP_INIT; /* make me findable */
 
   rel = 0;
-  freopen ("kmsg", "a", stderr);
+  if (access ("/proc/kmsg", W_OK))
+    freopen ("/proc/kmsg", "a", stderr);
+  else
+    freopen ("kmsg", "a", stderr);
 
   fprintf (stderr, "bootchart-collector started\n");
-
-  if (mount ("none", proc_path, "proc",
-	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-    if (errno != EBUSY) {
-      fprintf (stderr, "bootchart-collector proc mount failed\n");
-      exit (1);
-    }
-  } else
-    mnt = 1;
-
-  fprintf (stderr, "bootchart-collector mounted proc\n");
-
-  if (sanity_check_initrd ())
-    return 1;
 
   for (i = 1; i < argc; i++) 
     {
@@ -583,6 +572,20 @@ int main (int argc, char *argv[])
       else
 	usage();
     }
+
+  if (mount ("none", proc_path, "proc",
+	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
+    if (errno != EBUSY) {
+      fprintf (stderr, "bootchart-collector proc mount failed\n");
+      exit (1);
+    }
+  } else
+    mnt = 1;
+
+  fprintf (stderr, "bootchart-collector mounted proc\n");
+
+  if (sanity_check_initrd ())
+    return 1;
       
   /* defaults */
   if (!hz)
@@ -703,6 +706,8 @@ int main (int argc, char *argv[])
     perror ("umount /proc");
     exit (1);
   }
+
+  fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
 
   return 0;
 }

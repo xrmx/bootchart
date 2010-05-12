@@ -1,4 +1,4 @@
-VER=0.10.1
+VER=0.11.0
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
@@ -22,7 +22,12 @@ py-install-compile:
 		python $(PY_LIBDIR)/py_compile.py *.py ; \
 		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py
 
-install-collector: all
+install-chroot:
+	install -d $(DESTDIR)/lib/bootchart/chroot/proc
+	rm -f $(DESTDIR)/lib/bootchart/chroot/kmsg
+	mknod $(DESTDIR)/lib/bootchart/chroot/kmsg c 1 11
+
+install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
@@ -37,6 +42,3 @@ dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \
 		| bzip2 -f > $(PKG_TARBALL)
-
-#dist:
-#	bzr export bootchart-collector-0.90.4.1.tar.bz2

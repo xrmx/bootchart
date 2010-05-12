@@ -36,7 +36,7 @@
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
 
-const char *proc_path;
+const char *proc_path = "proc";
 
 /* pid uniqifying code */
 typedef struct {
@@ -467,20 +467,55 @@ error:
 	return 0;
 }
 
-static void usage ()
+/*
+ * If we were started during the initrd, (some initrds replace
+ * 'init' with bootchartd (strangely) -but- we have no
+ * init=/sbin/bootchartd, no-one will be started in the
+ * main-system to stop logging, so we'll run forever; urk !
+ */
+static int
+sanity_check_initrd (void)
 {
-  fprintf (stderr, "Usage: bootchart-collector [--usleep <usecs>] [--dump <path>] [/proc/mount] [HZ]\n");
+  FILE *cmdline;
+  char buffer[4096];
+
+  if (getppid() != 1)
+    return 0;
+
+  cmdline = fopen ("proc/cmdline", "r");
+  if (!cmdline) {
+    fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
+    return 1;
+  }
+  fgets (buffer, sizeof (buffer), cmdline);
+  fclose (cmdline);
+
+  if (!strstr (buffer, "init=") ||
+      !strstr (buffer, "bootchartd")) {
+    fprintf (stderr, "Urk ! can't find bootchartd on the cmdline\n");
+    return 1;
+  }
+
+  return 0;
+}
+
+static void
+usage (void)
+{
+  fprintf (stderr, "Usage: bootchart-collector [--usleep <usecs>] [-r] [--dump <path>] [hz=50]\n");
   fprintf (stderr, "swiss-army boot-charting tool.\n");
   fprintf (stderr, "   --usleep <usecs>	sleeps for given number of usecs and exits.\n");
+  fprintf (stderr, "   --probe-running	returns success if a bootchart collector is running.\n");
   fprintf (stderr, "   --dump <path>	if another bootchart is running, dumps it's state to <path> and exits.\n");
-  fprintf (stderr, "   <otherwise>	stores profiling data from /proc/mount at frequency hz\n");
+  fprintf (stderr, "   -r		use relative time-stamps from the profile starting\n");
+  fprintf (stderr, "   <otherwise>	internally logs profiling data samples at frequency <hz>\n");
   exit (1);
 }
 
 int main (int argc, char *argv[])
 {
   DIR *proc;
-  int i, use_taskstat, mnt, rel;
+  int i, use_taskstat, rel;
   int stat_fd, disk_fd, uptime_fd;
   unsigned long hz = 0, reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
@@ -488,8 +523,21 @@ int main (int argc, char *argv[])
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
   StackMap map = STACK_MAP_INIT; /* make me findable */
 
-  mnt = 0;
   rel = 0;
+  freopen ("kmsg", "a", stderr);
+
+  fprintf (stderr, "bootchart-collector started\n");
+
+  if (mount ("none", proc_path, "proc",
+	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
+    perror ("mount /proc");
+    exit (1);
+  }
+
+  fprintf (stderr, "bootchart-collector mounted proc\n");
+
+  if (sanity_check_initrd ())
+    return 1;
 
   for (i = 1; i < argc; i++) 
     {
@@ -514,38 +562,28 @@ int main (int argc, char *argv[])
 	    return dump_state (param);
 	}
       
-      if (!strcmp (argv[i], "-m"))
-	mnt = 1;
-      if (!strcmp (argv[i], "-r"))
+      if (!strcmp (argv[i], "--probe-running"))
+	return probe_running ();
+
+      else if (!strcmp (argv[i], "-r"))
 	rel = 1;
       
-      /* help */
-      if (!strcmp (argv[i], "-h") ||
-	  !strcmp (argv[i], "--help"))
+      else if (!strcmp (argv[i], "-h") ||
+	       !strcmp (argv[i], "--help"))
 	usage();
       
       /* default mode args */
-      if (!proc_path) {
-	proc_path = argv[i];
-      } else if (!hz) {
+      else if (!hz)
 	hz = strtoul (argv[i], NULL, 0);
-      } else {
+
+      else
 	usage();
-      }
     }
       
   /* defaults */
-  if (!proc_path)
-    proc_path = "/proc";
   if (!hz)
     hz = 50;
       
-  if (mnt && (mount ("none", proc_path, "proc",
-		     MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0)) {
-    perror ("mount /proc");
-    exit (1);
-  }
-
   proc = opendir (proc_path);
   if (!proc)
     {
@@ -657,7 +695,7 @@ int main (int argc, char *argv[])
       exit (1);
     }
 
-  if (mnt && (umount (proc_path) < 0)) {
+  if (umount (proc_path) < 0) {
     perror ("umount /proc");
     exit (1);
   }

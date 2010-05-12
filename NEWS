@@ -1,3 +1,15 @@
+bootchart2 0.11 (Michael Meeks)
+	+ ptrace re-write
+		+ gives -much- better early-boot-time resolution
+		+ unconditional chroot /lib/bootchart/chroot
+			+ we mount proc there ourselves
+		+ log extraction requires no common file-system view
+	+ bootchart-collector
+		+ remove the -p argument - we always mount proc
+	+ bootchartd
+		+ far, far simpler
+
+
 bootchart2 0.10.1 (Kel Modderman)
 	+ collector arg -m should mount /proc
 	+ remove bogus vcsid code

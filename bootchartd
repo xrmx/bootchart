@@ -19,8 +19,9 @@
 # $ /sbin/bootchartd start; sleep 30; /sbin/bootchartd stop
 #
 
-# Whack everything in a handy tmpfs: /dev ...
-JAIL="/dev/.bootchart"
+# Use a directory we know will be there - always, to
+# do our early mounting in, and chroot into.
+JAIL="/lib/bootchart/chroot"
 COLLECTOR_BIN="/lib/bootchart/bootchart-collector"
 
 # some initrds don't have usleep etc.
@@ -40,67 +41,16 @@ else
         exit 1
 fi
 
-# 'which' rather fails to work, with no PATH set
-if [ -x "/sbin/accton" ]; then
-    ACCTON=/sbin/accton
-elif [ -x "/usr/sbin/accton" ]; then
-    ACCTON=/usr/sbin/accton
-else
-    echo "No accton - though it is configured";
-    PROCESS_ACCOUNTING="no"
-fi
-
 # Start the boot logger.
 start()
 {
-	# we have no control over the (usually rather mindless) scripts
-	# that will mount, and populate /dev - however we have to wait
-	# for them; otherwise we can't share the /dev tmpfs for our logs
-	# and have to modify each system to mount --move our file-system.
-	while [ ! -e /dev/console ] || [ ! -e /dev/random ]; do
-	    $USLEEP 5000
-	done
-
-	# on MeeGo /dev is created, gets populated, but is then
-	# readonly; wait for it to arrive.
-	while [ ! -d $JAIL ]; do
-		mkdir -p $JAIL
-		$USLEEP 5000
-	done
 	cd $JAIL
 
-	if [ -n "$IN_INITRD" ]; then
-		echo 1 > started_from_initrd
-	fi
-
-	# use dmsg for debugging
-	if [ ! -c kmsg ]; then
-		mknod kmsg c 1 11
-	fi
 	echo "bootchartd started" >> kmsg
 
-	# Mount a copy of /proc just for us ...
-	if [ ! -d "proc" ]; then
-		mkdir proc
-	fi
-	if [ ! -f "proc/stat" ]; then
-		mount -n -t proc none proc
-	fi
-
-	# If we were started during the initrd, -but- we have no
-	# init=/sbin/bootchartd, then there will be no-one to stop
-	# the collector will just keep
-	# running with no-one to stop it, so bail here.
-	if [ -e $JAIL/started_from_initrd ]; then
-	    if ! grep -q init=/sbin/bootchartd proc/cmdline; then
-		echo "aborting initrd bootchart setup - init not set."
-		umount proc
-		return
-	    fi
-	fi
-
-	# setup the jail so we can run the collector inside it [ why bother !? ]
-	if [ -n "$IN_INIT" ]; then
+	# If in initrd - setup a chroot jail to run the collector inside
+	# FIXME: why bother ?
+	if [ -n "$IN_INITRD" ]; then
 		echo "bootchartd init" >> kmsg
 		if [ "`uname -m`" = "x86_64" ]
 		then
@@ -113,28 +63,16 @@ start()
 
 		mkdir -p $JAIL/lib/bootchart
 		cp $COLLECTOR_BIN $JAIL/lib/bootchart
-	fi
 
-	# Enable process accounting if configured
-	if [ ! -f kernel_pacct ]; then
-		if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
-			> kernel_pacct
-			$ACCTON kernel_pacct
-			echo "bootchartd pacct started" >> kmsg
-		fi
-	fi
-    
-	# Ensure we don't start ourselves a second time during init
-	if [ -e proc_stat.log ]; then
-		echo "bootchart collector already running" >> kmsg
+		chroot $JAIL /lib/bootchart/bootchart-collector $SAMPLE_HZ
 
-	# Otherwise start in a chroot jail
-	elif [ -n "$IN_INIT" ]; then
-		chroot $JAIL /lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ # 2>/dev/null &
+	# Otherwise, start ourselves in our familiar syste,
+	elif [ -n "$INIT_PROCESS" ]; then
+		chroot $JAIL /lib/bootchart/bootchart-collector $SAMPLE_HZ
 
 	# Otherwise, manually launched to profile something
 	else
-		/lib/bootchart/bootchart-collector -p proc $SAMPLE_HZ &
+		/lib/bootchart/bootchart-collector -r $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
 			# If a command was passed, run it
@@ -142,8 +80,8 @@ start()
 			echo "profile.process = $( basename $1 )" >> header
 			$@
 			stop
-#		else
-#			manual start/stop - wait for a 'stop'
+		else
+			echo "no command passed, you need to manually stop the service sometime"
 		fi
 	fi
 }
@@ -184,55 +122,6 @@ wait_boot()
 	done;
 }
 
-# Stop the boot logger.
-# Some final log files are created and then all log files
-# from the tmpfs are packaged and stored in $BOOTLOG_DEST.
-stop()
-{
-	pkill -f /lib/bootchart/bootchart-collector
-	sleep 2
-	# try harder in case it hung
-	pkill -9 -f /lib/bootchart/bootchart-collector
-
-	# Stop process accounting if configured
-	local pacct=
-	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
-		$ACCTON off
-		pacct=kernel_pacct
-	fi
-
-	if [ ! -d $JAIL ]; then
-		echo "Can't find bootchart output in $JAIL - aborting"
-		exit 1
-	fi
-	cd $JAIL
-
-	# Write system information
-	log_header
-
-	# get kernel messages for kernel init logging
-	dmesg > dmesg
-
-	# cleanup
-	rm -f kmsg
-	umount proc
-	rmdir proc
-
-	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
-	rm -f header dmesg $pacct *.log
-	rm -f $JAIL/started_from_initrd
-	rm -Rf $JAIL/lib
-	cd ..
-	rmdir $JAIL
-
-	# Render the chart if configured (and the renderer is installed)
-	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then
-                cd $AUTO_RENDER_DIR
-		/usr/bin/pybootchartgui -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
-        fi
-}
-
-
 # Log some basic information about the system.
 log_header()
 {
@@ -251,20 +140,63 @@ log_header()
     ) > header
 }
 
+# Extract the log data from the running bootchart collector
+# process (via ptrace) - fun. Store logs into $BOOTLOG_DEST.
+stop()
+{
+	tmpdir = `mktemp -d /tmp/bootchart.XXXXXXXXXX`;
+	if [ "z$tmpdir" = "z" ]; then
+	    echo "Failed to generate directory for logging"
+	    exit 1
+	fi
+
+	cd $tmpdir
+	if ! /lib/bootchart/bootchart-collector --dump .; then
+	    echo "Can't extract boot chart from collector"
+	    # try harder in case it hung
+	    pkill -9 -f /lib/bootchart/bootchart-collector
+	    exit 1
+	fi
+
+	if [ ! -e dmesg ]; then
+		echo "Can't find bootchart output in $tmpdir - aborting"
+		exit 1
+	fi
+
+	# Write system information
+	log_header
+
+	# get kernel messages for kernel init logging
+	dmesg > dmesg
+
+	# Archive it all up into the bootchart output
+	tar -zcf "$BOOTLOG_DEST" header dmesg *.log
+
+	rm -f header dmesg *.log
+
+	# the collector itself cleans up it's own jail
+
+	# Render the chart if configured (and the renderer is installed)
+	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then
+                cd $AUTO_RENDER_DIR
+		/usr/bin/pybootchartgui -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
+        fi
+}
+
 if [ $$ -eq 1 ]; then
         # Either started by the kernel - in which case, we start the
         # logger in background and exec init [ re-using this pid (1) ]
         # Or - started after the initrd has completed, in which case
         # we try to do nothing much.
-	IN_INIT="yes"
+	INIT_PROCESS="yes"
 	echo "Starting bootchart logging"
 
 	# Are we running in the initrd ?
 	if [ ! -e /dev/random ]; then
-		IN_INITRD=yes
+		IN_INITRD="yes"
 		start &
 	else # running inside the main system
-		if [ -e $JAIL/started_from_initrd ]; then
+		if $COLLECTOR_BIN --probe-running; then
 			echo "bootchart: start wait for completion" >> /dev/kmsg
 			wait_boot &
 		else # perhaps we had no initrd
@@ -272,7 +204,7 @@ if [ $$ -eq 1 ]; then
 			start &
 			# wait a little, until the collector is going, before allowing
 			# the rest of the system to charge ahead, so we catch it
-			$USLEEP 500000
+			$USLEEP 250000
 			echo "bootchart continuing boot" >> /dev/kmsg
 			wait_boot &
 		fi

@@ -96,14 +96,10 @@ Process taskstats in advance
 ---------- ptrace re-write ----------
 
 * ptrace re-write [!]
+	+ process accounting fun [!?] ...
+
 	+ rip out process accounting - urk ;-)
 	+ create something new ...
-
-* We need a "second starter" mode - that checks if bootchart-collector is
-  already running & just exits ...
-	+ save all this "second start" foo (?)
-	+ [OR!] - returns a status ?
-		+ nice.
 
 	+ FIXME:
 		+ move all the jail cleanup / unmounting into
@@ -112,11 +108,9 @@ Process taskstats in advance
 		+ set a flag on the 'StackState' thing, we can write
 		  to tell it to quit ;-)
 
-
-	+ make 'Make install' setup /lib/bootchart/chroot:
-		+ do the 'mknod' kmsg etc. (?)
-
-	+ fopen ("a") our kmsg ... fflush a lot :-)
-
 	+ statically link the collector ? [ make jail simpler to make ? ]
 
+	* Need to do some ptrace IPC
+		+ let it continue until it locks-up ?
+		+ hand-shake somehow ? :-)
+		+ what's the story ?

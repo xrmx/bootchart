@@ -111,29 +111,32 @@ buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 /* grubbing about in another process to dump those buffers */
 
 static int
-find_collector_pid (void)
+find_collector_pid (const char *proc_path)
 {
   DIR *proc;
   struct dirent *ent;
   int pid = -1;
   char exe_path[1024];
     
-  proc = opendir ("/proc");
-  strcpy (exe_path, "/proc/");
+  proc = opendir (proc_path);
+  strcpy (exe_path, proc_path);
   while ((ent = readdir (proc)) != NULL) {
     char link_target[1024];
 
     if (!isdigit (ent->d_name[0]))
       continue;
-    strcpy (exe_path + 6, ent->d_name);
+    strcat (exe_path, ent->d_name);
     strcat (exe_path, "/exe");
 
     if (readlink (exe_path, link_target, 1024) < 0)
       continue;
 
     if (strstr (link_target, "bootchart-collector")) {
-      pid = atoi (ent->d_name);
-      break;
+      int p = atoi (ent->d_name);
+      if (p != getpid()) { /* I'm allright */
+	pid = p;
+	break;
+      }
     }
   }
   closedir (proc);
@@ -279,7 +282,7 @@ dump_state (const char *output_path)
 
   chdir (output_path);
 
-  pid = find_collector_pid ();
+  pid = find_collector_pid ("/proc");
   if (pid < 0) {
     fprintf (stderr, "Failed to find the collector's pid\n");
     return 1;
@@ -301,11 +304,14 @@ dump_state (const char *output_path)
   return 0;
 }
 
+/*
+ * returns true if bootchart-collector is already running
+ */
 int
-probe_running (void)
+probe_running (const char *proc_path)
 {
-  if (find_collector_pid () < 0)
-    return 1;
-  else
+  if (find_collector_pid (proc_path) < 0)
     return 0;
+  else
+    return 1;
 }

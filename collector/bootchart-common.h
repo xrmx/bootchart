@@ -69,7 +69,7 @@ void buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 					    const char *uptime, size_t uptimelen);
 void buffer_file_append (BufferFile *file, const char *str, size_t len);
 
-int  probe_running (void);
 int  dump_state (const char *output_path);
+int  probe_running (const char *proc_path);
 
 #endif /* BOOTCHART_COMMON_H */

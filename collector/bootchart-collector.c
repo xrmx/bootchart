@@ -556,7 +556,7 @@ int main (int argc, char *argv[])
 	}
       
       if (!strcmp (argv[i], "--probe-running"))
-	return probe_running ();
+	return !probe_running ("/proc");
 
       else if (!strcmp (argv[i], "-r"))
 	rel = 1;
@@ -586,6 +586,11 @@ int main (int argc, char *argv[])
 
   if (sanity_check_initrd ())
     return 1;
+
+  if (probe_running (proc_path)) {
+    fprintf (stderr, "bootchart collector already running, exiting...\n");
+    return 1;
+  }
       
   /* defaults */
   if (!hz)

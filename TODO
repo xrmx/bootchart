@@ -60,8 +60,3 @@ Process taskstats in advance
 * Export ODF, with a number of pie charts in it etc.
 	+ export cumulative data for rendering in ods ?
 	+ rather than adding manual rendering - which sucks (!?)
-
-
-
-* Get chunk lengths right [!?] - length in the chunk, not elsewhere [!]
-	+ it is really the buffer abstraction we want (surely) ?

@@ -15,7 +15,7 @@ pybootchart/ sub-directory.
 inner-loop of the original bootchart collector shell-script by Scott
 James Remnant. This has been subsequently re-written by Michael Meeks
 to use the higher granularity 'taskstat' data available via a twisted
-netlink interface.
+netlink interface, amongst other new features.
 
 
 			    Using bootchart2 ?
@@ -45,6 +45,10 @@ chart rendering tool.
 	* no Java dependency - with the visualisation in easy-to-hack
 	  python, development is quicker, and dependencies more commonly
 	  found.
+
+	* simpler wrappers - by using ptrace to connect to and extract
+	  data from the collector, we no longer require a consistently
+	  visible set of logs accessible via a shared file-system.
 
 	* built-in visualisation - allowing some level of interaction,
 	  zoom and so on.

@@ -15,7 +15,7 @@
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Author: Michael Meeks <michael.meeks@novell.com>
- * Copyright 2009 Novell, Inc.
+ * Copyright (C) 2009-2010 Novell, Inc.
  * inspired by Scott James Remnant <scott@netsplit.com>'s work.
  */
 
@@ -52,17 +52,22 @@
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
 
+#undef	MAX
+#undef	MIN
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
+
 /* ptrace transferable buffers */
 
 /* Max ~ 128Mb of space for logging, should be enough */
 #define CHUNK_SIZE (128 * 1024)
 #define STACK_MAP_MAGIC "really-unique-stack-pointer-for-xp-detection-goodness"
 
-struct _Chunk {
+typedef struct {
   char	 dest_stream[60];
   long   length;
   char   data[0];
-};
+} Chunk;
 #define CHUNK_PAYLOAD (CHUNK_SIZE - sizeof (Chunk))
 
 typedef struct {
@@ -97,10 +102,11 @@ get_pid_entry (pid_t pid)
   return pids + pid;
 }
 
-
 typedef struct {
-  StackMap *sm;
-  Chunk    *cur;
+  StackMap   *sm;
+  const char *dest;
+  Chunk      *cur;
+  size_t      len;
 } BufferFile;
 
 static Chunk *chunk_alloc (StackMap *sm, const char *dest)
@@ -108,15 +114,16 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
   Chunk *c;
 
   /* if we run out of buffer, just keep writing to the last buffer */
-  if (sm->max_chunk == G_N_ELEMENTS (sm->chunks))
+  if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0]))
     {
       c = sm->chunks[sm->max_chunk - 1];
       c->length = 0;
       return c;
     }
 
-  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  memset (c, 0, sizeof (Chunk));
+//  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+//  memset (c, 0, sizeof (Chunk));
+  c = calloc (CHUNK_SIZE, 1);
   strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
   sm->chunks[sm->max_chunk++] = c;
   return c;
@@ -125,12 +132,15 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 static BufferFile *
 buffer_file_new (StackMap *sm, const char *output_fname)
 {
-  BufferFile *b = malloc (sizeof (Buffer));
+  BufferFile *b = calloc (sizeof (BufferFile), 1);
   b->sm = sm;
-  b->cur = chunk_alloc (b->sm, dest);
+  b->dest = output_fname;
+  b->len = 0;
+  b->cur = chunk_alloc (b->sm, b->dest);
   return b;
 }
 
+#if 0
 	int fd;
 	char *fname;
 	BufferFile *file;
@@ -159,7 +169,6 @@ buffer_file_new (StackMap *sm, const char *output_fname)
 	file->fd = fd;
 
 	return file;
-}
 
 static void
 buffer_file_flush (BufferFile *file)
@@ -180,63 +189,59 @@ buffer_file_flush (BufferFile *file)
 
 	file->len = 0;
 }
+#endif
 
 static void
 buffer_file_append (BufferFile *file, const char *str, size_t len)
 {
-	assert (len <= BUFSIZE);
-
-	if (file->len + len > BUFSIZE)
-		buffer_file_flush (file);
-
-	memcpy (file->data + file->len, str, len);
-	file->len += len;
+  do {
+    size_t to_write = MIN (CHUNK_PAYLOAD - file->len, len);
+    memcpy (file->cur->data + file->len, str, to_write);
+    str += to_write;
+    len -= to_write;
+    file->len += to_write;
+    if (file->len >= CHUNK_PAYLOAD) {
+      file->len = 0;
+      file->cur = chunk_alloc (file->sm, file->dest);
+    }
+  } while (len > 0);
 }
 
 /* dump whole contents of input_fd to the output 'file' */
 static void
 buffer_file_dump (BufferFile *file, int input_fd)
 {
-	for (;;) {
-		ssize_t len;
+  for (;;) {
+    size_t to_read = CHUNK_PAYLOAD - file->len;
 
-		if (file->len >= BUFSIZE)
-			buffer_file_flush (file);
-
-		len = read (input_fd, file->data + file->len, BUFSIZE - file->len);
-		if (len < 0) {
-			perror ("read error");
-			return;
-		} else if (len == 0)
-			break;
-
-		file->len += len;
-	}
+    to_read = read (input_fd, file->cur->data + file->len, to_read);
+    if (to_read < 0) {
+      perror ("read error");
+      break;
+    } else if (to_read == 0) {
+      break;
+    }
+    file->len += to_read;
+    if (file->len >= CHUNK_PAYLOAD) {
+      file->len = 0;
+      file->cur = chunk_alloc (file->sm, file->dest);
+    }
+  }
 }
 
 static void
 buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 				       const char *uptime, size_t uptimelen)
 {
-	buffer_file_append (file, uptime, uptimelen);
+  buffer_file_append (file, uptime, uptimelen);
 
-	lseek (input_fd, SEEK_SET, 0);
-	buffer_file_dump (file, input_fd);
-
-	buffer_file_append (file, "\n", 1);
-}
-
-static void
-buffer_file_close (BufferFile *file)
-{
-  buffer_file_flush (file);
-  if (close (file->fd) < 0)
-	perror ("closing output file");
-  free (file);
+  lseek (input_fd, SEEK_SET, 0);
+  buffer_file_dump (file, input_fd);
+  
+  buffer_file_append (file, "\n", 1);
 }
 
 unsigned long get_uptime (int fd);
-void sig_handler (int signum);
 
 /* Netlink socket-set bits */
 static int   netlink_socket = -1;
@@ -547,12 +552,6 @@ get_uptime (int fd)
 	return u1 * 100 + u2;
 }
 
-
-void
-sig_handler (int signum)
-{
-}
-
 /*
  * Probe the controller in genetlink to find the family id
  * for the TASKSTATS family
@@ -613,11 +612,12 @@ error:
 	return 0;
 }
 
-static void
+static int
 dump_state (const char *output_path)
 {
   chdir (output_path);
   /* ... */
+  return 0;
 }
 
 static void usage ()
@@ -668,22 +668,22 @@ int main (int argc, char *argv[])
       if (!strcmp (argv[i], "-h") ||
 	  !strcmp (argv[i], "--help"))
 	usage();
-    }
       
-  /* default mode args */
-  if (!proc_path)
-    proc_path = argv[i];
-  else if (!hz) {
-    hz = strtoul (argv[i], NULL, 0);
-    else
-      usage();
-  }
+      /* default mode args */
+      if (!proc_path) {
+	proc_path = argv[i];
+      } else if (!hz) {
+	hz = strtoul (argv[i], NULL, 0);
+      } else {
+	usage();
+      }
+    }
       
   /* defaults */
   if (!proc_path)
     proc_path = "/proc";
   if (!hz)
-    hz = "50";
+    hz = 50;
       
   proc = opendir (proc_path);
   if (!proc)
@@ -707,12 +707,12 @@ int main (int argc, char *argv[])
 	}
     }
 
-  stat_file = buffer_file_new (&sm, "proc_stat.log");
-  disk_file = buffer_file_new (&sm, "proc_diskstats.log");
+  stat_file = buffer_file_new (&map, "proc_stat.log");
+  disk_file = buffer_file_new (&map, "proc_diskstats.log");
   if ( (use_taskstat = init_taskstat()) )
-    per_pid_file = buffer_file_new (&sm, "taskstats.log");
+    per_pid_file = buffer_file_new (&map, "taskstats.log");
   else
-    per_pid_file = buffer_file_new (&sm, "proc_ps.log");
+    per_pid_file = buffer_file_new (&map, "proc_ps.log");
 
   if (!stat_file || !disk_file || !per_pid_file)
     {
@@ -760,13 +760,9 @@ int main (int argc, char *argv[])
     }
 
   /*
-   * Theoretical cleanup code ... in fact we are always
-   * killed by the ptrace magic before here. Probably we
-   * could do better with some handshaking.
+   * In reality - we are always killed before we reach
+   * this point
    */
-  buffer_file_close (stat_file);
-  buffer_file_close (disk_file);
-
   if (use_taskstat)
     {
       if (close (netlink_socket) < 0)
@@ -775,7 +771,6 @@ int main (int argc, char *argv[])
 	  exit (1);
 	}
     }
-  buffer_file_close (per_pid_file);
 
   for (i = 0; fds [i]; i++)
     {

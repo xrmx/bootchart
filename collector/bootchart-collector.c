@@ -43,9 +43,10 @@ typedef struct {
 	pid_t pid;
 	pid_t ppid;
 	__u64 time_total;
+	unsigned int dumped_args : 1;
 } PidEntry;
 
-static PidEntry *
+static inline PidEntry *
 get_pid_entry (pid_t pid)
 {
   static PidEntry *pids = NULL;
@@ -347,6 +348,40 @@ dump_proc (BufferFile *file, const char *name)
 	close (fd);
 }
 
+static void
+dump_cmdline (BufferFile *file, pid_t pid)
+{
+	int fd;
+	PidEntry *entry;
+	char str[PATH_MAX], path[PATH_MAX];
+
+	entry = get_pid_entry (pid);
+
+	if (entry->dumped_args)
+		return;
+
+	entry->dumped_args = 1;
+
+	sprintf (str, "%s/%d/exe", proc_path, pid);
+	if (readlink (str, path, sizeof (path) - 1) < 0)
+		return;
+
+	/* write <pid>\n<exe-path>\n */
+	path [sizeof (path) - 1] = '\0';
+	sprintf (str, "%d\n%s\n", pid, path);
+	buffer_file_append (file, str, strlen (str));
+
+	/* write [zero delimited] <cmdline> */
+	sprintf (str, "%s/%d/cmdline", proc_path, pid);
+	fd = open (str, O_RDONLY);
+	if (fd >= 0) { /* usually no '\n's in arguments - we hope */
+		buffer_file_dump (file, fd);
+		close (fd);
+	}
+
+	buffer_file_append (file, "\n\n", 2);
+}
+
 unsigned long
 get_uptime (int fd)
 {
@@ -445,13 +480,16 @@ static void usage ()
 int main (int argc, char *argv[])
 {
   DIR *proc;
-  unsigned long hz = 0;
-  int i, use_taskstat;
+  int i, use_taskstat, mnt, rel;
   int stat_fd, disk_fd, uptime_fd;
-  BufferFile *stat_file, *disk_file, *per_pid_file;
+  unsigned long hz = 0, reltime = 0;
+  BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
   int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
   StackMap map = STACK_MAP_INIT; /* make me findable */
+
+  mnt = 0;
+  rel = 0;
 
   for (i = 1; i < argc; i++) 
     {
@@ -475,7 +513,12 @@ int main (int argc, char *argv[])
 	      !strcmp (argv[i], "--dump"))
 	    return dump_state (param);
 	}
-
+      
+      if (!strcmp (argv[i], "-m"))
+	mnt = 1;
+      if (!strcmp (argv[i], "-r"))
+	rel = 1;
+      
       /* help */
       if (!strcmp (argv[i], "-h") ||
 	  !strcmp (argv[i], "--help"))
@@ -497,6 +540,12 @@ int main (int argc, char *argv[])
   if (!hz)
     hz = 50;
       
+  if (mnt && (mount ("none", proc_path, "proc",
+		     MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0)) {
+    perror ("mount /proc");
+    exit (1);
+  }
+
   proc = opendir (proc_path);
   if (!proc)
     {
@@ -525,12 +574,19 @@ int main (int argc, char *argv[])
     per_pid_file = buffer_file_new (&map, "taskstats.log");
   else
     per_pid_file = buffer_file_new (&map, "proc_ps.log");
+  cmdline_file = buffer_file_new (&map, "cmdline.log");
 
-  if (!stat_file || !disk_file || !per_pid_file)
+  if (!stat_file || !disk_file || !per_pid_file || !cmdline_file)
     {
-      fprintf (stderr, "Error opening an output file");
+      fprintf (stderr, "Error allocating output buffers\n");
       return 1;
     }
+
+  if (rel) {
+    reltime = get_uptime (uptime_fd);
+    if (! reltime)
+      exit (1);
+  }
 
   while (1)
     {
@@ -543,7 +599,7 @@ int main (int argc, char *argv[])
       if (!u)
 	return 1;
 
-      uptimelen = sprintf (uptime, "%lu\n", u);
+      uptimelen = sprintf (uptime, "%lu\n", u - reltime);
 
       buffer_file_dump_frame_with_timestamp (stat_file, stat_fd,
 					     uptime, uptimelen);
@@ -555,16 +611,17 @@ int main (int argc, char *argv[])
 
       rewinddir (proc);
       while ((ent = readdir (proc)) != NULL) {
+	pid_t pid;
+
 	if (!isdigit (ent->d_name[0]))
 	  continue;
 
+	pid = atoi (ent->d_name);
 	if (use_taskstat)
-	  {
-	    pid_t pid = atoi (ent->d_name);
-	    dump_taskstat (per_pid_file, pid);
-	  }
+	  dump_taskstat (per_pid_file, pid);
 	else
 	  dump_proc (per_pid_file, ent->d_name);
+	dump_cmdline (cmdline_file, pid);
       }
       buffer_file_append (per_pid_file, "\n", 1);
 
@@ -599,6 +656,11 @@ int main (int argc, char *argv[])
       perror ("close /proc");
       exit (1);
     }
+
+  if (mnt && (umount (proc_path) < 0)) {
+    perror ("umount /proc");
+    exit (1);
+  }
 
   return 0;
 }

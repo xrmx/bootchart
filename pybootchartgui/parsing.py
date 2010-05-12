@@ -130,7 +130,7 @@ def _parse_taskstats_log(writer, file):
 			tokens = line.split(' ')
 
 			opid, ppid, cmd = float(tokens[0]), int(tokens[1]), tokens[2]
-			cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[3]), long(tokens[4]), long(tokens[5]),
+			cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
 
 			# when the process name changes, we re-write the pid.
 			if pidRewrites.has_key(opid):
@@ -536,12 +536,10 @@ def parse(writer, paths, prune, crop_after, annotate):
     if annotate:
         for procnames in annotate:
             names = [x[:15] for x in procnames.split(",")]
-	    for x in names:
-		    print "Names: '%s'" % (x);
             for proc in state.ps_stats.process_list:
                 if proc.cmd in names:
-		    times.append(proc.start_time)
-		    break
+		            times.append(proc.start_time)
+		            break
 	    else:
                 times.append(None)
 

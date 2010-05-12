@@ -61,10 +61,14 @@ start()
 	    $USLEEP 5000
 	done
 
-	if [ ! -d $JAIL ]; then
+	# on MeeGo /dev is created, gets populated, but is then
+	# readonly; wait for it to arrive.
+	while [ ! -d $JAIL ]; do
 		mkdir -p $JAIL
-	fi
+		$USLEEP 5000
+	done
 	cd $JAIL
+
 	if [ -n "$IN_INITRD" ]; then
 		echo 1 > started_from_initrd
 	fi
@@ -100,15 +104,14 @@ start()
 		echo "bootchartd init" >> kmsg
 		if [ "`uname -m`" = "x86_64" ]
 		then
-			mkdir $JAIL/lib64
-			cp /lib64/ld-linux-x86-64.so.* $JAIL/lib64
+			mkdir -p $JAIL/lib64
+			cp /lib64/ld-linux-x86-64.so.* /lib64/libc.so.* $JAIL/lib64
 		else
 			mkdir -p $JAIL/lib
-			cp /lib/ld-linux.so.* $JAIL/lib
+			cp /lib/ld-linux.so.* /lib/libc.so.* $JAIL/lib
 		fi
-		cp /lib/libc.so.* $JAIL/lib
 
-		mkdir $JAIL/lib/bootchart
+		mkdir -p $JAIL/lib/bootchart
 		cp $COLLECTOR_BIN $JAIL/lib/bootchart
 	fi
 
@@ -171,7 +174,7 @@ wait_boot()
 		if [ -n "$exit_proc" -a -n "$( pidof $exit_proc )" ]; then
 			# give an unambiguous settle afterwards - so we get
 			# more post-login data for slow systems
-			sleep 20
+			$USLEEP 20000000
 
 			# Write / flush the log files
 			stop
@@ -217,6 +220,7 @@ stop()
 
 	tar -zcf "$BOOTLOG_DEST" header dmesg $pacct *.log
 	rm -f header dmesg $pacct *.log
+	rm -f $JAIL/started_from_initrd
 	rm -Rf $JAIL/lib
 	cd ..
 	rmdir $JAIL

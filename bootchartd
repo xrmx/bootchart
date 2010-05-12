@@ -144,7 +144,7 @@ log_header()
 # process (via ptrace) - fun. Store logs into $BOOTLOG_DEST.
 stop()
 {
-	tmpdir = `mktemp -d /tmp/bootchart.XXXXXXXXXX`;
+	tmpdir=`mktemp -d /tmp/bootchart.XXXXXXXXXX`
 	if [ "z$tmpdir" = "z" ]; then
 	    echo "Failed to generate directory for logging"
 	    exit 1

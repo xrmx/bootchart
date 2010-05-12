@@ -479,7 +479,8 @@ sanity_check_initrd (void)
   FILE *cmdline;
   char buffer[4096];
 
-  if (getppid() != 1)
+  /* are we in a possibly flaky initrd */
+  if (!access ("/dev/random", R_OK))
     return 0;
 
   cmdline = fopen ("proc/cmdline", "r");
@@ -515,7 +516,7 @@ usage (void)
 int main (int argc, char *argv[])
 {
   DIR *proc;
-  int i, use_taskstat, rel;
+  int i, use_taskstat, rel, mnt = 0;
   int stat_fd, disk_fd, uptime_fd;
   unsigned long hz = 0, reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
@@ -530,9 +531,12 @@ int main (int argc, char *argv[])
 
   if (mount ("none", proc_path, "proc",
 	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-    perror ("mount /proc");
-    exit (1);
-  }
+    if (errno != EBUSY) {
+      fprintf (stderr, "bootchart-collector proc mount failed\n");
+      exit (1);
+    }
+  } else
+    mnt = 1;
 
   fprintf (stderr, "bootchart-collector mounted proc\n");
 
@@ -695,7 +699,7 @@ int main (int argc, char *argv[])
       exit (1);
     }
 
-  if (umount (proc_path) < 0) {
+  if (mnt && umount (proc_path) < 0) {
     perror ("umount /proc");
     exit (1);
   }

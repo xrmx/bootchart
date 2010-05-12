@@ -1,4 +1,5 @@
-/* bootchart-collector
+/*
+ * bootchart-collector - collection framework.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,53 +30,11 @@
  * Copyright (c) Jay Lan, SGI. 2006
  */
 
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/select.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-
-#include <fcntl.h>
-#include <errno.h>
-#include <stdio.h>
-#include <assert.h>
-#include <dirent.h>
-#include <limits.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <ctype.h>
+#include "bootchart-common.h"
 
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
-
-#undef	MAX
-#undef	MIN
-#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
-
-/* ptrace transferable buffers */
-
-/* Max ~ 128Mb of space for logging, should be enough */
-#define CHUNK_SIZE (128 * 1024)
-#define STACK_MAP_MAGIC "really-unique-stack-pointer-for-xp-detection-goodness"
-
-typedef struct {
-  char	 dest_stream[60];
-  long   length;
-  char   data[0];
-} Chunk;
-#define CHUNK_PAYLOAD (CHUNK_SIZE - sizeof (Chunk))
-
-typedef struct {
-  char   magic[sizeof (STACK_MAP_MAGIC)];
-  Chunk *chunks[1024];
-  int    max_chunk;
-} StackMap;
-#define STACK_MAP_INIT { STACK_MAP_MAGIC, { 0, }, 0 }
 
 const char *proc_path;
 
@@ -100,145 +59,6 @@ get_pid_entry (pid_t pid)
       memset (pids + old_pids_size, 0, sizeof (PidEntry) * (pids_size - old_pids_size));
     }
   return pids + pid;
-}
-
-typedef struct {
-  StackMap   *sm;
-  const char *dest;
-  Chunk      *cur;
-  size_t      len;
-} BufferFile;
-
-static Chunk *chunk_alloc (StackMap *sm, const char *dest)
-{
-  Chunk *c;
-
-  /* if we run out of buffer, just keep writing to the last buffer */
-  if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0]))
-    {
-      c = sm->chunks[sm->max_chunk - 1];
-      c->length = 0;
-      return c;
-    }
-
-//  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-//  memset (c, 0, sizeof (Chunk));
-  c = calloc (CHUNK_SIZE, 1);
-  strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
-  sm->chunks[sm->max_chunk++] = c;
-  return c;
-}
-
-static BufferFile *
-buffer_file_new (StackMap *sm, const char *output_fname)
-{
-  BufferFile *b = calloc (sizeof (BufferFile), 1);
-  b->sm = sm;
-  b->dest = output_fname;
-  b->len = 0;
-  b->cur = chunk_alloc (b->sm, b->dest);
-  return b;
-}
-
-#if 0
-	int fd;
-	char *fname;
-	BufferFile *file;
-
-	fname = malloc (strlen (output_dir) + 1 + strlen (output_fname) + 1);
-	if (!fname)
-		return NULL;
-
-	strcpy (fname, output_dir);
-	strcat (fname, "/");
-	strcat (fname, output_fname);
-
-	if ((fd = open (fname, O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0) {
-		fprintf (stderr, "Error opening output file '%s': %s",
-			 fname, strerror (errno));
-		free (fname);
-		return NULL;
-	}
-	free (fname);
-
-	file = malloc (sizeof (BufferFile));
-	if (!file)
-		return NULL;
-
-	file->len = 0;
-	file->fd = fd;
-
-	return file;
-
-static void
-buffer_file_flush (BufferFile *file)
-{
-	size_t writelen = 0;
-
-	while (writelen < file->len) {
-		ssize_t len;
-
-		len = write (file->fd, file->data + writelen, file->len - writelen);
-		if (len < 0) {
-			perror ("write");
-			exit (1);
-		}
-
-		writelen += len;
-	}
-
-	file->len = 0;
-}
-#endif
-
-static void
-buffer_file_append (BufferFile *file, const char *str, size_t len)
-{
-  do {
-    size_t to_write = MIN (CHUNK_PAYLOAD - file->len, len);
-    memcpy (file->cur->data + file->len, str, to_write);
-    str += to_write;
-    len -= to_write;
-    file->len += to_write;
-    if (file->len >= CHUNK_PAYLOAD) {
-      file->len = 0;
-      file->cur = chunk_alloc (file->sm, file->dest);
-    }
-  } while (len > 0);
-}
-
-/* dump whole contents of input_fd to the output 'file' */
-static void
-buffer_file_dump (BufferFile *file, int input_fd)
-{
-  for (;;) {
-    size_t to_read = CHUNK_PAYLOAD - file->len;
-
-    to_read = read (input_fd, file->cur->data + file->len, to_read);
-    if (to_read < 0) {
-      perror ("read error");
-      break;
-    } else if (to_read == 0) {
-      break;
-    }
-    file->len += to_read;
-    if (file->len >= CHUNK_PAYLOAD) {
-      file->len = 0;
-      file->cur = chunk_alloc (file->sm, file->dest);
-    }
-  }
-}
-
-static void
-buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
-				       const char *uptime, size_t uptimelen)
-{
-  buffer_file_append (file, uptime, uptimelen);
-
-  lseek (input_fd, SEEK_SET, 0);
-  buffer_file_dump (file, input_fd);
-  
-  buffer_file_append (file, "\n", 1);
 }
 
 unsigned long get_uptime (int fd);
@@ -610,14 +430,6 @@ error:
 		close (netlink_socket);
 
 	return 0;
-}
-
-static int
-dump_state (const char *output_path)
-{
-  chdir (output_path);
-  /* ... */
-  return 0;
 }
 
 static void usage ()

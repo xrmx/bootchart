@@ -61,3 +61,7 @@ Process taskstats in advance
 	+ export cumulative data for rendering in ods ?
 	+ rather than adding manual rendering - which sucks (!?)
 
+
+
+* Get chunk lengths right [!?] - length in the chunk, not elsewhere [!]
+	+ it is really the buffer abstraction we want (surely) ?

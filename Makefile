@@ -11,8 +11,8 @@ PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
 
 all: bootchart-collector
 
-bootchart-collector: collector/bootchart-collector.o
-	$(CC) -o $@ $<
+bootchart-collector: collector/bootchart-collector.o collector/bootchart-output.o
+	$(CC) -Icollector -o $@ $^
 
 py-install-compile:
 	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui

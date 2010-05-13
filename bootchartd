@@ -19,9 +19,10 @@
 # $ /sbin/bootchartd start; sleep 30; /sbin/bootchartd stop
 #
 
-# Use a directory we know will be there - always, to
-# do our early mounting in, and chroot into.
-JAIL="/lib/bootchart/chroot"
+# Use a directory we know will be there, such that we can mount
+# our 'proc' without having to touch a (potentially) read-only
+# file-system.
+BASE="/lib/bootchart/chroot"
 COLLECTOR_BIN="/lib/bootchart/bootchart-collector"
 
 # some initrds don't have usleep etc.
@@ -29,6 +30,11 @@ USLEEP="$COLLECTOR_BIN --usleep"
 
 # we need to find our tools
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
+
+# Defaults, in case we can't find our configuration
+SAMPLE_HZ=50
+BUILDLOG_DEST=/var/log/bootchart.tgz
+AUTO_RENDER="no"
 
 # Read configuration.
 CONF="/etc/bootchartd.conf"
@@ -44,34 +50,16 @@ fi
 # Start the boot logger.
 start()
 {
-	cd $JAIL
+	cd $BASE
 
-	echo "bootchartd started" >> kmsg
-
-	# If in initrd - setup a chroot jail to run the collector inside
-	# FIXME: why bother ?
-	if [ -n "$IN_INITRD" ]; then
-		echo "bootchartd init" >> kmsg
-		if [ "`uname -m`" = "x86_64" ]
-		then
-			mkdir -p $JAIL/lib64
-			cp /lib64/ld-linux-x86-64.so.* /lib64/libc.so.* $JAIL/lib64
-		else
-			mkdir -p $JAIL/lib
-			cp /lib/ld-linux.so.* /lib/libc.so.* $JAIL/lib
-		fi
-
-		mkdir -p $JAIL/lib/bootchart
-		cp $COLLECTOR_BIN $JAIL/lib/bootchart
-
-		chroot $JAIL /lib/bootchart/bootchart-collector $SAMPLE_HZ
-
-	# Otherwise, start ourselves in our familiar syste,
-	elif [ -n "$INIT_PROCESS" ]; then
-		chroot $JAIL /lib/bootchart/bootchart-collector $SAMPLE_HZ
+	# If in init start ourselves in our familiar system
+	if [ -n "$INIT_PROCESS" ]; then
+		echo "bootchartd started in init" >> kmsg
+		/lib/bootchart/bootchart-collector $SAMPLE_HZ
 
 	# Otherwise, manually launched to profile something
 	else
+		echo "bootchartd started manually" >> kmsg
 		/lib/bootchart/bootchart-collector -r $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
@@ -153,8 +141,6 @@ stop()
 	cd $tmpdir
 	if ! /lib/bootchart/bootchart-collector --dump `pwd`; then
 	    echo "Can't extract boot chart from collector"
-	    # try harder in case it hung
-	    pkill -9 -f /lib/bootchart/bootchart-collector
 	    exit 1
 	fi
 
@@ -197,17 +183,16 @@ if [ $$ -eq 1 ]; then
 		start &
 	else # running inside the main system
 		if $COLLECTOR_BIN --probe-running; then
-			echo "bootchart: start wait for completion" >> /dev/kmsg
-			wait_boot &
+			echo "bootchart: start wait for completion" >> $BASE/kmsg
 		else # perhaps we had no initrd
-			echo "bootchart: no initrd used; starting" >> /dev/kmsg
+			echo "bootchart: no initrd used; starting" >> $BASE/kmsg
 			start &
 			# wait a little, until the collector is going, before allowing
 			# the rest of the system to charge ahead, so we catch it
 			$USLEEP 250000
-			echo "bootchart continuing boot" >> /dev/kmsg
-			wait_boot &
+			echo "bootchart continuing boot" >> $BASE/kmsg
 		fi
+		wait_boot &
 	fi
 	
 	# Optionally, an alternative init(1) process may be specified using

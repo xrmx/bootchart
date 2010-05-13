@@ -525,10 +525,10 @@ int main (int argc, char *argv[])
   StackMap map = STACK_MAP_INIT; /* make me findable */
 
   rel = 0;
-  if (access ("/proc/kmsg", W_OK))
-    freopen ("/proc/kmsg", "a", stderr);
-  else
+  if (!access ("kmsg", F_OK))
     freopen ("kmsg", "a", stderr);
+  else
+    freopen ("/proc/kmsg", "a", stderr);
 
   fprintf (stderr, "bootchart-collector started\n");
 

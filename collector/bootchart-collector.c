@@ -684,7 +684,7 @@ int main (int argc, char *argv[])
       }
       buffer_file_append (per_pid_file, "\n", 1);
 
-      usleep (10000000 / hz);
+      usleep (1000000 / hz);
     }
 
   /*

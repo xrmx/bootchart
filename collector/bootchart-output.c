@@ -302,7 +302,7 @@ bootchart_find_running_pid (const char *proc_path)
 
       int p = atoi (ent->d_name);
 
-      fprintf (stderr, "found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid());
+/*      fprintf (stderr, "found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid()); */
 
       if (p == getpid())
 	continue; /* I'm not novel */
@@ -321,7 +321,7 @@ bootchart_find_running_pid (const char *proc_path)
 	    if (abuffer[i] == '\0') {
 	      if (!strcmp (abuffer + i + 1, "--usleep"))
 		harmless = 1;
-	      fprintf (stderr, "arg '%s' -> %d\n", abuffer + i + 1, harmless);
+/*	      fprintf (stderr, "arg '%s' -> %d\n", abuffer + i + 1, harmless); */
 	    }
 	  fclose (args);
 	}
@@ -329,7 +329,6 @@ bootchart_find_running_pid (const char *proc_path)
 
       if (!harmless) {
 	pid = p;
-	fprintf (stderr, "not harmless - exiting\n");
 	break;
       }
     }

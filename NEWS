@@ -1,3 +1,7 @@
+bootchart2 0.11.1 (Michael Meeks)
+	+ even simpler initrd setup
+		+ create a single directory: /lib/bootchart/tmpfs
+
 bootchart2 0.11 (Michael Meeks)
 	+ bootchartd
 		+ far, far simpler, less shell, more robustness etc.

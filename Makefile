@@ -23,7 +23,7 @@ py-install-compile:
 		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py
 
 install-chroot:
-	install -d $(DESTDIR)/lib/bootchart/chroot/proc
+	install -d $(DESTDIR)/lib/bootchart/tmpfs
 
 install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd

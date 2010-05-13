@@ -30,6 +30,10 @@
 #include <unistd.h>
 #include <ctype.h>
 
+/* Magic path we mount our tmpfs on, inside which we do everything */
+#define TMPFS_PATH "/lib/bootchart/tmpfs"
+#define PROC_PATH  "/lib/bootchart/tmpfs/proc"
+
 /* helpers */
 #undef	MAX
 #undef	MIN
@@ -70,6 +74,6 @@ void buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 void buffer_file_append (BufferFile *file, const char *str, size_t len);
 
 int  dump_state (const char *output_path);
-int  bootchart_find_running_pid (const char *proc_path);
+int  bootchart_find_running_pid (void);
 
 #endif /* BOOTCHART_COMMON_H */

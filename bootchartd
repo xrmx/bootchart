@@ -22,7 +22,7 @@
 # Use a directory we know will be there, such that we can mount
 # our 'proc' without having to touch a (potentially) read-only
 # file-system.
-BASE="/lib/bootchart/chroot"
+TMPFS="/lib/bootchart/tmpfs"
 COLLECTOR_BIN="/lib/bootchart/bootchart-collector"
 
 # some initrds don't have usleep etc.
@@ -50,16 +50,14 @@ fi
 # Start the boot logger.
 start()
 {
-	cd $BASE
-
 	# If in init start ourselves in our familiar system
 	if [ -n "$INIT_PROCESS" ]; then
-		echo "bootchartd started in init" >> kmsg
+#		echo "bootchartd started in init" >> kmsg
 		/lib/bootchart/bootchart-collector $SAMPLE_HZ
 
 	# Otherwise, manually launched to profile something
 	else
-		echo "bootchartd started manually" >> kmsg
+#		echo "bootchartd started manually" >> kmsg
 		/lib/bootchart/bootchart-collector -r $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
@@ -138,7 +136,6 @@ stop()
 	    exit 1
 	fi
 
-	cd $BASE
 	if ! /lib/bootchart/bootchart-collector --dump $tmpdir; then
 	    echo "Can't extract boot chart from collector"
 	    exit 1
@@ -183,13 +180,13 @@ if [ $$ -eq 1 ]; then
 		IN_INITRD="yes"
 		start &
 	else # running inside the main system
-		echo "bootchart: no initrd used; starting" >> $BASE/kmsg
+		echo "bootchart: no initrd used; starting"
 		start &
 		wait_boot &
 		# wait a little, until the collector is going, before allowing
 		# the rest of the system to charge ahead, so we catch it
 		$USLEEP 250000
-		echo "bootchart continuing boot" >> $BASE/kmsg
+		echo "bootchart continuing boot" >> $TMPFS/kmsg
 	fi
 	
 	# Optionally, an alternative init(1) process may be specified using

@@ -245,7 +245,7 @@ dump_state (const char *output_path)
 
   chdir (output_path);
 
-  pid = bootchart_find_running_pid ("/proc");
+  pid = bootchart_find_running_pid ();
   if (pid < 0) {
     fprintf (stderr, "Failed to find the collector's pid\n");
     return 1;
@@ -272,14 +272,14 @@ dump_state (const char *output_path)
  * the --usleep mode we use to simplify our scripts.
  */
 int
-bootchart_find_running_pid (const char *proc_path)
+bootchart_find_running_pid (void)
 {
   DIR *proc;
   struct dirent *ent;
   int pid = -1;
   char exe_path[1024];
     
-  proc = opendir (proc_path);
+  proc = opendir (PROC_PATH);
   while ((ent = readdir (proc)) != NULL) {
     int len;
     char link_target[1024];
@@ -287,7 +287,7 @@ bootchart_find_running_pid (const char *proc_path)
     if (!isdigit (ent->d_name[0]))
       continue;
 
-    strcpy (exe_path, proc_path);
+    strcpy (exe_path, PROC_PATH);
     strcat (exe_path, "/");
     strcat (exe_path, ent->d_name);
     strcat (exe_path, "/exe");

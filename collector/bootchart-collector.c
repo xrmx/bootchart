@@ -36,8 +36,6 @@
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
 
-const char *proc_path = "proc";
-
 /* pid uniqifying code */
 typedef struct {
 	pid_t pid;
@@ -231,7 +229,7 @@ get_tgid_taskstats (pid_t pid)
 
 	tgits = *ts;
 
-	snprintf (proc_task_buffer, 1023, "%s/%d/task", proc_path, pid);
+	snprintf (proc_task_buffer, 1023, PROC_PATH "/%d/task", pid);
 	tdir = opendir (proc_task_buffer);
 	if (!tdir) {
 //		fprintf (stderr, "no task data for %d (at '%s')\n", pid, proc_task_buffer);
@@ -337,7 +335,7 @@ dump_proc (BufferFile *file, const char *name)
 	int  fd;
 	char filename[PATH_MAX];
 
-	sprintf (filename, "%s/%s/stat", proc_path, name);
+	sprintf (filename, PROC_PATH "/%s/stat", name);
 
 	fd = open (filename, O_RDONLY);
 	if (fd < 0)
@@ -362,7 +360,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 
 	entry->dumped_args = 1;
 
-	sprintf (str, "%s/%d/exe", proc_path, pid);
+	sprintf (str, PROC_PATH "/%d/exe", pid);
 	if (readlink (str, path, sizeof (path) - 1) < 0)
 		return;
 
@@ -372,7 +370,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	buffer_file_append (file, str, strlen (str));
 
 	/* write [zero delimited] <cmdline> */
-	sprintf (str, "%s/%d/cmdline", proc_path, pid);
+	sprintf (str, PROC_PATH "%d/cmdline", pid);
 	fd = open (str, O_RDONLY);
 	if (fd >= 0) { /* usually no '\n's in arguments - we hope */
 		buffer_file_dump (file, fd);
@@ -513,27 +511,89 @@ usage (void)
   exit (1);
 }
 
+/*
+ * setup our environment, of course we could package these,
+ * but it's easier to just require a single directory in
+ * people's initrd.
+ */
+static int
+enter_environment (void)
+{
+  /* check it is not already all there */
+  if (!access (TMPFS_PATH "/kmsg", F_OK))
+    return 0;
+
+  /* create a happy tmpfs */
+  if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
+    if (errno != EBUSY) {
+      fprintf (stderr, "bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
+      return 1;
+    }
+  }
+
+  /* re-direct debugging output */
+  if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
+    if (errno != EEXIST) {
+      fprintf (stderr, "bootchart-collector can't create kmsg node\n");
+      return 1;
+    }
+  }
+  freopen (TMPFS_PATH "/kmsg", "a", stderr);
+
+  /* we badly need proc */
+  if (mkdir (PROC_PATH, 0777) < 0) {
+    if (errno != EEXIST) {
+      fprintf (stderr, "bootchart-collector proc mkdir at " PROC_PATH " failed\n");
+      return 1;
+    }
+  }
+  if (mount ("none", PROC_PATH, "proc",
+	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
+    if (errno != EBUSY) {
+      fprintf (stderr, "bootchart-collector proc mount to " PROC_PATH " failed\n");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int
+trash_enviroment (void)
+{
+  int ret = 0;
+
+  if (umount (PROC_PATH) < 0) {
+    perror ("umount " PROC_PATH);
+    ret = 1;
+  }
+
+  fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
+
+  if (unlink (TMPFS_PATH "/kmsg") < 0) {
+    perror ("unlinking " TMPFS_PATH "/kmsg");
+    ret = 1;
+  }
+
+  if (umount (TMPFS_PATH) < 0) {
+    perror ("umount " TMPFS_PATH);
+    ret = 1;
+  }
+
+  return ret;
+}
+
 int main (int argc, char *argv[])
 {
   DIR *proc = NULL;
+  int probe_running = 0;
   int i, use_taskstat, rel = 0;
-  int mnt = 0, probe_running = 0;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
+  const char *dump_path = NULL;
   unsigned long hz = 0, reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
   int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
   StackMap map = STACK_MAP_INIT; /* make me findable */
-
-  if (!access ("kmsg", F_OK))
-    freopen ("kmsg", "a", stderr);
-  else
-    freopen ("/proc/kmsg", "a", stderr);
-
-  fprintf (stderr, "bootchart-collector started with %d args: ", argc);
-  for (i = 1; i < argc; i++)
-    fprintf (stderr, "'%s' ", argv[i]);
-  fprintf (stderr, "\n");
 
   for (i = 1; i < argc; i++) 
     {
@@ -555,7 +615,7 @@ int main (int argc, char *argv[])
 	  /* output mode */
 	  if (!strcmp (argv[i], "-d") ||
 	      !strcmp (argv[i], "--dump"))
-	    return dump_state (param);
+	    dump_path = param;
 	}
       
       if (!strcmp (argv[i], "--probe-running"))
@@ -576,21 +636,23 @@ int main (int argc, char *argv[])
 	usage();
     }
 
-  if (mount ("none", proc_path, "proc",
-	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-    if (errno != EBUSY) {
-      fprintf (stderr, "bootchart-collector proc mount failed\n");
-      exit (1);
-    }
-  } else
-    mnt = 1;
+  if (enter_environment())
+    return 1;
 
-  fprintf (stderr, "bootchart-collector mounted proc\n");
+  fprintf (stderr, "bootchart-collector started with %d args: ", argc);
+  for (i = 1; i < argc; i++)
+    fprintf (stderr, "'%s' ", argv[i]);
+  fprintf (stderr, "\n");
+
+  if (dump_path) {
+    ret = dump_state (dump_path);
+    goto exit;
+  }
 
   if (sanity_check_initrd ())
     goto exit;
 
-  pid = bootchart_find_running_pid ("proc");
+  pid = bootchart_find_running_pid ();
   if (probe_running) {
     ret = pid < 0;
     goto exit;
@@ -605,17 +667,17 @@ int main (int argc, char *argv[])
   if (!hz)
     hz = 50;
       
-  proc = opendir (proc_path);
+  proc = opendir (PROC_PATH);
   if (!proc)
     {
-      fprintf (stderr, "Failed to open %s: %s\n", proc_path, strerror(errno));
+      fprintf (stderr, "Failed to open " PROC_PATH ": %s\n", strerror(errno));
       return 1;
     }
 
   for (i = 0; fds [i]; i++)
     {
-      char *path = malloc (strlen (proc_path) + strlen (fd_names[i]) + 1);
-      strcpy (path, proc_path);
+      char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
+      strcpy (path, PROC_PATH);
       strcat (path, fd_names[i]);
 
       *fds[i] = open (path, O_RDONLY);
@@ -719,12 +781,8 @@ int main (int argc, char *argv[])
       ret = 1;
     }
 
-  if (mnt && umount (proc_path) < 0) {
-    perror ("umount /proc");
+  if (trash_enviroment())
     ret = 1;
-  }
-
-  fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
 
   return ret;
 }

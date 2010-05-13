@@ -138,12 +138,13 @@ stop()
 	    exit 1
 	fi
 
-	cd $tmpdir
-	if ! /lib/bootchart/bootchart-collector --dump `pwd`; then
+	cd $BASE
+	if ! /lib/bootchart/bootchart-collector --dump $tmpdir; then
 	    echo "Can't extract boot chart from collector"
 	    exit 1
 	fi
 
+	cd $tmpdir
 	if [ ! -e proc_stat.log ]; then
 		echo "Can't find bootchart output in $tmpdir - aborting"
 		exit 1

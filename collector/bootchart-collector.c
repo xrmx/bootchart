@@ -530,7 +530,10 @@ int main (int argc, char *argv[])
   else
     freopen ("/proc/kmsg", "a", stderr);
 
-  fprintf (stderr, "bootchart-collector started\n");
+  fprintf (stderr, "bootchart-collector started with %d args: ", argc);
+  for (i = 1; i < argc; i++)
+    fprintf (stderr, "'%s' ", argv[i]);
+  fprintf (stderr, "\n");
 
   for (i = 1; i < argc; i++) 
     {

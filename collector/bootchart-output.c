@@ -272,7 +272,8 @@ dump_state (const char *output_path)
 
 /*
  * finds (another) bootchart-collector process and
- * returns it's pid (or -1) if not found.
+ * returns it's pid (or -1) if not found, ignores
+ * the --usleep mode we use to simplify our scripts.
  */
 int
 bootchart_find_running_pid (const char *proc_path)
@@ -319,7 +320,7 @@ bootchart_find_running_pid (const char *proc_path)
 	  for (i = 0; i < len - 1; i++)
 	    if (abuffer[i] == '\0') {
 /*	      fprintf (stderr, "arg '%s'\n", abuffer + i + 1); */
-	      if (strcmp (abuffer + i + 1, "--usleep"))
+	      if (!strcmp (abuffer + i + 1, "--usleep"))
 		harmless = 1;
 	    }
 	  fclose (args);

@@ -298,8 +298,37 @@ bootchart_find_running_pid (const char *proc_path)
       continue;
 
     if (strstr (link_target, "bootchart-collector")) {
+      FILE *args;
+      int harmless = 0;
+
       int p = atoi (ent->d_name);
-      if (p != getpid()) { /* I'm allright */
+
+      if (p == getpid())
+	continue; /* I'm not novel */
+
+      strcpy (exe_path + strlen (exe_path) - strlen ("/exe"), "/cmdline");
+      args = fopen (exe_path, "r");
+      if (args) {
+	int i, len;
+	char abuffer[4096];
+
+	len = fread (abuffer, 1, 4095, args);
+	if (len > 0) {
+	  /* step through args */
+	  abuffer[len] = '\0';
+	  for (i = 0; i < len - 1; i++)
+	    if (abuffer[i] == '\0') {
+/*	      fprintf (stderr, "arg '%s'\n", abuffer + i + 1); */
+	      if (strcmp (abuffer + i + 1, "--usleep"))
+		harmless = 1;
+	    }
+	  fclose (args);
+	}
+      }
+/*      else
+	fprintf (stderr, "failed to open '%s'\n", exe_path); */
+
+      if (!harmless) {
 	pid = p;
 	break;
       }

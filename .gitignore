@@ -6,3 +6,4 @@ bootchart-collector
 *.tar.bz2
 *.orig
 *.rej
+no

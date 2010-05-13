@@ -114,3 +114,7 @@ Process taskstats in advance
 		+ let it continue until it locks-up ?
 		+ hand-shake somehow ? :-)
 		+ what's the story ?
+
+	* mount a tmpfs, create the chroot, and continue ... [!?]
+		+ daemonize if we are going to collect as/when we are up?
+	* mknod("/home/abuild/rpmbuild/BUILDROOT/bootchart-2.0.11.0-3.i386/lib/bootchart/chroot/kmsg", S_IFCHR|0666, makedev(1, 11)) = -1 EPERM 

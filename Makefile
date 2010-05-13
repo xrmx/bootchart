@@ -24,8 +24,6 @@ py-install-compile:
 
 install-chroot:
 	install -d $(DESTDIR)/lib/bootchart/chroot/proc
-	rm -f $(DESTDIR)/lib/bootchart/chroot/kmsg
-	mknod $(DESTDIR)/lib/bootchart/chroot/kmsg c 1 11
 
 install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd

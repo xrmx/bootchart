@@ -1,13 +1,17 @@
 bootchart2 0.11 (Michael Meeks)
+	+ bootchartd
+		+ far, far simpler, less shell, more robustness etc.
+	+ bootchart-collector
+		+ remove the -p argument - we always mount proc
+		+ requires /lib/bootchart (make install-chroot) to
+		  be present (also in the initrd) [ with a kmsg
+		  node included ]
+		+ add a --probe-running mode
 	+ ptrace re-write
 		+ gives -much- better early-boot-time resolution
 		+ unconditional chroot /lib/bootchart/chroot
 			+ we mount proc there ourselves
 		+ log extraction requires no common file-system view
-	+ bootchart-collector
-		+ remove the -p argument - we always mount proc
-	+ bootchartd
-		+ far, far simpler
 
 
 bootchart2 0.10.1 (Kel Modderman)

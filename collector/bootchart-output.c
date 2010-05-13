@@ -34,15 +34,15 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
   /* if we run out of buffer, just keep writing to the last buffer */
   if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0]))
     {
+      fprintf (stderr, "bootchart-collector - internal buffer overflow!\n");
       c = sm->chunks[sm->max_chunk - 1];
       c->length = 0;
       return c;
     }
 
-//  c = mmap (NULL, CHUNK_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-//  memset (c, 0, sizeof (Chunk));
   c = calloc (CHUNK_SIZE, 1);
   strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
+  c->length = 0;
   sm->chunks[sm->max_chunk++] = c;
   return c;
 }
@@ -66,10 +66,8 @@ buffer_file_append (BufferFile *file, const char *str, size_t len)
     str += to_write;
     len -= to_write;
     file->cur->length += to_write;
-    if (file->cur->length >= CHUNK_PAYLOAD) {
-      file->cur->length = 0;
+    if (file->cur->length >= CHUNK_PAYLOAD)
       file->cur = chunk_alloc (file->sm, file->dest);
-    }
   } while (len > 0);
 }
 
@@ -89,10 +87,8 @@ buffer_file_dump (BufferFile *file, int input_fd)
       break;
     }
     file->cur->length += to_read;
-    if (file->cur->length >= CHUNK_PAYLOAD) {
-      file->cur->length = 0;
+    if (file->cur->length >= CHUNK_PAYLOAD)
       file->cur = chunk_alloc (file->sm, file->dest);
-    }
   }
 }
 
@@ -285,6 +281,7 @@ bootchart_find_running_pid (const char *proc_path)
     
   proc = opendir (proc_path);
   while ((ent = readdir (proc)) != NULL) {
+    int len;
     char link_target[1024];
 
     if (!isdigit (ent->d_name[0]))
@@ -295,8 +292,9 @@ bootchart_find_running_pid (const char *proc_path)
     strcat (exe_path, ent->d_name);
     strcat (exe_path, "/exe");
 
-    if (readlink (exe_path, link_target, 1024) < 0)
+    if ((len = readlink (exe_path, link_target, 1024)) < 0)
       continue;
+    link_target[len] = '\0';
 
     if (strstr (link_target, "bootchart-collector")) {
       FILE *args;
@@ -304,13 +302,15 @@ bootchart_find_running_pid (const char *proc_path)
 
       int p = atoi (ent->d_name);
 
+      fprintf (stderr, "found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid());
+
       if (p == getpid())
 	continue; /* I'm not novel */
 
       strcpy (exe_path + strlen (exe_path) - strlen ("/exe"), "/cmdline");
       args = fopen (exe_path, "r");
       if (args) {
-	int i, len;
+	int i;
 	char abuffer[4096];
 
 	len = fread (abuffer, 1, 4095, args);
@@ -319,18 +319,17 @@ bootchart_find_running_pid (const char *proc_path)
 	  abuffer[len] = '\0';
 	  for (i = 0; i < len - 1; i++)
 	    if (abuffer[i] == '\0') {
-/*	      fprintf (stderr, "arg '%s'\n", abuffer + i + 1); */
 	      if (!strcmp (abuffer + i + 1, "--usleep"))
 		harmless = 1;
+	      fprintf (stderr, "arg '%s' -> %d\n", abuffer + i + 1, harmless);
 	    }
 	  fclose (args);
 	}
       }
-/*      else
-	fprintf (stderr, "failed to open '%s'\n", exe_path); */
 
       if (!harmless) {
 	pid = p;
+	fprintf (stderr, "not harmless - exiting\n");
 	break;
       }
     }

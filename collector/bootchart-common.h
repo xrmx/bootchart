@@ -70,6 +70,6 @@ void buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 void buffer_file_append (BufferFile *file, const char *str, size_t len);
 
 int  dump_state (const char *output_path);
-int  probe_running (const char *proc_path);
+int  bootchart_find_running_pid (const char *proc_path);
 
 #endif /* BOOTCHART_COMMON_H */

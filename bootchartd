@@ -182,17 +182,13 @@ if [ $$ -eq 1 ]; then
 		IN_INITRD="yes"
 		start &
 	else # running inside the main system
-		if $COLLECTOR_BIN --probe-running; then
-			echo "bootchart: start wait for completion" >> $BASE/kmsg
-		else # perhaps we had no initrd
-			echo "bootchart: no initrd used; starting" >> $BASE/kmsg
-			start &
-			# wait a little, until the collector is going, before allowing
-			# the rest of the system to charge ahead, so we catch it
-			$USLEEP 250000
-			echo "bootchart continuing boot" >> $BASE/kmsg
-		fi
+		echo "bootchart: no initrd used; starting" >> $BASE/kmsg
+		start &
 		wait_boot &
+		# wait a little, until the collector is going, before allowing
+		# the rest of the system to charge ahead, so we catch it
+		$USLEEP 250000
+		echo "bootchart continuing boot" >> $BASE/kmsg
 	fi
 	
 	# Optionally, an alternative init(1) process may be specified using

@@ -515,16 +515,16 @@ usage (void)
 
 int main (int argc, char *argv[])
 {
-  DIR *proc;
-  int i, use_taskstat, rel, mnt = 0;
-  int stat_fd, disk_fd, uptime_fd;
+  DIR *proc = NULL;
+  int i, use_taskstat, rel = 0;
+  int mnt = 0, probe_running = 0;
+  int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   unsigned long hz = 0, reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
   int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
   StackMap map = STACK_MAP_INIT; /* make me findable */
 
-  rel = 0;
   if (!access ("kmsg", F_OK))
     freopen ("kmsg", "a", stderr);
   else
@@ -556,8 +556,8 @@ int main (int argc, char *argv[])
 	}
       
       if (!strcmp (argv[i], "--probe-running"))
-	return !probe_running ("/proc");
-
+	probe_running = 1;
+      
       else if (!strcmp (argv[i], "-r"))
 	rel = 1;
       
@@ -585,11 +585,17 @@ int main (int argc, char *argv[])
   fprintf (stderr, "bootchart-collector mounted proc\n");
 
   if (sanity_check_initrd ())
-    return 1;
+    goto exit;
 
-  if (probe_running (proc_path)) {
-    fprintf (stderr, "bootchart collector already running, exiting...\n");
-    return 1;
+  pid = bootchart_find_running_pid ("proc");
+  if (probe_running) {
+    ret = pid < 0;
+    goto exit;
+  } else {
+    if (pid >= 0) {
+      fprintf (stderr, "bootchart collector already running as pid %d, exiting...\n", pid);
+      goto exit;
+    }
   }
       
   /* defaults */
@@ -701,18 +707,21 @@ int main (int argc, char *argv[])
 	}
     }
 
-  if (closedir (proc) < 0)
+  ret = 0;
+
+ exit:
+  if (proc != NULL && closedir (proc) < 0)
     {
       perror ("close /proc");
-      exit (1);
+      ret = 1;
     }
 
   if (mnt && umount (proc_path) < 0) {
     perror ("umount /proc");
-    exit (1);
+    ret = 1;
   }
 
   fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
 
-  return 0;
+  return ret;
 }

@@ -110,42 +110,6 @@ buffer_file_dump_frame_with_timestamp (BufferFile *file, int input_fd,
 
 /* grubbing about in another process to dump those buffers */
 
-static int
-find_collector_pid (const char *proc_path)
-{
-  DIR *proc;
-  struct dirent *ent;
-  int pid = -1;
-  char exe_path[1024];
-    
-  proc = opendir (proc_path);
-  while ((ent = readdir (proc)) != NULL) {
-    char link_target[1024];
-
-    if (!isdigit (ent->d_name[0]))
-      continue;
-
-    strcpy (exe_path, proc_path);
-    strcat (exe_path, "/");
-    strcat (exe_path, ent->d_name);
-    strcat (exe_path, "/exe");
-
-    if (readlink (exe_path, link_target, 1024) < 0)
-      continue;
-
-    if (strstr (link_target, "bootchart-collector")) {
-      int p = atoi (ent->d_name);
-      if (p != getpid()) { /* I'm allright */
-	pid = p;
-	break;
-      }
-    }
-  }
-  closedir (proc);
-
-  return pid;
-}
-
 typedef struct {
   int pid;
   int mem;
@@ -285,7 +249,7 @@ dump_state (const char *output_path)
 
   chdir (output_path);
 
-  pid = find_collector_pid ("/proc");
+  pid = bootchart_find_running_pid ("/proc");
   if (pid < 0) {
     fprintf (stderr, "Failed to find the collector's pid\n");
     return 1;
@@ -307,13 +271,41 @@ dump_state (const char *output_path)
 }
 
 /*
- * returns true if bootchart-collector is already running
+ * finds (another) bootchart-collector process and
+ * returns it's pid (or -1) if not found.
  */
 int
-probe_running (const char *proc_path)
+bootchart_find_running_pid (const char *proc_path)
 {
-  if (find_collector_pid (proc_path) < 0)
-    return 0;
-  else
-    return 1;
+  DIR *proc;
+  struct dirent *ent;
+  int pid = -1;
+  char exe_path[1024];
+    
+  proc = opendir (proc_path);
+  while ((ent = readdir (proc)) != NULL) {
+    char link_target[1024];
+
+    if (!isdigit (ent->d_name[0]))
+      continue;
+
+    strcpy (exe_path, proc_path);
+    strcat (exe_path, "/");
+    strcat (exe_path, ent->d_name);
+    strcat (exe_path, "/exe");
+
+    if (readlink (exe_path, link_target, 1024) < 0)
+      continue;
+
+    if (strstr (link_target, "bootchart-collector")) {
+      int p = atoi (ent->d_name);
+      if (p != getpid()) { /* I'm allright */
+	pid = p;
+	break;
+      }
+    }
+  }
+  closedir (proc);
+
+  return pid;
 }

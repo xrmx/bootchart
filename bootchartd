@@ -123,6 +123,7 @@ log_header()
 	echo "system.cpu = $(grep '^model name' /proc/cpuinfo)"\
          "($(grep -c '^model name' /proc/cpuinfo))"
 	echo "system.kernel.options = $(sed q /proc/cmdline)"
+	echo "system.maxpid = $$"
     ) > header
 }
 

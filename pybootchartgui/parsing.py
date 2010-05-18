@@ -358,16 +358,16 @@ def _parse_pacct(writer, file):
 	return pidMap;
 
 def _parse_cmdline(writer, file):
-	return None # FIXME - enable me when tested ...
-
 	cmdLines = {}
         for block in file.read().split('\n\n'):
 		lines = block.split('\n')
 		if len (lines) >= 3:
-			pid = int(lines[0])
+			pid = float(lines[0])
 			values = {}
 			values['exe'] = lines[1]
-			values['args'] = lines[2].split('\0')
+			args = lines[2].split('\0')
+			args.pop()
+			values['args'] = args
 			cmdLines[pid] = values
 	return cmdLines
 
@@ -558,8 +558,8 @@ def parse(writer, paths, prune, crop_after, annotate):
     # merge in the cmdline data
     if state.cmdline is not None:
         for proc in state.ps_stats.process_list:
-            cmd = state.cmdline[proc.pid]
-	    if cmd is not None:
+	    if proc.pid in state.cmdline:
+                cmd = state.cmdline[proc.pid]
                 proc.exe = cmd['exe']
 		proc.args = cmd['args']
 

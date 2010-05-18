@@ -349,7 +349,7 @@ dump_proc (BufferFile *file, const char *name)
 static void
 dump_cmdline (BufferFile *file, pid_t pid)
 {
-	int fd;
+	int fd, len;
 	PidEntry *entry;
 	char str[PATH_MAX], path[PATH_MAX];
 
@@ -361,16 +361,16 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	entry->dumped_args = 1;
 
 	sprintf (str, PROC_PATH "/%d/exe", pid);
-	if (readlink (str, path, sizeof (path) - 1) < 0)
+	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
 		return;
+	path[len] = '\0';
 
 	/* write <pid>\n<exe-path>\n */
-	path [sizeof (path) - 1] = '\0';
 	sprintf (str, "%d\n%s\n", pid, path);
 	buffer_file_append (file, str, strlen (str));
 
 	/* write [zero delimited] <cmdline> */
-	sprintf (str, PROC_PATH "%d/cmdline", pid);
+	sprintf (str, PROC_PATH "/%d/cmdline", pid);
 	fd = open (str, O_RDONLY);
 	if (fd >= 0) { /* usually no '\n's in arguments - we hope */
 		buffer_file_dump (file, fd);

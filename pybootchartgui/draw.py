@@ -386,14 +386,17 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
 	ipid = int(proc.pid)
-	if OPTIONS.show_all:
-		cmdString = proc.exe
-	else:
+	if not OPTIONS.show_all:
 		cmdString = proc.cmd
+	else:
+		cmdString = ''
 	if (OPTIONS.show_pid or OPTIONS.show_all) and ipid is not 0:
 		cmdString = cmdString + " [" + str(ipid) + "]"
 	if OPTIONS.show_all:
-		cmdString = cmdString + " " + ''.join(proc.args)
+		if proc.args:
+			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"
+		else:
+			cmdString = cmdString + " " + proc.exe
 
 	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w, rect[0] + rect[2])
 

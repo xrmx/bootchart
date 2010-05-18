@@ -787,8 +787,7 @@ int main (int argc, char *argv[])
       ret = 1;
     }
 
-  if (trash_enviroment())
-    ret = 1;
+  trash_enviroment();
 
   return ret;
 }

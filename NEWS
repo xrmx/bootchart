@@ -1,3 +1,8 @@
+bootchart2 0.11.2 (Michael Meeks)
+	+ fix initrd sanity check to use the right proc path
+	+ don't return a bogus error value when dumping state
+	+ add -c to aid manual console debugging
+
 bootchart2 0.11.1 (Michael Meeks)
 	+ even simpler initrd setup
 		+ create a single directory: /lib/bootchart/tmpfs

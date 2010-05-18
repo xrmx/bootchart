@@ -98,15 +98,7 @@ Process taskstats in advance
 * ptrace re-write [!]
 	+ process accounting fun [!?] ...
 
-	+ rip out process accounting - urk ;-)
-	+ create something new ...
-
-	+ FIXME:
-		+ move all the jail cleanup / unmounting into
-		  the collector itself (?) ...
-		+ fun :-)
-		+ set a flag on the 'StackState' thing, we can write
-		  to tell it to quit ;-)
+	+ Use netlink to trace process forking etc.
 
 	+ statically link the collector ? [ make jail simpler to make ? ]
 
@@ -117,4 +109,3 @@ Process taskstats in advance
 
 	* mount a tmpfs, create the chroot, and continue ... [!?]
 		+ daemonize if we are going to collect as/when we are up?
-	* mknod("/home/abuild/rpmbuild/BUILDROOT/bootchart-2.0.11.0-3.i386/lib/bootchart/chroot/kmsg", S_IFCHR|0666, makedev(1, 11)) = -1 EPERM 

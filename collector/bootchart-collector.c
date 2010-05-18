@@ -481,7 +481,7 @@ sanity_check_initrd (void)
   if (!access ("/dev/random", R_OK))
     return 0;
 
-  cmdline = fopen ("proc/cmdline", "r");
+  cmdline = fopen (PROC_PATH "/cmdline", "r");
   if (!cmdline) {
     fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
     return 1;
@@ -507,6 +507,7 @@ usage (void)
   fprintf (stderr, "   --probe-running	returns success if a bootchart collector is running.\n");
   fprintf (stderr, "   --dump <path>	if another bootchart is running, dumps it's state to <path> and exits.\n");
   fprintf (stderr, "   -r		use relative time-stamps from the profile starting\n");
+  fprintf (stderr, "   --console/-c	output debug on the console, not into kernel log\n");
   fprintf (stderr, "   <otherwise>	internally logs profiling data samples at frequency <hz>\n");
   exit (1);
 }
@@ -517,7 +518,7 @@ usage (void)
  * people's initrd.
  */
 static int
-enter_environment (void)
+enter_environment (int console_debug)
 {
   /* check it is not already all there */
   if (!access (TMPFS_PATH "/kmsg", F_OK))
@@ -538,7 +539,8 @@ enter_environment (void)
       return 1;
     }
   }
-  freopen (TMPFS_PATH "/kmsg", "a", stderr);
+  if (!console_debug)
+	  freopen (TMPFS_PATH "/kmsg", "a", stderr);
 
   /* we badly need proc */
   if (mkdir (PROC_PATH, 0777) < 0) {
@@ -586,7 +588,7 @@ int main (int argc, char *argv[])
 {
   DIR *proc = NULL;
   int probe_running = 0;
-  int i, use_taskstat, rel = 0;
+  int i, use_taskstat, rel = 0, console_debug = 1;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   const char *dump_path = NULL;
   unsigned long hz = 0, reltime = 0;
@@ -624,6 +626,10 @@ int main (int argc, char *argv[])
       else if (!strcmp (argv[i], "-r"))
 	rel = 1;
       
+      else if (!strcmp (argv[i], "-c") ||
+	       !strcmp (argv[i], "--console"))
+	console_debug = 1;
+
       else if (!strcmp (argv[i], "-h") ||
 	       !strcmp (argv[i], "--help"))
 	usage();
@@ -636,10 +642,10 @@ int main (int argc, char *argv[])
 	usage();
     }
 
-  if (enter_environment())
+  if (enter_environment (console_debug))
     return 1;
 
-  fprintf (stderr, "bootchart-collector started with %d args: ", argc);
+  fprintf (stderr, "bootchart-collector started with %d args: ", argc - 1);
   for (i = 1; i < argc; i++)
     fprintf (stderr, "'%s' ", argv[i]);
   fprintf (stderr, "\n");

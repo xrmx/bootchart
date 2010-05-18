@@ -701,7 +701,7 @@ int main (int argc, char *argv[])
     per_pid_file = buffer_file_new (&map, "taskstats.log");
   else
     per_pid_file = buffer_file_new (&map, "proc_ps.log");
-  cmdline_file = buffer_file_new (&map, "cmdline.log");
+  cmdline_file = buffer_file_new (&map, "cmdline2.log");
 
   if (!stat_file || !disk_file || !per_pid_file || !cmdline_file)
     {

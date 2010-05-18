@@ -1,3 +1,11 @@
+bootchart2 0.11.3 (Michael Meeks)
+	+ add $$ display to the bootchart header
+	+ process command-line bits
+		+ fix collection code, and rename stream to match
+		+ enable parsing, add check button to UI, and --show-all
+		  command-line option
+	+ fix parsing of directories full of files.
+
 bootchart2 0.11.2 (Michael Meeks)
 	+ fix initrd sanity check to use the right proc path
 	+ don't return a bogus error value when dumping state

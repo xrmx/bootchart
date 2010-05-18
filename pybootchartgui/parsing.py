@@ -418,7 +418,7 @@ def _do_parse(writer, state, name, file):
        state.kernel = _parse_dmesg(writer, file)
     elif name == "kernel_pacct":
        state.pacct = _parse_pacct(writer, file)
-    elif name == "cmdline.log":
+    elif name == "cmdline2.log":
        state.cmdline = _parse_cmdline(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))

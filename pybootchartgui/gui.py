@@ -117,6 +117,10 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.zoom_image(1.0)
 	    self.set_xscale(1.0)
 
+        def show_toggled(self, button):
+            self.options.show_all = button.get_property ('active')
+	    self.queue_draw()
+
         POS_INCREMENT = 100
 
         def on_key_press_event(self, widget, event):
@@ -290,9 +294,19 @@ class PyBootchartWindow(gtk.Window):
                 scrolled = gtk.ScrolledWindow()
 		scrolled.add(self.widget)
 
+		# toolbar / h-box
+		hbox = gtk.HBox(False, 8)
+
 		# Create a Toolbar
 		toolbar = uimanager.get_widget('/ToolBar')
-		vbox.pack_start(toolbar, False)
+		hbox.pack_start(toolbar, True, True)
+
+		# Misc. options
+		button = gtk.CheckButton("Show more")
+		button.connect ('toggled', self.widget.show_toggled)
+		hbox.pack_start (button, False, True)
+
+		vbox.pack_start(hbox, False)
 		vbox.pack_start(scrolled)
 
 		self.set_focus(self.widget)

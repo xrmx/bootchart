@@ -53,6 +53,8 @@ class Process:
 		self.writer = writer
 		self.pid = pid
 		self.cmd = cmd
+		self.exe = cmd
+		self.args = []
 		self.ppid = ppid
 		self.start_time = start_time
 		self.duration = 0

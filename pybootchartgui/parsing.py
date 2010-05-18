@@ -357,6 +357,20 @@ def _parse_pacct(writer, file):
 		
 	return pidMap;
 
+def _parse_cmdline(writer, file):
+	return None # FIXME - enable me when tested ...
+
+	cmdLines = {}
+        for block in file.read().split('\n\n'):
+		lines = block.split('\n')
+		if len (lines) >= 3:
+			pid = int(lines[0])
+			values = {}
+			values['exe'] = lines[1]
+			values['args'] = lines[2].split('\0')
+			cmdLines[pid] = values
+	return cmdLines
+
 def get_num_cpus(headers):
     """Get the number of CPUs from the system.cpu header property. As the
     CPU utilization graphs are relative, the number of CPUs currently makes
@@ -378,6 +392,7 @@ class ParserState:
 	self.ps_stats = None
 	self.taskstats = None
 	self.cpu_stats = None
+	self.cmdline = None
 	self.kernel = None
 	self.filename = None
 
@@ -403,6 +418,8 @@ def _do_parse(writer, state, name, file):
        state.kernel = _parse_dmesg(writer, file)
     elif name == "kernel_pacct":
        state.pacct = _parse_pacct(writer, file)
+    elif name == "cmdline.log":
+       state.cmdline = _parse_cmdline(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state
@@ -537,6 +554,14 @@ def parse(writer, paths, prune, crop_after, annotate):
 		            break
 	    else:
                 times.append(None)
+
+    # merge in the cmdline data
+    if state.cmdline is not None:
+        for proc in state.ps_stats.process_list:
+            cmd = state.cmdline[proc.pid]
+	    if cmd is not None:
+                proc.exe = cmd['exe']
+		proc.args = cmd['args']
 
     monitored_app = state.headers.get("profile.process")
     proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)

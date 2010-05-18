@@ -385,8 +385,6 @@ class ParserState:
         return self.headers != None and self.disk_stats != None and self.ps_stats != None and self.cpu_stats != None
 
 
-_relevant_files = set(["header", "proc_diskstats.log", "proc_ps.log", "proc_stat.log"])
-
 def _do_parse(writer, state, name, file):
     writer.status("parsing '%s'" % name)
     t1 = clock()
@@ -413,9 +411,6 @@ def parse_file(writer, state, filename):
     if state.filename is None:
 	state.filename = filename
     basename = os.path.basename(filename)
-    if not(basename in _relevant_files):
-        writer.info("ignoring '%s' as it is not relevant" % filename)
-        return state
     with open(filename, "rb") as file:
         return _do_parse(writer, state, basename, file)
 

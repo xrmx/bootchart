@@ -34,7 +34,12 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
   /* if we run out of buffer, just keep writing to the last buffer */
   if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0]))
     {
-      fprintf (stderr, "bootchart-collector - internal buffer overflow!\n");
+      static int overflowed = 0;
+      if (!overflowed)
+	{
+	  fprintf (stderr, "bootchart-collector - internal buffer overflow!\n");
+	  overflowed = 1;
+	}
       c = sm->chunks[sm->max_chunk - 1];
       c->length = 0;
       return c;

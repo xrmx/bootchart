@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <ctype.h>
 
+extern unsigned long hz;
+
 /* Magic path we mount our tmpfs on, inside which we do everything */
 #define TMPFS_PATH "/lib/bootchart/tmpfs"
 #define PROC_PATH  "/lib/bootchart/tmpfs/proc"

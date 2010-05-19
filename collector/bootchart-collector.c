@@ -584,6 +584,8 @@ trash_enviroment (void)
   return ret;
 }
 
+unsigned long hz = 0;
+
 int main (int argc, char *argv[])
 {
   DIR *proc = NULL;
@@ -591,7 +593,7 @@ int main (int argc, char *argv[])
   int i, use_taskstat, rel = 0, console_debug = 1;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   const char *dump_path = NULL;
-  unsigned long hz = 0, reltime = 0;
+  unsigned long reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
   int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };

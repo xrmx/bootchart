@@ -366,7 +366,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	path[len] = '\0';
 
 	/* write <pid>\n<exe-path>\n */
-	sprintf (str, "%d\n%s\n", pid, path);
+	sprintf (str, "%d\n:%s\n:", pid, path);
 	buffer_file_append (file, str, strlen (str));
 
 	/* write [zero delimited] <cmdline> */

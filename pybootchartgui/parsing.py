@@ -362,10 +362,11 @@ def _parse_cmdline(writer, file):
         for block in file.read().split('\n\n'):
 		lines = block.split('\n')
 		if len (lines) >= 3:
+#			print "Lines '%s'" % (lines[0])
 			pid = float(lines[0])
 			values = {}
-			values['exe'] = lines[1]
-			args = lines[2].split('\0')
+			values['exe'] = lines[1].lstrip(':')
+			args = lines[2].lstrip(':').split('\0')
 			args.pop()
 			values['args'] = args
 			cmdLines[pid] = values

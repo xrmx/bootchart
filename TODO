@@ -1,7 +1,5 @@
 ** Bugs:
 
-	* test and enable new cmdline.log parsing code ...
-
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
 

@@ -219,10 +219,14 @@ static void close_pid (DumpState *s)
 
 static void dump_buffers (DumpState *s)
 {
-  int i;
+  int i, max_chunk;
 
-  fprintf (stderr, "%d chunks\n", s->map.max_chunk);
-  for (i = 0; i < s->map.max_chunk; i++)
+  /* if we wrapped around, the last chunk is probably unhelpful
+     to parse, due to dis-continuous data, discard it */
+  max_chunk = MIN (s->map.max_chunk, sizeof (s->map.chunks)/sizeof(s->map.chunks[0]) - 1);
+  
+  fprintf (stderr, "reading %d chunks of %d\n", max_chunk, s->map.max_chunk);
+  for (i = 0; i < max_chunk; i++)
     {
       FILE *output;
       char buffer[CHUNK_SIZE];

@@ -1,5 +1,13 @@
 ** Bugs:
 
+* chroot construction ...
+	+ The plan:
+		+ always make /var/tmp/... look like a chroot
+		+ *if* we detect we are in an initrd [ using /proc ]
+		+ *then* - we start polling for a writable /dev at high frequency.
+			+ we remount ourselves into /dev/.bootchart and chroot into it
+			+ [ fun ! ]
+
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
 

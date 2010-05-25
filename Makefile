@@ -1,4 +1,4 @@
-VER=0.11.3
+VER=0.11.4
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
@@ -8,10 +8,18 @@ CFLAGS = -g -Wall -Os
 BINDIR ?= /usr/bin
 PY_LIBDIR ?= /usr/lib/python2.6
 PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
+LIBC_A_PATH = /usr/lib
+
+COLLECTOR = \
+	collector/bootchart-collector.o \
+	collector/bootchart-output.o
 
 all: bootchart-collector
 
-bootchart-collector: collector/bootchart-collector.o collector/bootchart-output.o
+bootchart-collector: $(COLLECTOR)
+	$(CC) -Wl,--strip-all -Os -static -Icollector -o $@ $^ $(LIBC_A_PATH)/libc.a
+
+bootchart-collector-dynamic: $(COLLECTOR)
 	$(CC) -Icollector -o $@ $^
 
 py-install-compile:
@@ -34,7 +42,7 @@ install: all py-install-compile install-collector
 	mkdir -p $RPM_BUILD_ROOT/lib/bootchart/mnt
 
 clean:
-	-rm -f bootchart-collector collector/*.o
+	-rm -f bootchart-collector bootchart-collector-dynamic collector/*.o
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

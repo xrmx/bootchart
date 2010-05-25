@@ -25,7 +25,7 @@
 #include <sys/mman.h>
 
 
-/* simple, easy to unwind via ptrace-able buffer structures */
+/* simple, easy to unwind via ptrace buffer structures */
 
 static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 {

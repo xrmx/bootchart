@@ -4,9 +4,17 @@
 	+ The plan:
 		+ always make /var/tmp/... look like a chroot
 		+ *if* we detect we are in an initrd [ using /proc ]
+			+ "<Freeing> initrd memory" in dmesg / syslog ? (/proc/kmsg)
+				+ [read it?]
+			+ [ argh - that string will be there for subsequent runs too ]
+
 		+ *then* - we start polling for a writable /dev at high frequency.
 			+ we remount ourselves into /dev/.bootchart and chroot into it
 			+ [ fun ! ]
+
+	* Get the process / fork-following netlink magic to run as a separate thread ...
+
+	* SUSE initrd debugging; use "'shell=1'" - is good ... [!]
 
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale

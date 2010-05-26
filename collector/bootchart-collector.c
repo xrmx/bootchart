@@ -465,6 +465,31 @@ error:
 	return 0;
 }
 
+static int
+am_in_initrd (void)
+{
+  FILE *mi;
+  int ret = 0;
+  char buffer[4096];
+
+  mi = fopen (PROC_PATH "/self/mountinfo", "r");
+
+  /* find a single mount; parent of itself: an initrd */
+  while (fgets (buffer, 4096, mi)) {
+
+    /* we expect: "1 1 0:1 / / rw - rootfs rootfs rw" */
+    if (!strncmp (buffer, "1 1 ", 4))
+      {
+	ret = 1;
+	break;
+      }
+  }
+  fclose (mi);
+
+  fprintf (stderr, "bootchart-collector run %sside initrd\n", ret ? "in" : "out");
+  return ret;
+}
+
 /*
  * If we were started during the initrd, (some initrds replace
  * 'init' with bootchartd (strangely) -but- we have no
@@ -591,6 +616,7 @@ int main (int argc, char *argv[])
   DIR *proc = NULL;
   int probe_running = 0;
   int i, use_taskstat, rel = 0, console_debug = 1;
+  int in_initrd;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   const char *dump_path = NULL;
   unsigned long reltime = 0;
@@ -657,7 +683,8 @@ int main (int argc, char *argv[])
     goto exit;
   }
 
-  if (sanity_check_initrd ())
+  in_initrd = am_in_initrd ();
+  if (in_initrd && sanity_check_initrd ())
     goto exit;
 
   pid = bootchart_find_running_pid ();

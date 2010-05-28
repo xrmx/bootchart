@@ -2,16 +2,9 @@
 
 * why no dmesg logging on boot ? [!?]
 
-* chroot construction ...
-	+ The plan:
-		+ we remount ourselves into /dev/.bootchart and chroot into it
-		
-	* remove this 'copy all /lib/bootchart/* into initrd' code
-	  because of (potentially) leaked mounts there ... ;-)
-
+* 
 	* Get the process / fork-following netlink magic to run as a separate thread ...
 
-	* SUSE initrd debugging; use "'shell=1'" - is good ... [!]
 
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
@@ -19,7 +12,7 @@
 	+ merge processes for CPU counts:
 		+ if the ns count is -identical- (and non-zero) it is the same process
 			+ need to back-merge somehow ?
-				:-)
+			+ 'forked' ? ...
 			+ or can we do this by pid ? [ prolly ! ]
 
 	+ fix for profiling a running system ... [ get the origin right ! ]
@@ -113,8 +106,6 @@ Process taskstats in advance
 
 	+ Use netlink to trace process forking etc.
 
-	+ statically link the collector ? [ make jail simpler to make ? ]
-
 	* Need to do some ptrace IPC
 		+ let it continue until it locks-up ?
 		+ hand-shake somehow ? :-)
@@ -122,3 +113,6 @@ Process taskstats in advance
 
 	* mount a tmpfs, create the chroot, and continue ... [!?]
 		+ daemonize if we are going to collect as/when we are up?
+
+
+	* SUSE initrd debugging; use "'shell=1'" - is good ... [!]

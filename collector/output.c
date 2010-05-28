@@ -19,7 +19,7 @@
  * Copyright (C) 2009-2010 Novell, Inc.
  */
 
-#include "bootchart-common.h"
+#include "common.h"
 
 #include <sys/ptrace.h>
 #include <sys/mman.h>

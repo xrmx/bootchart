@@ -30,7 +30,7 @@
  * Copyright (c) Jay Lan, SGI. 2006
  */
 
-#include "bootchart-common.h"
+#include "common.h"
 
 #include <sys/mount.h>
 #include <linux/fs.h>

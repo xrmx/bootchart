@@ -11,8 +11,8 @@ PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
 LIBC_A_PATH = /usr/lib
 
 COLLECTOR = \
-	collector/bootchart-collector.o \
-	collector/bootchart-output.o
+	collector/collector.o \
+	collector/output.o
 
 all: bootchart-collector
 

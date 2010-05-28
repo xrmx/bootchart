@@ -243,7 +243,7 @@ static void dump_buffers (DumpState *s)
      to parse, due to dis-continuous data, discard it */
   max_chunk = MIN (s->map.max_chunk, sizeof (s->map.chunks)/sizeof(s->map.chunks[0]) - 1);
   
-  fprintf (stderr, "reading %d chunks of %d\n", max_chunk, s->map.max_chunk);
+  fprintf (stderr, "reading %d chunks (of %d) ... ", max_chunk, s->map.max_chunk);
   for (i = 0; i < max_chunk; i++)
     {
       FILE *output;
@@ -260,7 +260,7 @@ static void dump_buffers (DumpState *s)
       bytes_dumped += c->length;
       fclose (output);
     }
-  fprintf (stderr, "wrote %ld bytes\n", (long)bytes_dumped);
+  fprintf (stderr, "wrote %ld kb\n", (long)(bytes_dumped+1023)/1024);
 }
  
 /*

@@ -1,6 +1,13 @@
 bootchart2 0.11.4 (Michael Meeks)
-	+ statically link the collector
-		+ more robust for chroots, but 50 -> 500k
+	+ collector
+		+ if run inside an initrd detect when /dev is writable
+		  and remount ourselves into that.
+		+ overflow buffers more elegantly in extremis
+		+ dump full process path and command-line args
+		+ calm down debugging output
+	+ pybootchartgui
+		+ can render logs in a directory again
+		+ has a 'show more' option to show command-lines
 
 bootchart2 0.11.3 (Michael Meeks)
 	+ add $$ display to the bootchart header

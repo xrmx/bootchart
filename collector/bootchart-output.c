@@ -209,11 +209,28 @@ static DumpState *open_pid (int pid)
   return s;
 }
 
-static void close_pid (DumpState *s)
+/*
+ * stop ptracing the process, kill it, and
+ * wait a while hoping it exits (so we can
+ * cleanup after it).
+ */
+static void close_wait_pid (DumpState *s)
 {
+  int i;
+
   ptrace (PTRACE_KILL, s->pid, 0, 0);
   ptrace (PTRACE_DETACH, s->pid, 0, 0);
   close (s->mem);
+
+  /* wait at most second max */
+  for (i = 0; i < 100; i++) {
+    char buffer[1024];
+    sprintf (buffer, PROC_PATH "/%d/cmdline", s->pid);
+    if (access (buffer, R_OK))
+      break;
+    usleep (10 * 1000);
+  }
+
   free (s);
 }
 
@@ -274,7 +291,7 @@ dump_state (const char *output_path)
   } else
     dump_buffers (state);
 
-  close_pid (state);
+  close_wait_pid (state);
 
   return 0;
 }

@@ -32,6 +32,8 @@
 
 #include "bootchart-common.h"
 
+#include <sys/mount.h>
+#include <linux/fs.h>
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
@@ -478,8 +480,7 @@ am_in_initrd (void)
   while (fgets (buffer, 4096, mi)) {
 
     /* we expect: "1 1 0:1 / / rw - rootfs rootfs rw" */
-    if (!strncmp (buffer, "1 1 ", 4))
-      {
+    if (!strncmp (buffer, "1 1 ", 4)) {
 	ret = 1;
 	break;
       }
@@ -487,6 +488,32 @@ am_in_initrd (void)
   fclose (mi);
 
   fprintf (stderr, "bootchart-collector run %sside initrd\n", ret ? "in" : "out");
+  return ret;
+}
+
+
+static int
+have_dev_tmpfs (void)
+{
+  FILE *mi;
+  int ret = 0;
+  char buffer[4096];
+
+  mi = fopen (PROC_PATH "/self/mountinfo", "r");
+
+  /* find a single mount; parent of itself: an initrd */
+  while (fgets (buffer, 4096, mi)) {
+    /* we expect: "17 1 0:15 / /dev rw,relatime - tmpfs udev rw,nr_inodes=0,mode=755 */
+    if (strstr (buffer, "/dev") &&
+	strstr (buffer, "rw") &&
+	strstr (buffer, "tmpfs")) {
+      ret = 1;
+      break;
+    }
+  }
+  fclose (mi);
+
+  fprintf (stderr, "bootchart-collector has %stmpfs on /dev\n", ret ? "" : "no ");
   return ret;
 }
 
@@ -523,6 +550,37 @@ sanity_check_initrd (void)
   return 0;
 }
 
+/*
+ * We cannot rely on a generic Linux knowing that we need have
+ * our special TMPFS_PATH move mounted into the running system
+ * in order to cleanup the initrd. Soo ... we do that ourselves
+ * when we think the time is right. We do this by leaching off
+ * the /dev/ mount which is always (often?) move mounted into the
+ * running system...
+ */
+static int
+chroot_into_dev (void)
+{
+  fprintf (stderr, "bootchart-collector - migrating into /dev/\n");
+
+  if (mkdir (MOVE_DEV_PATH, 0777)) {
+    if (errno != EEXIST) {
+      fprintf (stderr, "bootchart-collector - failed to create "
+	       MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
+      return 1;
+    }
+  }
+  if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL)) {
+    fprintf (stderr, "bootchart-collector - mount failed: '%s'\n", strerror (errno));
+    return 1;
+  }
+  if (chroot (MOVE_DEV_PATH)) {
+    fprintf (stderr, "bootchart-collector - chroot failed: '%s'\n", strerror (errno));
+    return 1;
+  }
+  return 0;
+}
+
 static void
 usage (void)
 {
@@ -546,8 +604,8 @@ static int
 enter_environment (int console_debug)
 {
   /* check it is not already all there */
-  if (!access (TMPFS_PATH "/kmsg", F_OK))
-    return 0;
+//  if (!access (TMPFS_PATH "/kmsg", F_OK))
+//    return 0;
 
   /* create a happy tmpfs */
   if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
@@ -564,8 +622,9 @@ enter_environment (int console_debug)
       return 1;
     }
   }
+
   if (!console_debug)
-	  freopen (TMPFS_PATH "/kmsg", "a", stderr);
+    freopen (TMPFS_PATH "/kmsg", "a", stderr);
 
   /* we badly need proc */
   if (mkdir (PROC_PATH, 0777) < 0) {
@@ -584,8 +643,8 @@ enter_environment (int console_debug)
 
   /* we need our tmpfs to look like this file-system,
      so we can chroot into it if necessary */
-  mkdir (TMPFS_PATH "/lib", 0770);
-  mkdir (TMPFS_PATH "/lib/bootchart", 0770);
+  mkdir (TMPFS_PATH "/lib", 0777);
+  mkdir (TMPFS_PATH "/lib/bootchart", 0777);
   if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
     if (errno != EEXIST) {
       fprintf (stderr, "bootchart-collector failed to create a chroot at "
@@ -628,7 +687,7 @@ int main (int argc, char *argv[])
 {
   DIR *proc = NULL;
   int probe_running = 0;
-  int i, use_taskstat, rel = 0, console_debug = 1;
+  int i, use_taskstat, rel = 0, console_debug = 0;
   int in_initrd;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   const char *dump_path = NULL;
@@ -764,6 +823,17 @@ int main (int argc, char *argv[])
       unsigned long u;
       struct dirent *ent;
 
+      if (in_initrd) {
+	if (have_dev_tmpfs ()) {
+	  if (chroot_into_dev ())
+	    {
+	      fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
+	      return 1;
+	    }
+	  in_initrd = 0;
+	}
+      }
+      
       u = get_uptime (uptime_fd);
       if (!u)
 	return 1;

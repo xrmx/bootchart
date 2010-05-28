@@ -603,10 +603,6 @@ usage (void)
 static int
 enter_environment (int console_debug)
 {
-  /* check it is not already all there */
-//  if (!access (TMPFS_PATH "/kmsg", F_OK))
-//    return 0;
-
   /* create a happy tmpfs */
   if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
     if (errno != EBUSY) {
@@ -656,8 +652,18 @@ enter_environment (int console_debug)
   return 0;
 }
 
+static void
+cleanup_dev (void)
+{
+  if (!access (MOVE_DEV_PATH "/kmsg", W_OK)) {
+    umount (MOVE_DEV_PATH PROC_PATH);
+    umount (MOVE_DEV_PATH);
+    rmdir (MOVE_DEV_PATH);
+  }
+}
+
 static int
-trash_enviroment (void)
+clean_enviroment (void)
 {
   int ret = 0;
 
@@ -687,8 +693,8 @@ int main (int argc, char *argv[])
 {
   DIR *proc = NULL;
   int probe_running = 0;
-  int i, use_taskstat, rel = 0, console_debug = 0;
-  int in_initrd;
+  int i, use_taskstat, rel = 0, console_debug = 1;
+  int in_initrd, clean_environment = 1;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
   const char *dump_path = NULL;
   unsigned long reltime = 0;
@@ -745,13 +751,16 @@ int main (int argc, char *argv[])
   if (enter_environment (console_debug))
     return 1;
 
-  fprintf (stderr, "bootchart-collector started with %d args: ", argc - 1);
+  fprintf (stderr, "bootchart-collector started as pid %d with %d args: ",
+	   (int) getpid(), argc - 1);
   for (i = 1; i < argc; i++)
     fprintf (stderr, "'%s' ", argv[i]);
   fprintf (stderr, "\n");
 
   if (dump_path) {
     ret = dump_state (dump_path);
+    if (!ret)
+      cleanup_dev ();
     goto exit;
   }
 
@@ -761,10 +770,12 @@ int main (int argc, char *argv[])
 
   pid = bootchart_find_running_pid ();
   if (probe_running) {
+    clean_environment = pid < 0;
     ret = pid < 0;
     goto exit;
   } else {
     if (pid >= 0) {
+      clean_environment = 0;
       fprintf (stderr, "bootchart collector already running as pid %d, exiting...\n", pid);
       goto exit;
     }
@@ -899,7 +910,8 @@ int main (int argc, char *argv[])
       ret = 1;
     }
 
-  trash_enviroment();
+  if (clean_environment)
+    clean_enviroment();
 
   return ret;
 }

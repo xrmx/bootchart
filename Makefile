@@ -16,10 +16,10 @@ COLLECTOR = \
 
 all: bootchart-collector
 
-bootchart-collector: $(COLLECTOR)
+bootchart-collector-static: $(COLLECTOR)
 	$(CC) -Wl,--strip-all -Os -static -Icollector -o $@ $^ $(LIBC_A_PATH)/libc.a
 
-bootchart-collector-dynamic: $(COLLECTOR)
+bootchart-collector: $(COLLECTOR)
 	$(CC) -Icollector -o $@ $^
 
 py-install-compile:

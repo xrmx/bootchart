@@ -1,5 +1,7 @@
 ** Bugs:
 
+* why no dmesg logging on boot ? [!?]
+
 * chroot construction ...
 	+ The plan:
 		+ we remount ourselves into /dev/.bootchart and chroot into it

@@ -220,6 +220,7 @@ static void close_pid (DumpState *s)
 static void dump_buffers (DumpState *s)
 {
   int i, max_chunk;
+  size_t bytes_dumped = 0;
 
   /* if we wrapped around, the last chunk is probably unhelpful
      to parse, due to dis-continuous data, discard it */
@@ -234,13 +235,15 @@ static void dump_buffers (DumpState *s)
       size_t addr = (size_t) s->map.chunks[i];
 
       pread (s->mem, &buffer, CHUNK_SIZE, addr);
-      fprintf (stderr, "type: '%s' len %d\n",
-	       c->dest_stream, (int)c->length);
+/*      fprintf (stderr, "type: '%s' len %d\n",
+		c->dest_stream, (int)c->length); */
 
       output = fopen (c->dest_stream, "a+");
       fwrite (c->data, 1, c->length, output);
+      bytes_dumped += c->length;
       fclose (output);
     }
+  fprintf (stderr, "wrote %ld bytes\n", (long)bytes_dumped);
 }
  
 /*

@@ -529,10 +529,6 @@ sanity_check_initrd (void)
   FILE *cmdline;
   char buffer[4096];
 
-  /* are we in a possibly flaky initrd */
-  if (!access ("/dev/random", R_OK))
-    return 0;
-
   cmdline = fopen (PROC_PATH "/cmdline", "r");
   if (!cmdline) {
     fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");

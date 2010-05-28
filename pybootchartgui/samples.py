@@ -108,8 +108,8 @@ class Process:
 	def set_parent(self, processMap):
 		if self.ppid != None:
 			self.parent = processMap.get(self.ppid)
-			if self.parent == None and self.pid > 1:
-				self.writer.warn("warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid))
+#			if self.parent == None and self.pid > 1:
+#				self.writer.warn("warning: no parent for pid '%i' with ppid '%i'" % (self.pid,self.ppid))
 	def get_end_time(self):
 		return self.start_time + self.duration
 

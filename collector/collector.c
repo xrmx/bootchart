@@ -332,12 +332,12 @@ dump_taskstat (BufferFile *file, pid_t pid)
 }
 		
 static void
-dump_proc (BufferFile *file, const char *name)
+dump_proc_stat (BufferFile *file, int pid)
 {
 	int  fd;
 	char filename[PATH_MAX];
 
-	sprintf (filename, PROC_PATH "/%s/stat", name);
+	sprintf (filename, PROC_PATH "/%d/stat", pid);
 
 	fd = open (filename, O_RDONLY);
 	if (fd < 0)
@@ -687,11 +687,11 @@ unsigned long hz = 0;
 
 int main (int argc, char *argv[])
 {
-  DIR *proc = NULL;
   int probe_running = 0;
   int i, use_taskstat, rel = 0, console_debug = 1;
   int in_initrd, clean_environment = 1;
   int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
+  PidScanner *scanner = NULL;
   const char *dump_path = NULL;
   unsigned long reltime = 0;
   BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
@@ -780,13 +780,10 @@ int main (int argc, char *argv[])
   /* defaults */
   if (!hz)
     hz = 50;
-      
-  proc = opendir (PROC_PATH);
-  if (!proc)
-    {
-      fprintf (stderr, "Failed to open " PROC_PATH ": %s\n", strerror(errno));
-      return 1;
-    }
+
+  scanner = pid_scanner_new (PROC_PATH, NULL);
+  if (!scanner)
+    return 1;
 
   for (i = 0; fds [i]; i++)
     {
@@ -825,10 +822,10 @@ int main (int argc, char *argv[])
 
   while (1)
     {
+      pid_t pid;
       char uptime[80];
       size_t uptimelen;
       unsigned long u;
-      struct dirent *ent;
 
       if (in_initrd) {
 	if (have_dev_tmpfs ()) {
@@ -855,18 +852,13 @@ int main (int argc, char *argv[])
       /* output data for each pid */
       buffer_file_append (per_pid_file, uptime, uptimelen);
 
-      rewinddir (proc);
-      while ((ent = readdir (proc)) != NULL) {
-	pid_t pid;
+      pid_scanner_restart (scanner);
+      while ((pid = pid_scanner_next (scanner))) {
 
-	if (!isdigit (ent->d_name[0]))
-	  continue;
-
-	pid = atoi (ent->d_name);
 	if (use_taskstat)
 	  dump_taskstat (per_pid_file, pid);
 	else
-	  dump_proc (per_pid_file, ent->d_name);
+	  dump_proc_stat (per_pid_file, pid);
 	dump_cmdline (cmdline_file, pid);
       }
       buffer_file_append (per_pid_file, "\n", 1);
@@ -900,11 +892,7 @@ int main (int argc, char *argv[])
   ret = 0;
 
  exit:
-  if (proc != NULL && closedir (proc) < 0)
-    {
-      perror ("close /proc");
-      ret = 1;
-    }
+  ret |= pid_scanner_free (scanner);
 
   if (clean_environment)
     clean_enviroment();

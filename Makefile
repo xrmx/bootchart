@@ -12,7 +12,8 @@ LIBC_A_PATH = /usr/lib
 
 COLLECTOR = \
 	collector/collector.o \
-	collector/output.o
+	collector/output.o \
+	collector/tasks.o
 
 all: bootchart-collector
 

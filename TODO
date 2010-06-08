@@ -2,13 +2,10 @@
 
 * Tracing metrics:
 	+ traced %d processes of $$ (!) :-)
-
-* Make printing to the taskstats thread-safe ? ...
-	* fun ! :-) - each new block alloc needs a lock ...
+	+ consumed %d seconds of CPU [ render these ... ]
 
 * why no dmesg logging on boot ? [!?]
 
-* 
 	* Get the process / fork-following netlink magic to run as a separate thread ...
 
 

@@ -21,14 +21,6 @@
 
 #include "common.h"
 
-/*
- * a big bit-field, one bit per pid.
- */
-typedef struct {
-  int  len;
-  unsigned char *pids;
-} PidMap;
-
 static int
 was_known_pid (PidMap *map, pid_t p)
 {
@@ -48,10 +40,8 @@ was_known_pid (PidMap *map, pid_t p)
   return was_known;
 }
 
-struct _PidScanner {
-  PidCreatedFn   create_cb;
-  void          *user_data;
-  PidMap         map;
+typedef struct {
+  PidScanner     parent;
 
   /* fields for /proc polling */
   DIR           *proc;
@@ -60,38 +50,28 @@ struct _PidScanner {
 
   /* fields for /proc/task polling */
   DIR		*proc_task;
-};
+} ProcPidScanner;
 
 PidScanner *
-pid_scanner_new (const char *proc_path, PidCreatedFn create_cb, void *user_data)
+pid_scanner_alloc (int derived_size, PidCreatedFn create_cb, void *user_data)
 {
-  DIR *proc;
   PidScanner *scanner;
 
-  proc = opendir (proc_path);
-  if (!proc) {
-    fprintf (stderr, "Failed to open " PROC_PATH ": %s\n", strerror(errno));
-    return NULL;
-  }
-  scanner = calloc (1, sizeof (PidScanner));
-  if (!scanner) {
-    closedir (proc);
-    return NULL;
-  }
+  scanner = calloc (1, derived_size);
   scanner->create_cb = create_cb;
   scanner->user_data = user_data;
-  scanner->proc = proc;
-  scanner->cur_ent = NULL;
 
   return scanner;
 }
 
-int
-pid_scanner_free (PidScanner *scanner)
+static int
+proc_pid_scanner_free (PidScanner *scanner)
 {
   int ret = 0;
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
+
   if (scanner) {
-    if (closedir (scanner->proc) < 0)
+    if (closedir (ps->proc) < 0)
       {
 	perror ("close /proc");
 	ret = 1;
@@ -101,115 +81,122 @@ pid_scanner_free (PidScanner *scanner)
   return ret;
 }
 
-void
-pid_scanner_restart (PidScanner *scanner)
+static void
+proc_pid_scanner_restart (PidScanner *scanner)
 {
-  rewinddir (scanner->proc);
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
+  rewinddir (ps->proc);
 }
 
-pid_t
-pid_scanner_next (PidScanner *scanner)
+static pid_t
+proc_pid_scanner_next (PidScanner *scanner)
 {
   pid_t pid;
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
 
   do {
-    if (!(scanner->cur_ent = readdir (scanner->proc)))
+    if (!(ps->cur_ent = readdir (ps->proc)))
       return 0;
-  } while (!isdigit (scanner->cur_ent->d_name[0]));
+  } while (!isdigit (ps->cur_ent->d_name[0]));
 
-  pid = atoi (scanner->cur_ent->d_name);
-  scanner->cur_pid = pid;
+  pid = atoi (ps->cur_ent->d_name);
+  ps->cur_pid = pid;
 
-  if (/* scanner->create_cb && */
-      !was_known_pid (&scanner->map, pid)) {
-    fprintf (stdout, "new pid %d\n", pid);
-    if (scanner->create_cb)
-      scanner->create_cb (pid, 0, scanner->user_data);
-  }
+  if (ps->parent.create_cb &&
+      !was_known_pid (&ps->parent.map, pid))
+    ps->parent.create_cb (pid, 0, ps->parent.user_data);
 
   return pid;
 }
 
-pid_t
-pid_scanner_get_cur_pid (PidScanner *scanner)
+static pid_t
+proc_pid_scanner_get_cur_pid (PidScanner *scanner)
 {
-  return scanner->cur_pid;
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
+  return ps->cur_pid;
 }
 
-void
-pid_scanner_get_tasks_start (PidScanner *scanner)
+static void
+proc_pid_scanner_get_tasks_start (PidScanner *scanner)
 {
   // use dirfd and 'openat' to accelerate task reading & path concstruction [!]
   int dfd;
-  char *buffer = alloca (scanner->cur_ent->d_reclen + 10);
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
+  char *buffer = alloca (ps->cur_ent->d_reclen + 10);
 
-  strcpy (buffer, scanner->cur_ent->d_name);
+  strcpy (buffer, ps->cur_ent->d_name);
   strcat (buffer, "/task");
 
-  dfd = openat (dirfd (scanner->proc), buffer, O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_DIRECTORY);
+  dfd = openat (dirfd (ps->proc), buffer, O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_DIRECTORY);
   if (dfd < 0)
-    scanner->proc_task = NULL;
+    ps->proc_task = NULL;
   else
-    scanner->proc_task = fdopendir (dfd);
+    ps->proc_task = fdopendir (dfd);
 }
 
-void
-pid_scanner_get_tasks_stop (PidScanner *scanner)
+static void
+proc_pid_scanner_get_tasks_stop (PidScanner *scanner)
 {
-  if (scanner->proc_task) {
-    closedir (scanner->proc_task);
-    scanner->proc_task = NULL;
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
+
+  if (ps->proc_task) {
+    closedir (ps->proc_task);
+    ps->proc_task = NULL;
   }
 }
 
 /*
  * Return all tasks that are not the current pid.
  */
-pid_t
-pid_scanner_get_tasks_next (PidScanner *scanner)
+static pid_t
+proc_pid_scanner_get_tasks_next (PidScanner *scanner)
 {
   struct dirent *tent;
+  ProcPidScanner *ps = (ProcPidScanner *)scanner;
 
-  if (!scanner->proc_task)
+  if (!ps->proc_task)
     return 0;
 
   for (;;) {
     pid_t tpid;
 
-    if ((tent = readdir (scanner->proc_task)) == NULL)
+    if ((tent = readdir (ps->proc_task)) == NULL)
       return 0;
     if (!isdigit (tent->d_name[0]))
       continue;
-    if ((tpid = atoi (tent->d_name)) != scanner->cur_pid) {
-/*    fprintf (stdout, "pid %d has tpid %d\n", scanner->cur_pid, tpid); */
+    if ((tpid = atoi (tent->d_name)) != ps->cur_pid) {
+/*    fprintf (stdout, "pid %d has tpid %d\n", ps->cur_pid, tpid); */
       return tpid;
     }
   }
 }
 
-#if 0 
-
-void
-pid_scan_start (PidCreatedFn _create_cb,
-		PidDeletedFn _delete_cb)
+PidScanner *
+pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_data)
 {
-  PidMap map = { 0, 0 };
+  ProcPidScanner *ps = (ProcPidScanner *) pid_scanner_alloc (sizeof (ProcPidScanner),
+							     create_cb, user_data);
 
-  create_cb = _create_cb;
-  delete_cb = _delete_cb;
-
-  proc_readdir_scan (&map, NULL);
-
-  if (can_open_netlink_foo()) {
-    pthread_create (netlink_goodness);
-  } else {
-    pthread_create (proc_polling_evil);
+  ps->proc = opendir (proc_path);
+  if (!ps->proc) {
+    fprintf (stderr, "Failed to open " PROC_PATH ": %s\n", strerror(errno));
+    return NULL;
   }
-}
+  ps->cur_ent = NULL;
 
-void
-pid_scan_stop (void)
-{
+  /* vtable in-fill */
+
+#define INIT(name) ps->parent.name = proc_pid_scanner_##name
+  INIT(free);
+  INIT(restart);
+  INIT(next);
+  INIT(get_cur_pid);
+  INIT(get_tasks_start);
+  INIT(get_tasks_next);
+  INIT(get_tasks_stop);
+#undef INIT
+
+  return (PidScanner *)ps;
 }
 
 /*
@@ -229,4 +216,8 @@ pid_scan_stop (void)
 /* and some call-backs, queueing things up for the other process */
 /* we create some memory and throw it across (somehow) */
 
-#endif
+PidScanner *
+pid_scanner_new_netlink (PidCreatedFn create_cb, void *user_data)
+{
+  return NULL;
+}

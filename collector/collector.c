@@ -800,7 +800,9 @@ int main (int argc, char *argv[])
       return 1;
     }
 
-  scanner = pid_scanner_new (PROC_PATH, pid_created_cb, cmdline_file);
+  scanner = pid_scanner_new_netlink (pid_created_cb, cmdline_file);
+  if (!scanner)
+    scanner = pid_scanner_new_proc (PROC_PATH, pid_created_cb, cmdline_file);
   if (!scanner)
     return 1;
 
@@ -881,7 +883,8 @@ int main (int argc, char *argv[])
   ret = 0;
 
  exit:
-  ret |= pid_scanner_free (scanner);
+  if (scanner)
+    ret |= pid_scanner_free (scanner);
 
   if (clean_environment)
     clean_enviroment();

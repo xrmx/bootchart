@@ -50,6 +50,7 @@ was_known_pid (PidMap *map, pid_t p)
 
 struct _PidScanner {
   PidCreatedFn   create_cb;
+  void          *user_data;
   PidMap         map;
 
   /* fields for /proc polling */
@@ -62,7 +63,7 @@ struct _PidScanner {
 };
 
 PidScanner *
-pid_scanner_new (const char *proc_path, PidCreatedFn create_cb)
+pid_scanner_new (const char *proc_path, PidCreatedFn create_cb, void *user_data)
 {
   DIR *proc;
   PidScanner *scanner;
@@ -78,6 +79,7 @@ pid_scanner_new (const char *proc_path, PidCreatedFn create_cb)
     return NULL;
   }
   scanner->create_cb = create_cb;
+  scanner->user_data = user_data;
   scanner->proc = proc;
   scanner->cur_ent = NULL;
 
@@ -122,7 +124,7 @@ pid_scanner_next (PidScanner *scanner)
       !was_known_pid (&scanner->map, pid)) {
     fprintf (stdout, "new pid %d\n", pid);
     if (scanner->create_cb)
-      scanner->create_cb (pid, 0);
+      scanner->create_cb (pid, 0, scanner->user_data);
   }
 
   return pid;
@@ -186,83 +188,6 @@ pid_scanner_get_tasks_next (PidScanner *scanner)
 }
 
 #if 0 
-/* urgh */
-static 
-static PidDeletedFn delete_cb;
-
-/* -------------- old style /proc readdir -------------- */
-
-/*
- * a big bit-field, one bit per pid.
- */
-typedef struct {
-  int  len;
-  unsigned char *pids;
-} PidMap;
-
-static int
-was_known_pid (PidMap *map, pid_t p)
-{
-  int bit = p & 0x7;
-  int offset = p >> 3;
-  int was_known;
-
-  if (map->len <= offset) {
-    map->len += 512;
-    ma->pids = realloc (map->pids, map->len);
-    memset (map->pids + map->len - 512, 0, 512);
-  }
-
-  was_known = map->pids[offset] & (1 << bit);
-  map->pids[offset] |= (1 << bit);
-
-  return was_known;
-}
-
-static void
-proc_readdir_scan (PidMap *map, DIR *in_proc)
-{
-  DIR *proc = in_proc;
-  struct dirent *ent;
-
-  if (!proc)
-    rewinddir (proc);
-  else
-    proc = opendir (PROC_PATH);
-
-  if (!proc)
-    return;
-
-  while ((ent = readdir (proc)) != NULL) {
-    pid_t pid;
-
-    if (!isdigit (ent->d_name[0]))
-      continue;
-
-    if (!was_known (map, pid))
-      create_cb (pid, 0);
-  }
-
-  if (!in_proc)
-    closedir (proc);
-}
-
-static void
-proc_readdir_consolidate (PidMap *map, PidMap *map)
-{
-  /* compare PidMaps and emit 'deleted' events ? */
-}
-
-static void
-proc_polling_evil (void *)
-{
-}
-
-
-static void
-netlink_goodness (void *)
-{
-}
 
 void
 pid_scan_start (PidCreatedFn _create_cb,
@@ -286,8 +211,6 @@ void
 pid_scan_stop (void)
 {
 }
-
-
 
 /*
  * FIXME - everyone reads from the PidEntries table,

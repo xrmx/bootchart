@@ -21,7 +21,7 @@ bootchart-collector-static: $(COLLECTOR)
 	$(CC) -Wl,--strip-all -Os -static -Icollector -o $@ $^ $(LIBC_A_PATH)/libc.a
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) -Icollector -o $@ $^
+	$(CC) -lpthread -Icollector -o $@ $^
 
 py-install-compile:
 	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui

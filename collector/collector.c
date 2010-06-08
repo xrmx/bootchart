@@ -62,7 +62,7 @@ get_pid_entry (pid_t pid)
   return pids + pid;
 }
 
-unsigned long get_uptime (int fd);
+static unsigned long get_uptime (int fd);
 
 /* Netlink socket-set bits */
 static int   netlink_socket = -1;
@@ -363,7 +363,16 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	buffer_file_append (file, "\n\n", 2);
 }
 
-unsigned long
+static void
+pid_created_cb (pid_t pid, pid_t ppid, void *user_data)
+{
+  BufferFile *cmdline_file = user_data;
+
+  dump_cmdline (cmdline_file, pid);
+}
+
+
+static unsigned long
 get_uptime (int fd)
 {
 	char          buf[80];
@@ -762,10 +771,6 @@ int main (int argc, char *argv[])
   if (!hz)
     hz = 50;
 
-  scanner = pid_scanner_new (PROC_PATH, NULL);
-  if (!scanner)
-    return 1;
-
   for (i = 0; fds [i]; i++)
     {
       char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
@@ -794,6 +799,10 @@ int main (int argc, char *argv[])
       fprintf (stderr, "Error allocating output buffers\n");
       return 1;
     }
+
+  scanner = pid_scanner_new (PROC_PATH, pid_created_cb, cmdline_file);
+  if (!scanner)
+    return 1;
 
   if (rel) {
     reltime = get_uptime (uptime_fd);
@@ -840,7 +849,6 @@ int main (int argc, char *argv[])
 	  dump_taskstat (per_pid_file, scanner);
 	else
 	  dump_proc_stat (per_pid_file, pid);
-	dump_cmdline (cmdline_file, pid);
       }
       buffer_file_append (per_pid_file, "\n", 1);
 

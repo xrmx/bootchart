@@ -30,6 +30,9 @@
 static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 {
   Chunk *c;
+  static pthread_mutex_t guard = PTHREAD_MUTEX_INITIALIZER;
+
+  pthread_mutex_lock (&guard);
 
   /* if we run out of buffer, just keep writing to the last buffer */
   if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0]))
@@ -43,16 +46,22 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 	}
       c = sm->chunks[sm->max_chunk - 1];
       c->length = 0;
-      return c;
+    }
+  else
+    {
+      c = calloc (CHUNK_SIZE, 1);
+      strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
+      c->length = 0;
+      sm->chunks[sm->max_chunk++] = c;
     }
 
-  c = calloc (CHUNK_SIZE, 1);
-  strncpy (c->dest_stream, dest, sizeof (c->dest_stream));
-  c->length = 0;
-  sm->chunks[sm->max_chunk++] = c;
+  pthread_mutex_unlock (&guard);
   return c;
 }
 
+/*
+ * Safe to use from a single thread.
+ */
 BufferFile *
 buffer_file_new (StackMap *sm, const char *output_fname)
 {

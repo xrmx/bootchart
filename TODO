@@ -1,5 +1,8 @@
 ** Bugs:
 
+* Tracing metrics:
+	+ traced %d processes of $$ (!) :-)
+
 * Make printing to the taskstats thread-safe ? ...
 	* fun ! :-) - each new block alloc needs a lock ...
 

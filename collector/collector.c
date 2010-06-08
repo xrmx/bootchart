@@ -215,53 +215,35 @@ get_taskstats (pid_t pid)
  * in the kernel - we have to manually aggregate here.
  */
 static struct taskstats *
-get_tgid_taskstats (pid_t pid)
+get_tgid_taskstats (PidScanner *scanner)
 {
-	DIR *tdir;
-	struct dirent *tent;
+	pid_t tpid;
 	struct taskstats *ts;
 	static struct taskstats tgits;
-	char proc_task_buffer[1024];
 
 	memset (&tgits, 0, sizeof (struct taskstats));
 
-	ts = get_taskstats (pid);
+	ts = get_taskstats (pid_scanner_get_cur_pid (scanner));
 	if (!ts)
 		return NULL;
 
 	tgits = *ts;
 
-	snprintf (proc_task_buffer, 1023, PROC_PATH "/%d/task", pid);
-	tdir = opendir (proc_task_buffer);
-	if (!tdir) {
-//		fprintf (stderr, "no task data for %d (at '%s')\n", pid, proc_task_buffer);
-		return &tgits;
-	}
+	pid_scanner_get_tasks_start (scanner);
+	while ((tpid = pid_scanner_get_tasks_next (scanner))) {
+		struct taskstats *ts = get_taskstats (tpid);
 
-	while ((tent = readdir (tdir)) != NULL) {
-		pid_t tpid;
-		if (!isdigit (tent->d_name[0]))
+		if (!ts)
 			continue;
 
-//		fprintf (stderr, "read taskstats data from %d/%s\n", pid, tent->d_name);
-		tpid = atoi (tent->d_name);
-		if (pid != tpid) {
-			struct taskstats *ts = get_taskstats (tpid);
+//		fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total);
 
-			if (!ts) {
-//				fprintf (stderr, "error no taskstats %d\n", tpid);
-				continue;
-			}
-
-//			fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total);
-
-			/* aggregate */
-			tgits.cpu_run_real_total += ts->cpu_run_real_total;
-			tgits.swapin_delay_total += ts->swapin_delay_total;
-			tgits.blkio_delay_total += ts->blkio_delay_total;
-		}
+		/* aggregate */
+		tgits.cpu_run_real_total += ts->cpu_run_real_total;
+		tgits.swapin_delay_total += ts->swapin_delay_total;
+		tgits.blkio_delay_total += ts->blkio_delay_total;
 	}
-	closedir (tdir);
+	pid_scanner_get_tasks_stop (scanner);
 
 	return &tgits;
 }
@@ -274,7 +256,7 @@ get_tgid_taskstats (pid_t pid)
  *   linux/kernel/delayacct.c // needs delay accounting enabled
  */
 static void
-dump_taskstat (BufferFile *file, pid_t pid)
+dump_taskstat (BufferFile *file, PidScanner *scanner)
 {
 	int output_len;
 	char output_line[1024];
@@ -282,8 +264,7 @@ dump_taskstat (BufferFile *file, pid_t pid)
 	__u64 time_total;
 	struct taskstats *ts;
 	
-	ts = get_tgid_taskstats (pid);
-
+	ts = get_tgid_taskstats (scanner);
 	if (!ts) /* process exited before we got there */
 		return;
 
@@ -856,7 +837,7 @@ int main (int argc, char *argv[])
       while ((pid = pid_scanner_next (scanner))) {
 
 	if (use_taskstat)
-	  dump_taskstat (per_pid_file, pid);
+	  dump_taskstat (per_pid_file, scanner);
 	else
 	  dump_proc_stat (per_pid_file, pid);
 	dump_cmdline (cmdline_file, pid);

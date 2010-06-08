@@ -1,5 +1,8 @@
 ** Bugs:
 
+* Make printing to the taskstats thread-safe ? ...
+	* fun ! :-) - each new block alloc needs a lock ...
+
 * why no dmesg logging on boot ? [!?]
 
 * 

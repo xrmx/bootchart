@@ -21,10 +21,44 @@
 
 #include "common.h"
 
+/*
+ * a big bit-field, one bit per pid.
+ */
+typedef struct {
+  int  len;
+  unsigned char *pids;
+} PidMap;
+
+static int
+was_known_pid (PidMap *map, pid_t p)
+{
+  int bit = p & 0x7;
+  int offset = p >> 3;
+  int was_known;
+
+  if (map->len <= offset) {
+    map->len += 512;
+    map->pids = realloc (map->pids, map->len);
+    memset (map->pids + map->len - 512, 0, 512);
+  }
+
+  was_known = map->pids[offset] & (1 << bit);
+  map->pids[offset] |= (1 << bit);
+
+  return was_known;
+}
+
 struct _PidScanner {
   PidCreatedFn   create_cb;
+  PidMap         map;
+
+  /* fields for /proc polling */
   DIR           *proc;
   struct dirent *cur_ent;
+  pid_t	         cur_pid;
+
+  /* fields for /proc/task polling */
+  DIR		*proc_task;
 };
 
 PidScanner *
@@ -38,7 +72,7 @@ pid_scanner_new (const char *proc_path, PidCreatedFn create_cb)
     fprintf (stderr, "Failed to open " PROC_PATH ": %s\n", strerror(errno));
     return NULL;
   }
-  scanner = malloc (sizeof (PidScanner));
+  scanner = calloc (1, sizeof (PidScanner));
   if (!scanner) {
     closedir (proc);
     return NULL;
@@ -74,26 +108,81 @@ pid_scanner_restart (PidScanner *scanner)
 pid_t
 pid_scanner_next (PidScanner *scanner)
 {
+  pid_t pid;
+
   do {
-    scanner->cur_ent = readdir (scanner->proc);
-    if (!scanner->cur_ent)
+    if (!(scanner->cur_ent = readdir (scanner->proc)))
       return 0;
   } while (!isdigit (scanner->cur_ent->d_name[0]));
 
-  return atoi (scanner->cur_ent->d_name);
-}
+  pid = atoi (scanner->cur_ent->d_name);
+  scanner->cur_pid = pid;
 
-int
-pid_scanner_cur_task_count (PidScanner *scanner)
-{
-  // use dirfd and 'openat' to accelerate task reading & path concstruction [!]
-  return 0;
+  if (/* scanner->create_cb && */
+      !was_known_pid (&scanner->map, pid)) {
+    fprintf (stdout, "new pid %d\n", pid);
+    if (scanner->create_cb)
+      scanner->create_cb (pid, 0);
+  }
+
+  return pid;
 }
 
 pid_t
-pid_scanner_cur_get_task (PidScanner *scanner, int t)
+pid_scanner_get_cur_pid (PidScanner *scanner)
 {
-  return 0;
+  return scanner->cur_pid;
+}
+
+void
+pid_scanner_get_tasks_start (PidScanner *scanner)
+{
+  // use dirfd and 'openat' to accelerate task reading & path concstruction [!]
+  int dfd;
+  char *buffer = alloca (scanner->cur_ent->d_reclen + 10);
+
+  strcpy (buffer, scanner->cur_ent->d_name);
+  strcat (buffer, "/task");
+
+  dfd = openat (dirfd (scanner->proc), buffer, O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_DIRECTORY);
+  if (dfd < 0)
+    scanner->proc_task = NULL;
+  else
+    scanner->proc_task = fdopendir (dfd);
+}
+
+void
+pid_scanner_get_tasks_stop (PidScanner *scanner)
+{
+  if (scanner->proc_task) {
+    closedir (scanner->proc_task);
+    scanner->proc_task = NULL;
+  }
+}
+
+/*
+ * Return all tasks that are not the current pid.
+ */
+pid_t
+pid_scanner_get_tasks_next (PidScanner *scanner)
+{
+  struct dirent *tent;
+
+  if (!scanner->proc_task)
+    return 0;
+
+  for (;;) {
+    pid_t tpid;
+
+    if ((tent = readdir (scanner->proc_task)) == NULL)
+      return 0;
+    if (!isdigit (tent->d_name[0]))
+      continue;
+    if ((tpid = atoi (tent->d_name)) != scanner->cur_pid) {
+/*    fprintf (stdout, "pid %d has tpid %d\n", scanner->cur_pid, tpid); */
+      return tpid;
+    }
+  }
 }
 
 #if 0 

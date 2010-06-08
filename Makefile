@@ -3,7 +3,7 @@ PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
 CC = gcc
-CFLAGS = -g -Wall -Os
+CFLAGS = -g -Wall -O0
 
 BINDIR ?= /usr/bin
 PY_LIBDIR ?= /usr/lib/python2.6
@@ -13,7 +13,8 @@ LIBC_A_PATH = /usr/lib
 COLLECTOR = \
 	collector/collector.o \
 	collector/output.o \
-	collector/tasks.o
+	collector/tasks.o \
+	collector/tasks-netlink.o
 
 all: bootchart-collector
 

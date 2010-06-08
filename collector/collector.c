@@ -364,7 +364,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 }
 
 static void
-pid_created_cb (pid_t pid, pid_t ppid, void *user_data)
+pid_created_cb (pid_t pid, void *user_data)
 {
   BufferFile *cmdline_file = user_data;
 

@@ -102,9 +102,7 @@ proc_pid_scanner_next (PidScanner *scanner)
   pid = atoi (ps->cur_ent->d_name);
   ps->cur_pid = pid;
 
-  if (ps->parent.create_cb &&
-      !was_known_pid (&ps->parent.map, pid))
-    ps->parent.create_cb (pid, 0, ps->parent.user_data);
+  pid_scanner_callback (scanner, pid);
 
   return pid;
 }
@@ -184,8 +182,7 @@ pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_
   }
   ps->cur_ent = NULL;
 
-  /* vtable in-fill */
-
+  /* vtable land-fill */
 #define INIT(name) ps->parent.name = proc_pid_scanner_##name
   INIT(free);
   INIT(restart);
@@ -199,25 +196,10 @@ pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_
   return (PidScanner *)ps;
 }
 
-/*
- * FIXME - everyone reads from the PidEntries table,
- *       - but, changes to it are queued up for merging 
- *         later ? - how can it change ? new pids @ end ?
- */
-
-/*
- * FIXME: problems - we need to keep time_total up-to-date there ...
- *        hmmm [!] - we need a structure we can read/write to from
- *	  multiple threads concurrently. Urk.
- */
-
-/* FIXME - threading means duplication */
-/* so - we have two sets of data - a bit-field magic in here */
-/* and some call-backs, queueing things up for the other process */
-/* we create some memory and throw it across (somehow) */
-
-PidScanner *
-pid_scanner_new_netlink (PidCreatedFn create_cb, void *user_data)
+void
+pid_scanner_callback (PidScanner *scanner, pid_t new_pid)
 {
-  return NULL;
+  if (scanner->create_cb &&
+      !was_known_pid (&scanner->map, new_pid))
+    scanner->create_cb (new_pid, scanner->user_data);
 }

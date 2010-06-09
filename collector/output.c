@@ -172,7 +172,8 @@ find_chunks (DumpState *s)
 			 buffer, p + 1);
 
 		copy = malloc (end - start);
-		pread (s->mem, copy, end - start, start);
+		while (pread (s->mem, copy, end - start, start) < 0 &&
+		       (errno == EINTR || errno == EAGAIN));
 
 		map = search_stack (copy, end - start);
 		if (map) {

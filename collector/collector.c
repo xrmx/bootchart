@@ -48,20 +48,17 @@ typedef struct {
 static inline PidEntry *
 get_pid_entry (pid_t pid)
 {
-  static PidEntry *pids = NULL;
-  static pid_t     pids_size = 0;
+	static PidEntry *pids = NULL;
+	static pid_t     pids_size = 0;
 
-  pid_t old_pids_size = pids_size;
-  if (pid >= pids_size)
-    {
-      pids_size = pid + 512;
-      pids = realloc (pids, sizeof (PidEntry) * pids_size);
-      memset (pids + old_pids_size, 0, sizeof (PidEntry) * (pids_size - old_pids_size));
-    }
-  return pids + pid;
+	pid_t old_pids_size = pids_size;
+	if (pid >= pids_size) {
+		pids_size = pid + 512;
+		pids = realloc (pids, sizeof (PidEntry) * pids_size);
+		memset (pids + old_pids_size, 0, sizeof (PidEntry) * (pids_size - old_pids_size));
+	}
+	return pids + pid;
 }
-
-static unsigned long get_uptime (int fd);
 
 /* Netlink socket-set bits */
 static int   netlink_socket = -1;
@@ -80,11 +77,6 @@ struct msgtemplate {
 	struct genlmsghdr g;
 	char buf[MAX_MSG_SIZE];
 };
-
-extern int dbg;
-#define PRINTF(fmt, arg...) {			\
-    fprintf(stderr, fmt, ##arg);			\
-	}
 
 static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 	     __u8 genl_cmd, __u16 nla_type,
@@ -128,52 +120,50 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 static struct taskstats *
 wait_taskstats (void)
 {
-  static struct msgtemplate msg;
-  int rep_len;
+	static struct msgtemplate msg;
+	int rep_len;
 
-  for (;;) {
-
-    while ((rep_len = recv(netlink_socket, &msg, sizeof(msg), 0)) < 0 && errno == EINTR);
+	for (;;) {
+		while ((rep_len = recv (netlink_socket, &msg, sizeof(msg), 0)) < 0 && errno == EINTR);
   
-    if (msg.n.nlmsg_type == NLMSG_ERROR ||
-	!NLMSG_OK((&msg.n), rep_len)) {
-      /* process died before we got to it or somesuch */
-      /* struct nlmsgerr *err = NLMSG_DATA(&msg);
-	 fprintf (stderr, "fatal reply error,  errno %d\n", err->error); */
-      return NULL;
-    }
+		if (msg.n.nlmsg_type == NLMSG_ERROR ||
+		    !NLMSG_OK((&msg.n), rep_len)) {
+			/* process died before we got to it or somesuch */
+			/* struct nlmsgerr *err = NLMSG_DATA(&msg);
+			   fprintf (stderr, "fatal reply error,  errno %d\n", err->error); */
+			return NULL;
+		}
   
-    int rep_len = GENLMSG_PAYLOAD(&msg.n);
-    struct nlattr *na = (struct nlattr *) GENLMSG_DATA(&msg);
-    int len = 0;
-  
-    while (len < rep_len) {
-      len += NLA_ALIGN(na->nla_len);
-      switch (na->nla_type) {
-      case TASKSTATS_TYPE_AGGR_PID:
-	{
-	  int aggr_len = NLA_PAYLOAD(na->nla_len);
-	  int len2 = 0;
+		int rep_len = GENLMSG_PAYLOAD(&msg.n);
+		struct nlattr *na = (struct nlattr *) GENLMSG_DATA(&msg);
+		int len = 0;
+		
+		while (len < rep_len) {
+			len += NLA_ALIGN(na->nla_len);
+			switch (na->nla_type) {
+			case TASKSTATS_TYPE_AGGR_PID: {
+				int aggr_len = NLA_PAYLOAD(na->nla_len);
+				int len2 = 0;
 
-	  /* For nested attributes, na follows */
-	  na = (struct nlattr *) NLA_DATA(na);
+				/* For nested attributes, na follows */
+				na = (struct nlattr *) NLA_DATA(na);
+				
+				/* find the record we care about */
+				while (na->nla_type != TASKSTATS_TYPE_STATS) {
+					len2 += NLA_ALIGN(na->nla_len);
 
-	  /* find the record we care about */
-	  while (na->nla_type != TASKSTATS_TYPE_STATS) {
-	    len2 += NLA_ALIGN(na->nla_len);
-
-	    if (len2 >= aggr_len)
-	      goto next_attr;
-	    na = (struct nlattr *) ((char *) na + len2);
-	  }
-	  return (struct taskstats *) NLA_DATA(na);
+					if (len2 >= aggr_len)
+						goto next_attr;
+					na = (struct nlattr *) ((char *) na + len2);
+				}
+				return (struct taskstats *) NLA_DATA(na);
+			}
+			}
+		next_attr:
+			na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);
+		}
 	}
-      }
-    next_attr:
-      na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);
-    }
-  }
-  return NULL;
+	return NULL;
 }
 
 /*
@@ -192,7 +182,6 @@ get_taskstats (pid_t pid)
 
 	if (rc < 0)
 		return NULL;
-	;
 
 	/* get reply */
 	ts = wait_taskstats ();
@@ -235,7 +224,7 @@ get_tgid_taskstats (PidScanner *scanner)
 		if (!ts)
 			continue;
 
-//		fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total);
+/*		fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total); */
 
 		/* aggregate */
 		tgits.cpu_run_real_total += ts->cpu_run_real_total;
@@ -252,7 +241,7 @@ get_tgid_taskstats (PidScanner *scanner)
  *   /proc/./stat: linux/fs/proc/array.c (do_task_stat)
  * and another high-res (but different) set of data in:
  *   linux/kernel/tsacct.c
- *   linux/kernel/delayacct.c // needs delay accounting enabled
+ *   linux/kernel/delayacct.c - needs delay accounting enabled
  */
 static void
 dump_taskstat (BufferFile *file, PidScanner *scanner)
@@ -294,9 +283,9 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 
 	buffer_file_append (file, output_line, output_len);
 
-	// FIXME - can we get better stats on what is waiting for what ?
-	// 'blkio_count / blkio_delay_total' ... [etc.]
-	// 'delay waiting for CPU while runnable' ... [!] fun :-)
+/*	   FIXME - can we get better stats on what is waiting for what ?
+	   'blkio_count / blkio_delay_total' ... [etc.]
+	   'delay waiting for CPU while runnable' ... [!] fun :-) */
 		
 	/* The data we get from /proc is: */
 	/*
@@ -309,7 +298,7 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 	/* 'state' - 'S' or ... */
 	/* instead we really want the I/O delay rendered I think */
 	/* Grief - how reliable & rapidly updated is the "state" information ? */
-//		+ ho hum ! + - the big flaw ?
+/*		+ ho hum ! + - the big flaw ? */
 	/* ppid - parent pid - ac_ppid easy */
 	/* userCpu, sysCPU - we can only get the sum of these: cpu_run_real_total in ns */
 	/* though we could - approximate this with ac_utime / ac_stime in 'usec' */
@@ -482,51 +471,50 @@ error:
 static int
 am_in_initrd (void)
 {
-  FILE *mi;
-  int ret = 0;
-  char buffer[4096];
+	FILE *mi;
+	int ret = 0;
+	char buffer[4096];
 
-  mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	mi = fopen (PROC_PATH "/self/mountinfo", "r");
 
-  /* find a single mount; parent of itself: an initrd */
-  while (fgets (buffer, 4096, mi)) {
+	/* find a single mount; parent of itself: an initrd */
+	while (fgets (buffer, 4096, mi)) {
+		/* we expect: "1 1 0:1 / / rw - rootfs rootfs rw" */
+		if (!strncmp (buffer, "1 1 ", 4)) {
+			ret = 1;
+			break;
+		}
+	}
+	fclose (mi);
 
-    /* we expect: "1 1 0:1 / / rw - rootfs rootfs rw" */
-    if (!strncmp (buffer, "1 1 ", 4)) {
-	ret = 1;
-	break;
-      }
-  }
-  fclose (mi);
-
-  fprintf (stderr, "bootchart-collector run %sside initrd\n", ret ? "in" : "out");
-  return ret;
+	fprintf (stderr, "bootchart-collector run %sside initrd\n", ret ? "in" : "out");
+	return ret;
 }
 
 
 static int
 have_dev_tmpfs (void)
 {
-  FILE *mi;
-  int ret = 0;
-  char buffer[4096];
+	FILE *mi;
+	int ret = 0;
+	char buffer[4096];
 
-  mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	mi = fopen (PROC_PATH "/self/mountinfo", "r");
 
-  /* find a single mount; parent of itself: an initrd */
-  while (fgets (buffer, 4096, mi)) {
-    /* we expect: "17 1 0:15 / /dev rw,relatime - tmpfs udev rw,nr_inodes=0,mode=755 */
-    if (strstr (buffer, "/dev") &&
-	strstr (buffer, "rw") &&
-	strstr (buffer, "tmpfs")) {
-      ret = 1;
-      break;
-    }
-  }
-  fclose (mi);
+	/* find a single mount; parent of itself: an initrd */
+	while (fgets (buffer, 4096, mi)) {
+		/* we expect: "17 1 0:15 / /dev rw,relatime - tmpfs udev rw,nr_inodes=0,mode=755 */
+		if (strstr (buffer, "/dev") &&
+		    strstr (buffer, "rw") &&
+		    strstr (buffer, "tmpfs")) {
+			ret = 1;
+			break;
+		}
+	}
+	fclose (mi);
 
-  fprintf (stderr, "bootchart-collector has %stmpfs on /dev\n", ret ? "" : "no ");
-  return ret;
+	fprintf (stderr, "bootchart-collector has %stmpfs on /dev\n", ret ? "" : "no ");
+	return ret;
 }
 
 /*
@@ -538,24 +526,24 @@ have_dev_tmpfs (void)
 static int
 sanity_check_initrd (void)
 {
-  FILE *cmdline;
-  char buffer[4096];
+	FILE *cmdline;
+	char buffer[4096];
 
-  cmdline = fopen (PROC_PATH "/cmdline", "r");
-  if (!cmdline) {
-    fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
-    return 1;
-  }
-  fgets (buffer, sizeof (buffer), cmdline);
-  fclose (cmdline);
+	cmdline = fopen (PROC_PATH "/cmdline", "r");
+	if (!cmdline) {
+		fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
+		return 1;
+	}
+	fgets (buffer, sizeof (buffer), cmdline);
+	fclose (cmdline);
 
-  if (!strstr (buffer, "init=") ||
-      !strstr (buffer, "bootchartd")) {
-    fprintf (stderr, "Urk ! can't find bootchartd on the cmdline\n");
-    return 1;
-  }
+	if (!strstr (buffer, "init=") ||
+	    !strstr (buffer, "bootchartd")) {
+		fprintf (stderr, "Urk ! can't find bootchartd on the cmdline\n");
+		return 1;
+	}
 
-  return 0;
+	return 0;
 }
 
 /*
@@ -569,38 +557,38 @@ sanity_check_initrd (void)
 static int
 chroot_into_dev (void)
 {
-  fprintf (stderr, "bootchart-collector - migrating into /dev/\n");
+	fprintf (stderr, "bootchart-collector - migrating into /dev/\n");
 
-  if (mkdir (MOVE_DEV_PATH, 0777)) {
-    if (errno != EEXIST) {
-      fprintf (stderr, "bootchart-collector - failed to create "
-	       MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
-      return 1;
-    }
-  }
-  if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL)) {
-    fprintf (stderr, "bootchart-collector - mount failed: '%s'\n", strerror (errno));
-    return 1;
-  }
-  if (chroot (MOVE_DEV_PATH)) {
-    fprintf (stderr, "bootchart-collector - chroot failed: '%s'\n", strerror (errno));
-    return 1;
-  }
-  return 0;
+	if (mkdir (MOVE_DEV_PATH, 0777)) {
+		if (errno != EEXIST) {
+			fprintf (stderr, "bootchart-collector - failed to create "
+				 MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
+			return 1;
+		}
+	}
+	if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL)) {
+		fprintf (stderr, "bootchart-collector - mount failed: '%s'\n", strerror (errno));
+		return 1;
+	}
+	if (chroot (MOVE_DEV_PATH)) {
+		fprintf (stderr, "bootchart-collector - chroot failed: '%s'\n", strerror (errno));
+		return 1;
+	}
+	return 0;
 }
 
 static void
 usage (void)
 {
-  fprintf (stderr, "Usage: bootchart-collector [--usleep <usecs>] [-r] [--dump <path>] [hz=50]\n");
-  fprintf (stderr, "swiss-army boot-charting tool.\n");
-  fprintf (stderr, "   --usleep <usecs>	sleeps for given number of usecs and exits.\n");
-  fprintf (stderr, "   --probe-running	returns success if a bootchart collector is running.\n");
-  fprintf (stderr, "   --dump <path>	if another bootchart is running, dumps it's state to <path> and exits.\n");
-  fprintf (stderr, "   -r		use relative time-stamps from the profile starting\n");
-  fprintf (stderr, "   --console/-c	output debug on the console, not into kernel log\n");
-  fprintf (stderr, "   <otherwise>	internally logs profiling data samples at frequency <hz>\n");
-  exit (1);
+	fprintf (stderr, "Usage: bootchart-collector [--usleep <usecs>] [-r] [--dump <path>] [hz=50]\n");
+	fprintf (stderr, "swiss-army boot-charting tool.\n");
+	fprintf (stderr, "   --usleep <usecs>	sleeps for given number of usecs and exits.\n");
+	fprintf (stderr, "   --probe-running	returns success if a bootchart collector is running.\n");
+	fprintf (stderr, "   --dump <path>	if another bootchart is running, dumps it's state to <path> and exits.\n");
+	fprintf (stderr, "   -r		use relative time-stamps from the profile starting\n");
+	fprintf (stderr, "   --console/-c	output debug on the console, not into kernel log\n");
+	fprintf (stderr, "   <otherwise>	internally logs profiling data samples at frequency <hz>\n");
+	exit (1);
 }
 
 /*
@@ -611,306 +599,296 @@ usage (void)
 static int
 enter_environment (int console_debug)
 {
-  /* create a happy tmpfs */
-  if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
-    if (errno != EBUSY) {
-      fprintf (stderr, "bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
-      return 1;
-    }
-  }
+	/* create a happy tmpfs */
+	if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
+		if (errno != EBUSY) {
+			fprintf (stderr, "bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
+			return 1;
+		}
+	}
 
-  /* re-direct debugging output */
-  if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
-    if (errno != EEXIST) {
-      fprintf (stderr, "bootchart-collector can't create kmsg node\n");
-      return 1;
-    }
-  }
+	/* re-direct debugging output */
+	if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
+		if (errno != EEXIST) {
+			fprintf (stderr, "bootchart-collector can't create kmsg node\n");
+			return 1;
+		}
+	}
 
-  if (!console_debug)
-    freopen (TMPFS_PATH "/kmsg", "a", stderr);
+	if (!console_debug)
+		freopen (TMPFS_PATH "/kmsg", "a", stderr);
 
-  /* we badly need proc */
-  if (mkdir (PROC_PATH, 0777) < 0) {
-    if (errno != EEXIST) {
-      fprintf (stderr, "bootchart-collector proc mkdir at " PROC_PATH " failed\n");
-      return 1;
-    }
-  }
-  if (mount ("none", PROC_PATH, "proc",
-	      MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-    if (errno != EBUSY) {
-      fprintf (stderr, "bootchart-collector proc mount to " PROC_PATH " failed\n");
-      return 1;
-    }
-  }
+	/* we badly need proc */
+	if (mkdir (PROC_PATH, 0777) < 0) {
+		if (errno != EEXIST) {
+			fprintf (stderr, "bootchart-collector proc mkdir at " PROC_PATH " failed\n");
+			return 1;
+		}
+	}
+	if (mount ("none", PROC_PATH, "proc",
+		   MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
+		if (errno != EBUSY) {
+			fprintf (stderr, "bootchart-collector proc mount to " PROC_PATH " failed\n");
+			return 1;
+		}
+	}
 
-  /* we need our tmpfs to look like this file-system,
-     so we can chroot into it if necessary */
-  mkdir (TMPFS_PATH "/lib", 0777);
-  mkdir (TMPFS_PATH "/lib/bootchart", 0777);
-  if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
-    if (errno != EEXIST) {
-      fprintf (stderr, "bootchart-collector failed to create a chroot at "
-	       TMPFS_PATH TMPFS_PATH " error '%s'\n", strerror (errno));
-      return 1;
-    }
-  }
+	/* we need our tmpfs to look like this file-system,
+	   so we can chroot into it if necessary */
+	mkdir (TMPFS_PATH "/lib", 0777);
+	mkdir (TMPFS_PATH "/lib/bootchart", 0777);
+	if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
+		if (errno != EEXIST) {
+			fprintf (stderr, "bootchart-collector failed to create a chroot at "
+				 TMPFS_PATH TMPFS_PATH " error '%s'\n", strerror (errno));
+			return 1;
+		}
+	}
 
-  return 0;
+	return 0;
 }
 
 static void
 cleanup_dev (void)
 {
-  if (!access (MOVE_DEV_PATH "/kmsg", W_OK)) {
-    umount (MOVE_DEV_PATH PROC_PATH);
-    umount (MOVE_DEV_PATH);
-    rmdir (MOVE_DEV_PATH);
-  }
+	if (!access (MOVE_DEV_PATH "/kmsg", W_OK)) {
+		umount (MOVE_DEV_PATH PROC_PATH);
+		umount (MOVE_DEV_PATH);
+		rmdir (MOVE_DEV_PATH);
+	}
 }
 
 static int
 clean_enviroment (void)
 {
-  int ret = 0;
+	int ret = 0;
 
-  if (umount (PROC_PATH) < 0) {
-    perror ("umount " PROC_PATH);
-    ret = 1;
-  }
+	if (umount (PROC_PATH) < 0) {
+		perror ("umount " PROC_PATH);
+		ret = 1;
+	}
 
-  fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
+	fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
 
-  if (unlink (TMPFS_PATH "/kmsg") < 0) {
-    perror ("unlinking " TMPFS_PATH "/kmsg");
-    ret = 1;
-  }
+	if (unlink (TMPFS_PATH "/kmsg") < 0) {
+		perror ("unlinking " TMPFS_PATH "/kmsg");
+		ret = 1;
+	}
 
-  if (umount (TMPFS_PATH) < 0) {
-    perror ("umount " TMPFS_PATH);
-    ret = 1;
-  }
+	if (umount (TMPFS_PATH) < 0) {
+		perror ("umount " TMPFS_PATH);
+		ret = 1;
+	}
 
-  return ret;
+	return ret;
 }
 
 unsigned long hz = 0;
 
 int main (int argc, char *argv[])
 {
-  int probe_running = 0;
-  int i, use_taskstat, rel = 0, console_debug = 1;
-  int in_initrd, clean_environment = 1;
-  int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
-  PidScanner *scanner = NULL;
-  const char *dump_path = NULL;
-  unsigned long reltime = 0;
-  BufferFile *stat_file, *disk_file, *per_pid_file;
-  PidEventClosure pid_ev_cl;
-  int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
-  const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
-  StackMap map = STACK_MAP_INIT; /* make me findable */
+	int probe_running = 0;
+	int i, use_taskstat, rel = 0, console_debug = 1;
+	int in_initrd, clean_environment = 1;
+	int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
+	PidScanner *scanner = NULL;
+	const char *dump_path = NULL;
+	unsigned long reltime = 0;
+	BufferFile *stat_file, *disk_file, *per_pid_file;
+	PidEventClosure pid_ev_cl;
+	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
+	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
+	StackMap map = STACK_MAP_INIT; /* make me findable */
 
-  for (i = 1; i < argc; i++) 
-    {
-      if (!argv[i]) continue;
+	for (i = 1; i < argc; i++)  {
+		if (!argv[i]) continue;
     
-      /* commands with an argument */
-      if (i < argc - 1)
-	{
-	  const char *param = argv[i+1];
+		/* commands with an argument */
+		if (i < argc - 1) {
+			const char *param = argv[i+1];
 
-	  /* usleep can be hard to find */
-	  if (!strcmp (argv[i], "--usleep"))
-	    {
-	      long sleep = strtoul (param, NULL, 0);
-	      usleep (sleep);
-	      return 0;
-	    }
+			/* usleep can be hard to find */
+			if (!strcmp (argv[i], "--usleep")) {
+				long sleep = strtoul (param, NULL, 0);
+				usleep (sleep);
+				return 0;
+			}
 
-	  /* output mode */
-	  if (!strcmp (argv[i], "-d") ||
-	      !strcmp (argv[i], "--dump"))
-	    dump_path = param;
+			/* output mode */
+			if (!strcmp (argv[i], "-d") ||
+			    !strcmp (argv[i], "--dump"))
+				dump_path = param;
+		}
+      
+		if (!strcmp (argv[i], "--probe-running"))
+			probe_running = 1;
+      
+		else if (!strcmp (argv[i], "-r"))
+			rel = 1;
+      
+		else if (!strcmp (argv[i], "-c") ||
+			 !strcmp (argv[i], "--console"))
+			console_debug = 1;
+
+		else if (!strcmp (argv[i], "-h") ||
+			 !strcmp (argv[i], "--help"))
+			usage();
+      
+		/* default mode args */
+		else if (!hz)
+			hz = strtoul (argv[i], NULL, 0);
+
+		else
+			usage();
+	}
+
+	if (enter_environment (console_debug))
+		return 1;
+
+	fprintf (stderr, "bootchart-collector started as pid %d with %d args: ",
+		 (int) getpid(), argc - 1);
+	for (i = 1; i < argc; i++)
+		fprintf (stderr, "'%s' ", argv[i]);
+	fprintf (stderr, "\n");
+
+	if (dump_path) {
+		ret = buffers_extract_and_dump (dump_path);
+		if (!ret)
+			cleanup_dev ();
+		goto exit;
+	}
+
+	in_initrd = am_in_initrd ();
+	if (in_initrd && sanity_check_initrd ())
+		goto exit;
+
+	pid = bootchart_find_running_pid ();
+	if (probe_running) {
+		clean_environment = pid < 0;
+		ret = pid < 0;
+		goto exit;
+	} else {
+		if (pid >= 0) {
+			clean_environment = 0;
+			fprintf (stderr, "bootchart collector already running as pid %d, exiting...\n", pid);
+			goto exit;
+		}
 	}
       
-      if (!strcmp (argv[i], "--probe-running"))
-	probe_running = 1;
-      
-      else if (!strcmp (argv[i], "-r"))
-	rel = 1;
-      
-      else if (!strcmp (argv[i], "-c") ||
-	       !strcmp (argv[i], "--console"))
-	console_debug = 1;
+	/* defaults */
+	if (!hz)
+		hz = 50;
 
-      else if (!strcmp (argv[i], "-h") ||
-	       !strcmp (argv[i], "--help"))
-	usage();
-      
-      /* default mode args */
-      else if (!hz)
-	hz = strtoul (argv[i], NULL, 0);
+	for (i = 0; fds [i]; i++) {
+		char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
+		strcpy (path, PROC_PATH);
+		strcat (path, fd_names[i]);
 
-      else
-	usage();
-    }
-
-  if (enter_environment (console_debug))
-    return 1;
-
-  fprintf (stderr, "bootchart-collector started as pid %d with %d args: ",
-	   (int) getpid(), argc - 1);
-  for (i = 1; i < argc; i++)
-    fprintf (stderr, "'%s' ", argv[i]);
-  fprintf (stderr, "\n");
-
-  if (dump_path) {
-    ret = buffers_extract_and_dump (dump_path);
-    if (!ret)
-      cleanup_dev ();
-    goto exit;
-  }
-
-  in_initrd = am_in_initrd ();
-  if (in_initrd && sanity_check_initrd ())
-    goto exit;
-
-  pid = bootchart_find_running_pid ();
-  if (probe_running) {
-    clean_environment = pid < 0;
-    ret = pid < 0;
-    goto exit;
-  } else {
-    if (pid >= 0) {
-      clean_environment = 0;
-      fprintf (stderr, "bootchart collector already running as pid %d, exiting...\n", pid);
-      goto exit;
-    }
-  }
-      
-  /* defaults */
-  if (!hz)
-    hz = 50;
-
-  for (i = 0; fds [i]; i++)
-    {
-      char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
-      strcpy (path, PROC_PATH);
-      strcat (path, fd_names[i]);
-
-      *fds[i] = open (path, O_RDONLY);
-      if (*fds[i] < 0)
-	{
-	  fprintf (stderr, "error opening '%s': %s'\n",
-		   path, strerror (errno));
-	  exit (1);
+		*fds[i] = open (path, O_RDONLY);
+		if (*fds[i] < 0)
+			{
+				fprintf (stderr, "error opening '%s': %s'\n",
+					 path, strerror (errno));
+				exit (1);
+			}
 	}
-    }
 
-  stat_file = buffer_file_new (&map, "proc_stat.log");
-  disk_file = buffer_file_new (&map, "proc_diskstats.log");
-  if ( (use_taskstat = init_taskstat()) )
-    per_pid_file = buffer_file_new (&map, "taskstats.log");
-  else
-    per_pid_file = buffer_file_new (&map, "proc_ps.log");
-  pid_ev_cl.cmdline_file = buffer_file_new (&map, "cmdline2.log");
-  pid_ev_cl.paternity_file = buffer_file_new (&map, "paternity.log");
-
-  if (!stat_file || !disk_file || !per_pid_file ||
-      !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file)
-    {
-      fprintf (stderr, "Error allocating output buffers\n");
-      return 1;
-    }
-
-  scanner = pid_scanner_new_netlink (pid_event_cb, &pid_ev_cl);
-  if (!scanner)
-    scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, &pid_ev_cl);
-  if (!scanner)
-    return 1;
-
-  if (rel) {
-    reltime = get_uptime (uptime_fd);
-    if (! reltime)
-      exit (1);
-  }
-
-  while (1)
-    {
-      pid_t pid;
-      char uptime[80];
-      size_t uptimelen;
-      unsigned long u;
-
-      if (in_initrd) {
-	if (have_dev_tmpfs ()) {
-	  if (chroot_into_dev ())
-	    {
-	      fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
-	      return 1;
-	    }
-	  in_initrd = 0;
-	}
-      }
-      
-      u = get_uptime (uptime_fd);
-      if (!u)
-	return 1;
-
-      uptimelen = sprintf (uptime, "%lu\n", u - reltime);
-
-      buffer_file_dump_frame_with_timestamp (stat_file, stat_fd, uptime, uptimelen);
-      buffer_file_dump_frame_with_timestamp (disk_file, disk_fd, uptime, uptimelen);
-
-      /* output data for each pid */
-      buffer_file_append (per_pid_file, uptime, uptimelen);
-
-      pid_scanner_restart (scanner);
-      while ((pid = pid_scanner_next (scanner))) {
-
-	if (use_taskstat)
-	  dump_taskstat (per_pid_file, scanner);
+	stat_file = buffer_file_new (&map, "proc_stat.log");
+	disk_file = buffer_file_new (&map, "proc_diskstats.log");
+	if ( (use_taskstat = init_taskstat()) )
+		per_pid_file = buffer_file_new (&map, "taskstats.log");
 	else
-	  dump_proc_stat (per_pid_file, pid);
-      }
-      buffer_file_append (per_pid_file, "\n", 1);
+		per_pid_file = buffer_file_new (&map, "proc_ps.log");
+	pid_ev_cl.cmdline_file = buffer_file_new (&map, "cmdline2.log");
+	pid_ev_cl.paternity_file = buffer_file_new (&map, "paternity.log");
 
-      usleep (1000000 / hz);
-    }
-
-  /*
-   * In reality - we are always killed before we reach
-   * this point
-   */
-  if (use_taskstat)
-    {
-      if (close (netlink_socket) < 0)
-	{
-	  perror ("failed to close netlink socket");
-	  exit (1);
+	if (!stat_file || !disk_file || !per_pid_file ||
+	    !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file) {
+		fprintf (stderr, "Error allocating output buffers\n");
+		return 1;
 	}
-    }
 
-  for (i = 0; fds [i]; i++)
-    {
-      if (close (*fds[i]) < 0)
-	{
-	  fprintf (stderr, "error closing file '%s': %s'\n",
-		   fd_names[i], strerror (errno));
-	  return 1;
+	scanner = pid_scanner_new_netlink (pid_event_cb, &pid_ev_cl);
+	if (!scanner)
+		scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, &pid_ev_cl);
+	if (!scanner)
+		return 1;
+
+	if (rel) {
+		reltime = get_uptime (uptime_fd);
+		if (! reltime)
+			exit (1);
 	}
-    }
 
-  ret = 0;
+	while (1) {
+		pid_t pid;
+		char uptime[80];
+		size_t uptimelen;
+		unsigned long u;
+
+		if (in_initrd) {
+			if (have_dev_tmpfs ()) {
+				if (chroot_into_dev ())
+					{
+						fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
+						return 1;
+					}
+				in_initrd = 0;
+			}
+		}
+      
+		u = get_uptime (uptime_fd);
+		if (!u)
+			return 1;
+
+		uptimelen = sprintf (uptime, "%lu\n", u - reltime);
+
+		buffer_file_dump_frame_with_timestamp (stat_file, stat_fd, uptime, uptimelen);
+		buffer_file_dump_frame_with_timestamp (disk_file, disk_fd, uptime, uptimelen);
+
+		/* output data for each pid */
+		buffer_file_append (per_pid_file, uptime, uptimelen);
+
+		pid_scanner_restart (scanner);
+		while ((pid = pid_scanner_next (scanner))) {
+
+			if (use_taskstat)
+				dump_taskstat (per_pid_file, scanner);
+			else
+				dump_proc_stat (per_pid_file, pid);
+		}
+		buffer_file_append (per_pid_file, "\n", 1);
+
+		usleep (1000000 / hz);
+	}
+
+	/*
+	 * In reality - we are always killed before we reach
+	 * this point
+	 */
+	if (use_taskstat) {
+		if (close (netlink_socket) < 0) {
+			perror ("failed to close netlink socket");
+			exit (1);
+		}
+	}
+
+	for (i = 0; fds [i]; i++) {
+		if (close (*fds[i]) < 0) {
+			fprintf (stderr, "error closing file '%s': %s'\n",
+				 fd_names[i], strerror (errno));
+			return 1;
+		}
+	}
+
+	ret = 0;
 
  exit:
-  if (scanner)
-    ret |= pid_scanner_free (scanner);
+	if (scanner)
+		ret |= pid_scanner_free (scanner);
 
-  if (clean_environment)
-    clean_enviroment();
+	if (clean_environment)
+		clean_enviroment();
 
-  return ret;
+	return ret;
 }

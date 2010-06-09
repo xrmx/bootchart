@@ -42,11 +42,14 @@ class ProcessSample:
 		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample);
 
 class ProcessStats:
-    def __init__(self, process_list, sample_period, start_time, end_time):
-		self.process_list = process_list
+    def __init__(self, writer, process_map, sample_count, sample_period, start_time, end_time):
+		self.process_map = process_map
+		self.sample_count = sample_count
 		self.sample_period = sample_period
 		self.start_time = start_time
 		self.end_time = end_time
+		writer.info ("%d samples, avg. sample length %f" % (self.sample_count, self.sample_period))
+		writer.info ("process list size: %d" % len (self.process_map.values()))
 
 class Process:	
 	def __init__(self, writer, pid, cmd, ppid, start_time):

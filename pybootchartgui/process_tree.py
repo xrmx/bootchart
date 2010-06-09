@@ -42,9 +42,9 @@ class ProcessTree:
         self.process_tree = []
         self.taskstats = taskstats
         if kernel is None:
-            process_list = psstats.process_list
+            process_list = psstats.process_map.values()
         else:
-            process_list = kernel + psstats.process_list
+            process_list = kernel + psstats.process_map.values()
 	self.process_list = sorted(process_list, key = lambda p: p.pid)
 	self.sample_period = psstats.sample_period
 

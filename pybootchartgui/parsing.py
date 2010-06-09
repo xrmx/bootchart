@@ -96,16 +96,8 @@ def _parse_proc_ps_log(writer, file):
 
 	startTime = timed_blocks[0][0]
 	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
-
-	for process in processMap.values():
-		process.set_parent(processMap)
-
-	for process in processMap.values():
-		process.calc_stats(avgSampleLength)
 		
-	writer.info("%d samples, avg. sample length %f" % (len(timed_blocks), avgSampleLength))
-	writer.info("process list size: %d" % len(processMap.values()))
-	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
+	return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
 
 def _parse_taskstats_log(writer, file):
 	"""
@@ -182,14 +174,8 @@ def _parse_taskstats_log(writer, file):
 
 	startTime = timed_blocks[0][0]
 	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
-
-	for process in processMap.values():
-		process.set_parent(processMap)
-
-	for process in processMap.values():
-		process.calc_stats(avgSampleLength)
 		
-	return ProcessStats(processMap.values(), avgSampleLength, startTime, ltime)
+	return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
 	
 def _parse_proc_stat_log(file):
 	samples = []
@@ -318,22 +304,20 @@ def _parse_dmesg(writer, file):
 			continue # ignore
 
 	return processMap.values()
-
-
-# read LE int32
-def _read_le_int32(file):
-	bytes = file.read(4)
-	return (ord(bytes[0]))       | (ord(bytes[1]) << 8) | \
-	       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
 	
 #
 # Parse binary pacct accounting file output if we have one
 # cf. /usr/include/linux/acct.h 
 #
 def _parse_pacct(writer, file):
+	# read LE int32
+	def _read_le_int32(file):
+		bytes = file.read(4)
+		return (ord(bytes[0]))       | (ord(bytes[1]) << 8) | \
+		       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
+
 	parentMap = {}
 	parentMap[0] = 0
-
 	while file.read(1) != "": # ignore flags
 		ver = file.read(1)
 		if ord(ver) < 3:
@@ -402,7 +386,16 @@ class ParserState:
 	self.parentMap = None
 
     def valid(self):
-        return self.headers != None and self.disk_stats != None and self.ps_stats != None and self.cpu_stats != None
+        return self.headers != None and self.disk_stats != None and \
+	       self.ps_stats != None and self.cpu_stats != None
+
+    def compile(self):
+	for process in self.ps_stats.process_map.values():
+		process.set_parent (self.ps_stats.process_map)
+
+	for process in self.ps_stats.process_map.values():
+		process.calc_stats (self.ps_stats.sample_period)
+	
 
 
 def _do_parse(writer, state, name, file):
@@ -540,9 +533,13 @@ def crop(writer, crop_after, state):
 
 
 def parse(writer, paths, prune, crop_after, annotate):
-    state = parse_paths(writer, ParserState(), paths)
+    state = parse_paths (writer, ParserState(), paths)
     if not state.valid():
         raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
+
+    # Turn that parsed information into something more useful
+    # link processes into a tree of pointers, calculate statistics
+    state.compile()
 
     # Crop the chart to the end of the first idle period after the given
     # process
@@ -564,7 +561,7 @@ def parse(writer, paths, prune, crop_after, annotate):
 
     # merge in the cmdline data
     if state.cmdline is not None:
-        for proc in state.ps_stats.process_list:
+        for proc in state.ps_stats.process_map.values():
 	    if proc.pid in state.cmdline:
                 cmd = state.cmdline[proc.pid]
                 proc.exe = cmd['exe']

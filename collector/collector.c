@@ -785,12 +785,11 @@ int main (int argc, char *argv[])
 		strcat (path, fd_names[i]);
 
 		*fds[i] = open (path, O_RDONLY);
-		if (*fds[i] < 0)
-			{
-				fprintf (stderr, "error opening '%s': %s'\n",
-					 path, strerror (errno));
-				exit (1);
-			}
+		if (*fds[i] < 0) {
+			fprintf (stderr, "error opening '%s': %s'\n",
+				 path, strerror (errno));
+			exit (1);
+		}
 	}
 
 	stat_file = buffer_file_new (&map, "proc_stat.log");
@@ -828,11 +827,10 @@ int main (int argc, char *argv[])
 
 		if (in_initrd) {
 			if (have_dev_tmpfs ()) {
-				if (chroot_into_dev ())
-					{
-						fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
-						return 1;
-					}
+				if (chroot_into_dev ()) {
+					fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
+					return 1;
+				}
 				in_initrd = 0;
 			}
 		}

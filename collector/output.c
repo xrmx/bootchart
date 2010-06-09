@@ -148,7 +148,7 @@ find_chunks (DumpState *s)
 
 	while (!result && fgets (buffer, 4096, maps)) {
 		char *p, *copy;
-		size_t start, end;
+		size_t start, end, toread, read_bytes;
 
 		/* hunt the stackstack only */
 		if (!strstr (buffer, "[stack]"))
@@ -167,15 +167,26 @@ find_chunks (DumpState *s)
 		end = strtoull (p + 1, NULL, 0x10);
 	  
 		fprintf (stderr, "map 0x%lx -> 0x%lx size: %dk from '%s' '%s'\n",
-			 (long) start, (long)end,
-			 (int)(end - start) / 1024,
+			 (long) start, (long)end, (int)(end - start) / 1024,
 			 buffer, p + 1);
 
-		copy = malloc (end - start);
-		while (pread (s->mem, copy, end - start, start) < 0 &&
-		       (errno == EINTR || errno == EAGAIN));
+		toread = end - start;
+		copy = malloc (toread);
+		for (read_bytes = 0; read_bytes < toread;) {
+			ssize_t count = pread (s->mem, copy + read_bytes, toread, start);
+			if (count < 0) {
+				if (errno == EINTR || errno == EAGAIN)
+					continue;
+				else {
+					fprintf (stderr, "Error '%s'\n", strerror (errno));
+					break;
+				}
+			}
+			read_bytes += count;
+		}
+		fprintf (stderr, "read %ld bytes of %ld\n", (long)read_bytes, (long)toread);
 
-		map = search_stack (copy, end - start);
+		map = search_stack (copy, read_bytes);
 		if (map) {
 			s->map = *map;
 			ret = 0;

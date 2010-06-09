@@ -111,7 +111,8 @@ class Process:
 	def set_parent(self, processMap):
 		if self.ppid != None:
 			self.parent = processMap.get (self.ppid)
-			if self.parent == None and self.pid > 1 and not self.cmd == 'kthreadd':
+			# kernel threads have ppid 2; pid 1 has no real parent
+			if self.parent == None and self.pid > 1000 and not self.ppid == 2000:
 				self.writer.warn("Missing CONFIG_PROC_EVENTS: no parent for pid '%i' ('%s') with ppid '%i'" \
 						 % (self.pid,self.cmd,self.ppid))
 

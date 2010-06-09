@@ -137,9 +137,10 @@ find_pid_an_idx (NetLinkPidScanner *nls, pid_t pid, int create)
 }
 
 static void
-insert_pid (NetLinkPidScanner *nls, pid_t pid)
+insert_pid (NetLinkPidScanner *nls, pid_t pid, pid_t parent)
 {
-	find_pid_an_idx (nls, pid, 1);
+	int idx = find_pid_an_idx (nls, pid, 1);
+	nls->procs[idx]->parent = parent;
 }
 
 static void
@@ -213,15 +214,16 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 		switch (ev->what) {
 		case PROC_EVENT_FORK:
 
-/*			fprintf (stderr, "Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
+			fprintf (stderr, "Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
 				 ev->event_data.fork.parent_pid,
 				 ev->event_data.fork.parent_tgid,
 				 ev->event_data.fork.child_pid,
-				 ev->event_data.fork.child_tgid); */
+				 ev->event_data.fork.child_tgid);
 
 			/* new process */
 			if (ev->event_data.fork.child_pid == ev->event_data.fork.child_tgid)
-				insert_pid (nls, ev->event_data.fork.child_pid);
+				insert_pid (nls, ev->event_data.fork.child_pid,
+					    ev->event_data.fork.parent_tgid);
 			else /* new thread */
 				insert_pid_thread (nls, ev->event_data.fork.child_tgid,
 						   ev->event_data.fork.child_pid);
@@ -260,7 +262,7 @@ netlink_pid_scanner_bootstrap (NetLinkPidScanner *nls)
 	while ((pid = pid_scanner_next (bootstrap))) {
 		int tpid;
 
-		insert_pid (nls, pid);
+		insert_pid (nls, pid, 0);
 
 		pid_scanner_get_tasks_start (bootstrap);
 		while ((tpid = pid_scanner_get_tasks_next (bootstrap)))
@@ -286,6 +288,19 @@ netlink_pid_scanner_get_cur_pid (PidScanner *scanner)
 	if (nls->cur_proc >= nls->n_procs)
 		return 0;
 	return nls->procs[nls->cur_proc]->pid;
+}
+
+static pid_t
+netlink_pid_scanner_get_cur_ppid (PidScanner *scanner)
+{
+	NetLinkPidScanner *nls = (NetLinkPidScanner *) scanner;
+	if (nls->cur_proc >= nls->n_procs)
+		return 0;
+	if (nls->procs[nls->cur_proc]->parent)
+	  fprintf (stderr, "ppid %d for pid %d\n",
+		   nls->procs[nls->cur_proc]->parent,
+		   nls->procs[nls->cur_proc]->pid);
+	return nls->procs[nls->cur_proc]->parent;
 }
 
 static void
@@ -330,7 +345,7 @@ handle_news (NetLinkPidScanner *nls, struct cn_msg *cn_hdr)
 		break;
 	/* postpone triggering callback until we have a new exec name and args */
         case PROC_EVENT_EXEC:
-		pid_scanner_callback ((PidScanner *)nls, ev->event_data.exec.process_pid);
+		pid_scanner_emit_exec ((PidScanner *)nls, ev->event_data.exec.process_pid);
 		break;
         case PROC_EVENT_UID:
         default:
@@ -390,7 +405,7 @@ netlink_listen_thread (void *user_data)
 }
 
 PidScanner *
-pid_scanner_new_netlink (PidCreatedFn create_cb, void *user_data)
+pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 {
 	char buff[BUFF_SIZE];
 	struct cn_msg *cn_hdr;
@@ -400,7 +415,7 @@ pid_scanner_new_netlink (PidCreatedFn create_cb, void *user_data)
 	NetLinkPidScanner *nls;
 
 	nls = (NetLinkPidScanner *)pid_scanner_alloc (sizeof (NetLinkPidScanner),
-						      create_cb, user_data);
+						      event_fn, user_data);
 
   /* vtable land-fill */
 #define INIT(name) nls->parent.name = netlink_pid_scanner_##name
@@ -408,6 +423,7 @@ pid_scanner_new_netlink (PidCreatedFn create_cb, void *user_data)
 	INIT(restart);
 	INIT(next);
 	INIT(get_cur_pid);
+	INIT(get_cur_ppid);
 	INIT(get_tasks_start);
 	INIT(get_tasks_next);
 	INIT(get_tasks_stop);

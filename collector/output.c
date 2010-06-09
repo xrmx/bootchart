@@ -277,7 +277,7 @@ static void dump_buffers (DumpState *s)
  * a running bootchartd process.
  */
 int
-dump_state (const char *output_path)
+buffers_extract_and_dump (const char *output_path)
 {
   int pid, ret = 1;
   DumpState *state;

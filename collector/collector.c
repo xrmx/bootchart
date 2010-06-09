@@ -258,6 +258,7 @@ get_tgid_taskstats (PidScanner *scanner)
 static void
 dump_taskstat (BufferFile *file, PidScanner *scanner)
 {
+	pid_t ppid;
 	int output_len;
 	char output_line[1024];
 	PidEntry *entry;
@@ -275,18 +276,23 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 	if (entry->time_total == time_total && entry->ppid == ts->ac_ppid)
 		return;
 	entry->time_total = time_total;
+
 	entry->ppid = ts->ac_ppid;
+
+	/* we can get a much cleaner ppid from PROC_EVENTS */
+	ppid = pid_scanner_get_cur_ppid (scanner);
+	if (!ppid)
+		ppid = ts->ac_ppid;
 
 	/* NB. ensure we aggregate all fields we need in get_tgid_tasstats */
 	output_len = snprintf (output_line, 1024, "%d %d %s %lld %lld %lld\n",
-			       ts->ac_pid, ts->ac_ppid, ts->ac_comm,
+			       ts->ac_pid, ppid, ts->ac_comm,
 			       (long long)ts->cpu_run_real_total,
 			       (long long)ts->blkio_delay_total,
 			       (long long)ts->swapin_delay_total);
 	if (output_len < 0)
 		return;
 
-//	fprintf (stderr, "%s", output_line);
 	buffer_file_append (file, output_line, output_len);
 
 	// FIXME - can we get better stats on what is waiting for what ?
@@ -364,13 +370,18 @@ dump_cmdline (BufferFile *file, pid_t pid)
 }
 
 static void
-pid_created_cb (pid_t pid, void *user_data)
+pid_event_cb (const PidScanEvent *event, void *user_data)
 {
-  BufferFile *cmdline_file = user_data;
+	BufferFile *cmdline_file = user_data;
 
-  dump_cmdline (cmdline_file, pid);
+	switch (event->type) {
+	case PID_SCAN_EVENT_EXEC:
+		dump_cmdline (cmdline_file, event->pid);
+		break;
+	default:
+		break;
+	}
 }
-
 
 static unsigned long
 get_uptime (int fd)
@@ -744,7 +755,7 @@ int main (int argc, char *argv[])
   fprintf (stderr, "\n");
 
   if (dump_path) {
-    ret = dump_state (dump_path);
+    ret = buffers_extract_and_dump (dump_path);
     if (!ret)
       cleanup_dev ();
     goto exit;
@@ -800,9 +811,9 @@ int main (int argc, char *argv[])
       return 1;
     }
 
-  scanner = pid_scanner_new_netlink (pid_created_cb, cmdline_file);
+  scanner = pid_scanner_new_netlink (pid_event_cb, cmdline_file);
   if (!scanner)
-    scanner = pid_scanner_new_proc (PROC_PATH, pid_created_cb, cmdline_file);
+    scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, cmdline_file);
   if (!scanner)
     return 1;
 

@@ -53,12 +53,12 @@ typedef struct {
 } ProcPidScanner;
 
 PidScanner *
-pid_scanner_alloc (int derived_size, PidCreatedFn create_cb, void *user_data)
+pid_scanner_alloc (int derived_size, PidScanEventFn event_fn, void *user_data)
 {
   PidScanner *scanner;
 
   scanner = calloc (1, derived_size);
-  scanner->create_cb = create_cb;
+  scanner->event_fn = event_fn;
   scanner->user_data = user_data;
 
   return scanner;
@@ -102,7 +102,7 @@ proc_pid_scanner_next (PidScanner *scanner)
   pid = atoi (ps->cur_ent->d_name);
   ps->cur_pid = pid;
 
-  pid_scanner_callback (scanner, pid);
+  pid_scanner_emit_exec (scanner, pid);
 
   return pid;
 }
@@ -112,6 +112,12 @@ proc_pid_scanner_get_cur_pid (PidScanner *scanner)
 {
   ProcPidScanner *ps = (ProcPidScanner *)scanner;
   return ps->cur_pid;
+}
+
+static pid_t
+proc_pid_scanner_get_cur_ppid (PidScanner *scanner)
+{
+  return 0;
 }
 
 static void
@@ -170,10 +176,10 @@ proc_pid_scanner_get_tasks_next (PidScanner *scanner)
 }
 
 PidScanner *
-pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_data)
+pid_scanner_new_proc (const char *proc_path, PidScanEventFn event_fn, void *user_data)
 {
   ProcPidScanner *ps = (ProcPidScanner *) pid_scanner_alloc (sizeof (ProcPidScanner),
-							     create_cb, user_data);
+							     event_fn, user_data);
 
   ps->proc = opendir (proc_path);
   if (!ps->proc) {
@@ -188,6 +194,7 @@ pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_
   INIT(restart);
   INIT(next);
   INIT(get_cur_pid);
+  INIT(get_cur_ppid);
   INIT(get_tasks_start);
   INIT(get_tasks_next);
   INIT(get_tasks_stop);
@@ -197,9 +204,16 @@ pid_scanner_new_proc (const char *proc_path, PidCreatedFn create_cb, void *user_
 }
 
 void
-pid_scanner_callback (PidScanner *scanner, pid_t new_pid)
+pid_scanner_emit_exec (PidScanner *scanner, pid_t new_pid)
 {
-  if (scanner->create_cb &&
-      !was_known_pid (&scanner->map, new_pid))
-    scanner->create_cb (new_pid, scanner->user_data);
+	PidScanEvent ev = { PID_SCAN_EVENT_EXEC, 0 };
+
+	if (!scanner->event_fn)
+		return;
+  
+	if (was_known_pid (&scanner->map, new_pid))
+		return;
+
+	ev.pid = new_pid;
+	scanner->event_fn (&ev, scanner->user_data);
 }

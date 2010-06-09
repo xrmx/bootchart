@@ -214,11 +214,11 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 		switch (ev->what) {
 		case PROC_EVENT_FORK:
 
-			fprintf (stderr, "Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
+/*			fprintf (stderr, "Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
 				 ev->event_data.fork.parent_pid,
 				 ev->event_data.fork.parent_tgid,
 				 ev->event_data.fork.child_pid,
-				 ev->event_data.fork.child_tgid);
+				 ev->event_data.fork.child_tgid); */
 
 			/* new process */
 			if (ev->event_data.fork.child_pid == ev->event_data.fork.child_tgid)
@@ -296,10 +296,6 @@ netlink_pid_scanner_get_cur_ppid (PidScanner *scanner)
 	NetLinkPidScanner *nls = (NetLinkPidScanner *) scanner;
 	if (nls->cur_proc >= nls->n_procs)
 		return 0;
-	if (nls->procs[nls->cur_proc]->parent)
-	  fprintf (stderr, "ppid %d for pid %d\n",
-		   nls->procs[nls->cur_proc]->parent,
-		   nls->procs[nls->cur_proc]->pid);
 	return nls->procs[nls->cur_proc]->parent;
 }
 

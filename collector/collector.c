@@ -334,14 +334,12 @@ dump_proc_stat (BufferFile *file, int pid)
 	close (fd);
 }
 
+/* ---- called from netlink thread ---- */
 static void
 dump_cmdline (BufferFile *file, pid_t pid)
 {
 	int fd, len;
-	PidEntry *entry;
 	char str[PATH_MAX], path[PATH_MAX];
-
-	entry = get_pid_entry (pid);
 
 	sprintf (str, PROC_PATH "/%d/exe", pid);
 	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
@@ -363,10 +361,12 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	buffer_file_append (file, "\n\n", 2);
 }
 
+/* ---- called from netlink thread ---- */
 static void
 dump_paternity (BufferFile *file, pid_t pid, pid_t ppid)
 {
 	char str[1024];
+	/* <Child> <Parent> */
 	sprintf (str, "%d %d\n", pid, ppid);
 	buffer_file_append (file, str, strlen (str));
 }
@@ -376,6 +376,7 @@ typedef struct {
 	BufferFile *paternity_file;
 } PidEventClosure;
 
+/* ---- called from netlink thread ---- */
 static void
 pid_event_cb (const PidScanEvent *event, void *user_data)
 {

@@ -222,7 +222,7 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 
 			/* new process */
 			if (ev->event_data.fork.child_pid == ev->event_data.fork.child_tgid)
-				insert_pid (nls, ev->event_data.fork.child_pid,
+				insert_pid (nls, ev->event_data.fork.child_tgid,
 					    ev->event_data.fork.parent_tgid);
 			else /* new thread */
 				insert_pid_thread (nls, ev->event_data.fork.child_tgid,
@@ -336,6 +336,12 @@ handle_news (NetLinkPidScanner *nls, struct cn_msg *cn_hdr)
 
         switch (ev->what) {
         case PROC_EVENT_FORK:
+		/* hide threads */
+		if (ev->event_data.fork.child_pid == ev->event_data.fork.child_tgid)
+			pid_scanner_emit_paternity ((PidScanner *)nls,
+						    ev->event_data.fork.child_tgid,
+						    ev->event_data.fork.parent_tgid);
+		/* drop through */
         case PROC_EVENT_EXIT:
 		pthread_mutex_lock (&nls->lock);
 		nls->buffer = realloc (nls->buffer, sizeof (struct proc_event) * (nls->buffer_size + 1));

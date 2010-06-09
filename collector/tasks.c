@@ -217,3 +217,22 @@ pid_scanner_emit_exec (PidScanner *scanner, pid_t new_pid)
 	ev.pid = new_pid;
 	scanner->event_fn (&ev, scanner->user_data);
 }
+
+/*
+ *    After extensive testing, processes have been
+ * determined to be male:
+ */
+void
+pid_scanner_emit_paternity (PidScanner *scanner,
+			    pid_t       new_pid,
+			    pid_t       parent)
+{
+	PidScanEvent ev = { PID_SCAN_EVENT_CREATED, 0 };
+
+	if (!scanner->event_fn)
+		return;
+  
+	ev.pid = new_pid;
+	ev.u.ppid = parent;
+	scanner->event_fn (&ev, scanner->user_data);
+}

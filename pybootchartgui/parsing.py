@@ -319,6 +319,7 @@ def _parse_dmesg(writer, file):
 
 	return processMap.values()
 
+
 # read LE int32
 def _read_le_int32(file):
 	bytes = file.read(4)
@@ -326,20 +327,12 @@ def _read_le_int32(file):
 	       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
 	
 #
-# Parse binary pacct accounting file output
-# cf. /usr/include/linux/acct.h
-#
-# FIXME - we don't (yet) use this ... really instead
-# of this it would be nice to know who forked a process,
-# rather than (per-se) it's self-selected parent.
-# In essence having a custom kernel profiling module
-# instead.
+# Parse binary pacct accounting file output if we have one
+# cf. /usr/include/linux/acct.h 
 #
 def _parse_pacct(writer, file):
-	return None # performance - saves 1/2 a second.
-
-	pidMap = {}
-	pidMap[0] = 0
+	parentMap = {}
+	parentMap[0] = 0
 
 	while file.read(1) != "": # ignore flags
 		ver = file.read(1)
@@ -351,13 +344,23 @@ def _parse_pacct(writer, file):
 		pid = _read_le_int32 (file)
 		ppid = _read_le_int32 (file)
 #		print "Parent of %d is %d" % (pid, ppid)
-		pidMap[pid] = ppid
+		parentMap[pid] = ppid
 		file.seek (4 + 4 + 16, 1) # timings
 		file.seek (16, 1)         # acct_comm
-		
-	return pidMap;
+	return parentMap
 
-def _parse_cmdline(writer, file):
+def _parse_paternity_log(writer, file):
+	parentMap = {}
+	parentMap[0] = 0
+        for line in file.read().split('\n'):
+		elems = line.split(' ') # <Child> <Parent>
+		if len (elems) >= 2:
+			parentMap[float(elems[0])] = float(elems[1])
+		elif line is not '':
+			print "Odd paternity line '%s'" % (line)
+	return parentMap
+
+def _parse_cmdline_log(writer, file):
 	cmdLines = {}
         for block in file.read().split('\n\n'):
 		lines = block.split('\n')
@@ -396,6 +399,7 @@ class ParserState:
 	self.cmdline = None
 	self.kernel = None
 	self.filename = None
+	self.parentMap = None
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and self.ps_stats != None and self.cpu_stats != None
@@ -408,8 +412,6 @@ def _do_parse(writer, state, name, file):
         state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
         state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
-    elif name == "proc_ps.log":
-        state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "taskstats.log":
         state.ps_stats = _parse_taskstats_log(writer, file)
 	state.taskstats = True
@@ -417,10 +419,14 @@ def _do_parse(writer, state, name, file):
         state.cpu_stats = _parse_proc_stat_log(file)
     elif name == "dmesg":
        state.kernel = _parse_dmesg(writer, file)
-    elif name == "kernel_pacct":
-       state.pacct = _parse_pacct(writer, file)
     elif name == "cmdline2.log":
-       state.cmdline = _parse_cmdline(writer, file)
+       state.cmdline = _parse_cmdline_log(writer, file)
+    elif name == "paternity.log":
+       state.parentMap = _parse_paternity_log(writer, file)
+    elif name == "proc_ps.log":  # obsoleted by TASKSTATS
+        state.ps_stats = _parse_proc_ps_log(writer, file)
+    elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
+       state.parentMap = _parse_pacct(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state

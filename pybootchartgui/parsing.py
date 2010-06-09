@@ -78,6 +78,9 @@ def _parse_proc_ps_log(writer, file):
 			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
 			userCpu, sysCpu, stime= int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
+			# magic fixed point-ness ...
+			pid *= 1000
+			ppid *= 1000
 			if pid in processMap:
 				process = processMap[pid]
 				process.cmd = cmd.strip('()') # why rename after latest name??
@@ -113,16 +116,20 @@ def _parse_taskstats_log(writer, file):
 	for time, lines in timed_blocks:
 		# we have no 'stime' from taskstats, so prep 'init'
 		if ltime is None:
-			process = Process(writer, 1, 'init', 0, 0)
-			processMap[1] = process
+			process = Process(writer, 1, '[init]', 0, 0)
+			processMap[1000] = process
 			ltime = time
 #			continue
 		for line in lines:
 			if line is '': continue
 			tokens = line.split(' ')
 
-			opid, ppid, cmd = float(tokens[0]), int(tokens[1]), tokens[2]
+			opid, ppid, cmd = int(tokens[0]), int(tokens[1]), tokens[2]
 			cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
+
+			# make space for trees of pids
+			opid *= 1000;
+			ppid *= 1000;
 
 			# when the process name changes, we re-write the pid.
 			if pidRewrites.has_key(opid):
@@ -134,7 +141,7 @@ def _parse_taskstats_log(writer, file):
 			if pid in processMap:
 				process = processMap[pid]
 				if process.cmd != cmd:
-					pid += 0.001
+					pid += 1
 					pidRewrites[opid] = pid;
 #					print "process mutation ! '%s' vs '%s' pid %s -> pid %s\n" % (process.cmd, cmd, opid, pid)
 					process = process.split (writer, pid, cmd, ppid, time)
@@ -148,7 +155,6 @@ def _parse_taskstats_log(writer, file):
 			delta_cpu_ns = (float) (cpu_ns - process.last_cpu_ns)
 			delta_blkio_delay_ns = (float) (blkio_delay_ns - process.last_blkio_delay_ns)
 			delta_swapin_delay_ns = (float) (swapin_delay_ns - process.last_swapin_delay_ns)
-
 
 			# make up some state data ...
 			if delta_cpu_ns > 0:
@@ -316,8 +322,8 @@ def _parse_pacct(writer, file):
 		return (ord(bytes[0]))       | (ord(bytes[1]) << 8) | \
 		       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
 
-	parentMap = {}
-	parentMap[0] = 0
+	parent_map = {}
+	parent_map[0] = 0
 	while file.read(1) != "": # ignore flags
 		ver = file.read(1)
 		if ord(ver) < 3:
@@ -328,21 +334,22 @@ def _parse_pacct(writer, file):
 		pid = _read_le_int32 (file)
 		ppid = _read_le_int32 (file)
 #		print "Parent of %d is %d" % (pid, ppid)
-		parentMap[pid] = ppid
+		parent_map[pid] = ppid
 		file.seek (4 + 4 + 16, 1) # timings
 		file.seek (16, 1)         # acct_comm
-	return parentMap
+	return parent_map
 
 def _parse_paternity_log(writer, file):
-	parentMap = {}
-	parentMap[0] = 0
+	parent_map = {}
+	parent_map[0] = 0
         for line in file.read().split('\n'):
 		elems = line.split(' ') # <Child> <Parent>
 		if len (elems) >= 2:
-			parentMap[float(elems[0])] = float(elems[1])
+#			print "paternity of %d is %d" % (int(elems[0]), int(elems[1]))
+			parent_map[int(elems[0])] = int(elems[1])
 		elif line is not '':
 			print "Odd paternity line '%s'" % (line)
-	return parentMap
+	return parent_map
 
 def _parse_cmdline_log(writer, file):
 	cmdLines = {}
@@ -350,7 +357,7 @@ def _parse_cmdline_log(writer, file):
 		lines = block.split('\n')
 		if len (lines) >= 3:
 #			print "Lines '%s'" % (lines[0])
-			pid = float(lines[0])
+			pid = lines[0]
 			values = {}
 			values['exe'] = lines[1].lstrip(':')
 			args = lines[2].lstrip(':').split('\0')
@@ -383,16 +390,53 @@ class ParserState:
 	self.cmdline = None
 	self.kernel = None
 	self.filename = None
-	self.parentMap = None
+	self.parent_map = None
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \
 	       self.ps_stats != None and self.cpu_stats != None
 
-    def compile(self):
+
+    def compile(self, writer):
+
+	def find_parent_id_for(pid):
+		if pid is 0:
+			return 0
+		ppid = self.parent_map.get(pid)
+		if ppid:
+			# many of these double forks are so short lived
+			# that we have no samples, or process info for them
+			# so climb the parent hierarcy to find one
+			if int (ppid * 1000) not in self.ps_stats.process_map:
+#				print "Pid '%d' short lived with no process" % ppid
+				ppid = find_parent_id_for (ppid)
+#			else:
+#				print "Pid '%d' has an entry" % ppid
+		else:
+#			print "Pid '%d' missing from pid map" % pid
+			return 0
+		return ppid
+
+	# merge in the cmdline data
+	if self.cmdline is not None:
+		for proc in self.ps_stats.process_map.values():
+			if proc.pid in self.cmdline:
+				cmd = self.cmdline[proc.pid]
+				proc.exe = cmd['exe']
+				proc.args = cmd['args']
+
+	# re-parent any stray orphans if we can
+        if self.parent_map is not None:
+		for process in self.ps_stats.process_map.values():
+			ppid = find_parent_id_for (int(process.pid / 1000))
+			if ppid:
+				process.ppid = ppid * 1000;
+
+	# stitch the tree together with pointers
 	for process in self.ps_stats.process_map.values():
 		process.set_parent (self.ps_stats.process_map)
 
+	# count on fingers variously
 	for process in self.ps_stats.process_map.values():
 		process.calc_stats (self.ps_stats.sample_period)
 	
@@ -415,11 +459,11 @@ def _do_parse(writer, state, name, file):
     elif name == "cmdline2.log":
        state.cmdline = _parse_cmdline_log(writer, file)
     elif name == "paternity.log":
-       state.parentMap = _parse_paternity_log(writer, file)
+       state.parent_map = _parse_paternity_log(writer, file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
-       state.parentMap = _parse_pacct(writer, file)
+       state.parent_map = _parse_pacct(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state
@@ -539,7 +583,7 @@ def parse(writer, paths, prune, crop_after, annotate):
 
     # Turn that parsed information into something more useful
     # link processes into a tree of pointers, calculate statistics
-    state.compile()
+    state.compile(writer)
 
     # Crop the chart to the end of the first idle period after the given
     # process
@@ -558,14 +602,6 @@ def parse(writer, paths, prune, crop_after, annotate):
 		            break
 	    else:
                 times.append(None)
-
-    # merge in the cmdline data
-    if state.cmdline is not None:
-        for proc in state.ps_stats.process_map.values():
-	    if proc.pid in state.cmdline:
-                cmd = state.cmdline[proc.pid]
-                proc.exe = cmd['exe']
-		proc.args = cmd['args']
 
     monitored_app = state.headers.get("profile.process")
     proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)

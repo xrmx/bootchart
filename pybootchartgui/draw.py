@@ -391,7 +391,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	else:
 		cmdString = ''
 	if (OPTIONS.show_pid or OPTIONS.show_all) and ipid is not 0:
-		cmdString = cmdString + " [" + str(ipid) + "]"
+		cmdString = cmdString + " [" + str(ipid / 1000) + "]"
 	if OPTIONS.show_all:
 		if proc.args:
 			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"

@@ -42,6 +42,9 @@ chart rendering tool.
 	* higher performance - the C re-write allows us to collect more
 	  data, more quickly - sampling at ~50+Hz.
 
+	* using PROC_EVENTS we can determine accurate process parentage
+	  without needing to use a (poorly maintained) 'acct' binary
+
 	* no Java dependency - with the visualisation in easy-to-hack
 	  python, development is quicker, and dependencies more commonly
 	  found.
@@ -54,7 +57,7 @@ chart rendering tool.
 	  zoom and so on.
 
 	* better rendering - render to png, or svg, with added event
-	  annotation support.
+	  annotation support, and 'show more' functionality.
 
 	* cumulative, and total CPU time graphing in the boot-chart.
 

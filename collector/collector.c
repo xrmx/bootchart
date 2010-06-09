@@ -43,7 +43,6 @@ typedef struct {
 	pid_t pid;
 	pid_t ppid;
 	__u64 time_total;
-	unsigned int dumped_args : 1;
 } PidEntry;
 
 static inline PidEntry *
@@ -344,11 +343,6 @@ dump_cmdline (BufferFile *file, pid_t pid)
 
 	entry = get_pid_entry (pid);
 
-	if (entry->dumped_args)
-		return;
-
-	entry->dumped_args = 1;
-
 	sprintf (str, PROC_PATH "/%d/exe", pid);
 	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
 		return;
@@ -370,13 +364,29 @@ dump_cmdline (BufferFile *file, pid_t pid)
 }
 
 static void
+dump_paternity (BufferFile *file, pid_t pid, pid_t ppid)
+{
+	char str[1024];
+	sprintf (str, "%d %d\n", pid, ppid);
+	buffer_file_append (file, str, strlen (str));
+}
+
+typedef struct {
+	BufferFile *cmdline_file;
+	BufferFile *paternity_file;
+} PidEventClosure;
+
+static void
 pid_event_cb (const PidScanEvent *event, void *user_data)
 {
-	BufferFile *cmdline_file = user_data;
+	PidEventClosure *cl = user_data;
 
 	switch (event->type) {
 	case PID_SCAN_EVENT_EXEC:
-		dump_cmdline (cmdline_file, event->pid);
+		dump_cmdline (cl->cmdline_file, event->pid);
+		break;
+	case PID_SCAN_EVENT_CREATED:
+		dump_paternity (cl->paternity_file, event->pid, event->u.ppid);
 		break;
 	default:
 		break;
@@ -695,7 +705,8 @@ int main (int argc, char *argv[])
   PidScanner *scanner = NULL;
   const char *dump_path = NULL;
   unsigned long reltime = 0;
-  BufferFile *stat_file, *disk_file, *per_pid_file, *cmdline_file;
+  BufferFile *stat_file, *disk_file, *per_pid_file;
+  PidEventClosure pid_ev_cl;
   int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
   const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
   StackMap map = STACK_MAP_INIT; /* make me findable */
@@ -803,17 +814,19 @@ int main (int argc, char *argv[])
     per_pid_file = buffer_file_new (&map, "taskstats.log");
   else
     per_pid_file = buffer_file_new (&map, "proc_ps.log");
-  cmdline_file = buffer_file_new (&map, "cmdline2.log");
+  pid_ev_cl.cmdline_file = buffer_file_new (&map, "cmdline2.log");
+  pid_ev_cl.paternity_file = buffer_file_new (&map, "paternity.log");
 
-  if (!stat_file || !disk_file || !per_pid_file || !cmdline_file)
+  if (!stat_file || !disk_file || !per_pid_file ||
+      !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file)
     {
       fprintf (stderr, "Error allocating output buffers\n");
       return 1;
     }
 
-  scanner = pid_scanner_new_netlink (pid_event_cb, cmdline_file);
+  scanner = pid_scanner_new_netlink (pid_event_cb, &pid_ev_cl);
   if (!scanner)
-    scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, cmdline_file);
+    scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, &pid_ev_cl);
   if (!scanner)
     return 1;
 
@@ -847,10 +860,8 @@ int main (int argc, char *argv[])
 
       uptimelen = sprintf (uptime, "%lu\n", u - reltime);
 
-      buffer_file_dump_frame_with_timestamp (stat_file, stat_fd,
-					     uptime, uptimelen);
-      buffer_file_dump_frame_with_timestamp (disk_file, disk_fd,
-					     uptime, uptimelen);
+      buffer_file_dump_frame_with_timestamp (stat_file, stat_fd, uptime, uptimelen);
+      buffer_file_dump_frame_with_timestamp (disk_file, disk_fd, uptime, uptimelen);
 
       /* output data for each pid */
       buffer_file_append (per_pid_file, uptime, uptimelen);

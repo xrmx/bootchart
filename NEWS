@@ -1,3 +1,12 @@
+bootchart2 0.12.0 (Michael Meeks)
+	+ collector
+		+ use netlink PROC_EVENTS to generate parentage data
+			+ finally kills any need for 'acct' et. al.
+			+ also removes need to poll /proc => faster
+		+ cleanup code to K&R, 8 stop tabs.
+	+ pybootchartgui
+		+ consume thread parentage data
+
 bootchart2 0.11.4 (Michael Meeks)
 	+ collector
 		+ if run inside an initrd detect when /dev is writable

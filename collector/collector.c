@@ -683,26 +683,22 @@ clean_enviroment (void)
 	return ret;
 }
 
-unsigned long hz = 0;
-
 void
 arguments_set_defaults (Arguments *args)
 {
 	memset (args, 0, sizeof (Arguments));
-	args->console_debug = 1; 
+/*	args->console_debug = 1;  */
+}
+
+void arguments_free (Arguments *args)
+{
+	if (args->dump_path)
+		free (args->dump_path);
 }
 
 void arguments_parse (Arguments *args, int argc, char **argv)
 {
-	int i, use_taskstat, console_debug = 1;
-	int in_initrd, clean_environment = 1;
-	int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
-	PidScanner *scanner = NULL;
-	unsigned long reltime = 0;
-	BufferFile *stat_file, *disk_file, *per_pid_file;
-	PidEventClosure pid_ev_cl;
-	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
-	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
+	int i;
 
 	for (i = 1; i < argc; i++)  {
 		if (!argv[i]) continue;
@@ -712,16 +708,13 @@ void arguments_parse (Arguments *args, int argc, char **argv)
 			const char *param = argv[i+1];
 
 			/* usleep can be hard to find */
-			if (!strcmp (argv[i], "--usleep")) {
-				long sleep = strtoul (param, NULL, 0);
-				usleep (sleep);
-				return 0;
-			}
+			if (!strcmp (argv[i], "--usleep"))
+				args->usleep_time = strtoul (param, NULL, 0);
 
 			/* output mode */
-			if (!strcmp (argv[i], "-d") ||
-			    !strcmp (argv[i], "--dump"))
-				args->dump_path = param;
+			else if (!strcmp (argv[i], "-d") ||
+				 !strcmp (argv[i], "--dump"))
+				args->dump_path = strdup (param);
 		}
       
 		if (!strcmp (argv[i], "--probe-running"))
@@ -732,15 +725,15 @@ void arguments_parse (Arguments *args, int argc, char **argv)
       
 		else if (!strcmp (argv[i], "-c") ||
 			 !strcmp (argv[i], "--console"))
-			console_debug = 1;
+			args->console_debug = 1;
 
 		else if (!strcmp (argv[i], "-h") ||
 			 !strcmp (argv[i], "--help"))
 			usage();
       
-		/* default mode args */
-		else if (!hz)
-			hz = strtoul (argv[i], NULL, 0);
+		/* appended args mode args */
+		else if (!args->hz)
+			args->hz = strtoul (argv[i], NULL, 0);
 
 		else
 			usage();
@@ -750,10 +743,24 @@ void arguments_parse (Arguments *args, int argc, char **argv)
 int main (int argc, char *argv[])
 {
 	Arguments args;
+	int i, use_taskstat;
+	int in_initrd, clean_environment = 1;
+	int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
+	PidScanner *scanner = NULL;
+	unsigned long reltime = 0;
+	BufferFile *stat_file, *disk_file, *per_pid_file;
+	PidEventClosure pid_ev_cl;
+	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
+	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
 	StackMap map = STACK_MAP_INIT; /* make me findable */
 
 	arguments_set_defaults (&args);
 	arguments_parse (&args, argc, argv);
+
+	if (args.usleep_time > 0) {
+		usleep (args.usleep_time);
+		return 0;
+	}
 
 	if (enter_environment (args.console_debug))
 		return 1;
@@ -766,11 +773,12 @@ int main (int argc, char *argv[])
 
 	if (args.dump_path) {
 		ret = buffers_extract_and_dump (args.dump_path);
+#ifdef IMPLEMENT_ME
 		... [!] ...
-#error fix me ! ...
 		if (!remote_args.relative_time)
 			dump_dmsg (args.dump_path);
 		dump_header (args.dump_path);
+#endif
 		if (!ret)
 			cleanup_dev ();
 		goto exit;
@@ -781,7 +789,7 @@ int main (int argc, char *argv[])
 		goto exit;
 
 	pid = bootchart_find_running_pid ();
-	if (probe_running) {
+	if (args.probe_running) {
 		clean_environment = pid < 0;
 		ret = pid < 0;
 		goto exit;
@@ -794,8 +802,8 @@ int main (int argc, char *argv[])
 	}
       
 	/* defaults */
-	if (!hz)
-		hz = 50;
+	if (!args.hz)
+		args.hz = 50;
 
 	for (i = 0; fds [i]; i++) {
 		char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
@@ -875,7 +883,7 @@ int main (int argc, char *argv[])
 		}
 		buffer_file_append (per_pid_file, "\n", 1);
 
-		usleep (1000000 / hz);
+		usleep (1000000 / args.hz);
 	}
 
 	/*
@@ -900,6 +908,8 @@ int main (int argc, char *argv[])
 	ret = 0;
 
  exit:
+	arguments_free (&args);
+
 	if (scanner)
 		ret |= pid_scanner_free (scanner);
 

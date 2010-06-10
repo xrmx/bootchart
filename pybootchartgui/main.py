@@ -82,19 +82,19 @@ def _mk_writer(options):
 	
 def _get_filename(paths, options):
 	"""Construct a usable filename for outputs based on the paths and options given on the commandline."""
-	dir = ""
-	file = "bootchart"
+	dname = ""
+	fname = "bootchart"
 	if options.output and not(os.path.isdir(options.output)):
 		return options.output
 	if options.output:
-		dir = options.output
-	if len(paths) == 1:
+		dname = options.output
+	if len (paths) == 1:
 		path = paths[0]
 		if os.path.isdir(path):
-			file = os.path.split(path)[-1]
+			fname = os.path.split(path)[-1]
 		elif os.path.splitext(path)[1] in [".tar", ".tgz", ".tar.gz"]:
-			file = os.path.splitext(path)[0]
-	return os.path.join(dir, file + "." + options.format)
+			fname = os.path.splitext(path)[0]
+	return os.path.join (dname, fname + "." + options.format)
 
 def main(argv=None):
 	try:
@@ -117,14 +117,14 @@ def main(argv=None):
 			gui.show(res, options)
 		else:
 			if options.annotate_file:
-				f = open(options.annotate_file, "w")
+				f = open (options.annotate_file, "w")
 				try:
 					for time in res[4]:
 						if time is not None:
 							# output as ms
-							print >>f, time * 10
+							print >> f, time * 10
 						else:
-							print >>f
+							print >> f
 				finally:
 					f.close()
 			filename = _get_filename(args, options)

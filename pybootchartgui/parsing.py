@@ -128,21 +128,21 @@ def _parse_taskstats_log(writer, file):
 			cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
 
 			# make space for trees of pids
-			opid *= 1000;
-			ppid *= 1000;
+			opid *= 1000
+			ppid *= 1000
 
 			# when the process name changes, we re-write the pid.
 			if pidRewrites.has_key(opid):
-				pid = pidRewrites[opid];
+				pid = pidRewrites[opid]
 			else:
-				pid = opid;
+				pid = opid
 
 			cmd = cmd.strip('(').strip(')')
 			if pid in processMap:
 				process = processMap[pid]
 				if process.cmd != cmd:
 					pid += 1
-					pidRewrites[opid] = pid;
+					pidRewrites[opid] = pid
 #					print "process mutation ! '%s' vs '%s' pid %s -> pid %s\n" % (process.cmd, cmd, opid, pid)
 					process = process.split (writer, pid, cmd, ppid, time)
 					processMap[pid] = process
@@ -188,7 +188,7 @@ def _parse_proc_stat_log(file):
 	ltimes = None
 	for time, lines in _parse_timed_blocks(file):
 		# CPU times {user, nice, system, idle, io_wait, irq, softirq}
-		tokens = lines[0].split();
+		tokens = lines[0].split()
 		times = [ int(token) for token in tokens[1:] ]
 		if ltimes:
 			user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))
@@ -430,7 +430,7 @@ class ParserState:
 		for process in self.ps_stats.process_map.values():
 			ppid = find_parent_id_for (int(process.pid / 1000))
 			if ppid:
-				process.ppid = ppid * 1000;
+				process.ppid = ppid * 1000
 
 	# stitch the tree together with pointers
 	for process in self.ps_stats.process_map.values():

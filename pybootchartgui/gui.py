@@ -55,6 +55,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.chart_width, self.chart_height = draw.extents(self.xscale, *res)
 		self.hadj = None
 		self.vadj = None
+		self.hadj_changed_signal_id = None
+		self.vadj_changed_signal_id = None
 
 	def do_expose_event(self, event):
 		cr = self.window.cairo_create()
@@ -80,12 +82,12 @@ class PyBootchartWidget(gtk.DrawingArea):
 
 	ZOOM_INCREMENT = 1.25
 
-        def zoom_image(self, zoom_ratio):
+        def zoom_image (self, zoom_ratio):
             self.zoom_ratio = zoom_ratio
-	    self._set_scroll_adjustments(self.hadj, self.vadj)
+	    self._set_scroll_adjustments (self.hadj, self.vadj)
             self.queue_draw()
 
-        def zoom_to_rect(self, rect):
+        def zoom_to_rect (self, rect):
             zoom_ratio = float(rect.width)/float(self.chart_width)
             self.zoom_image(zoom_ratio)
 	    self.x = 0
@@ -178,34 +180,13 @@ class PyBootchartWidget(gtk.DrawingArea):
                 return True
 
 	def on_set_scroll_adjustments(self, area, hadj, vadj):
-		self._set_scroll_adjustments(hadj, vadj)
+		self._set_scroll_adjustments (hadj, vadj)
 
 	def on_allocation_size_changed(self, widget, allocation):
 		self.hadj.page_size = allocation.width
 		self.hadj.page_increment = allocation.width * 0.9
 		self.vadj.page_size = allocation.height
 		self.vadj.page_increment = allocation.height * 0.9
-
-	def _set_scroll_adjustments(self, hadj, vadj):
-		if hadj == None:
-			hadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-		if vadj == None:
-			vadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-			
-		if self.hadj != None and hadj != self.hadj:
-			self.hadj.disconnect(self.hadj_changed_signal_id)
-		if self.vadj != None and vadj != self.vadj:
-			self.vadj.disconnect(self.vadj_changed_signal_id)
-
-		if hadj != None:
-			self.hadj = hadj
-			self._set_adj_upper(self.hadj, self.zoom_ratio * self.chart_width)
-			self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed)
-
-		if vadj != None:
-			self.vadj = vadj
-			self._set_adj_upper(self.vadj, self.zoom_ratio * self.chart_height)
-			self.vadj_changed_signal_id = self.vadj.connect('value-changed', self.on_adjustments_changed)
 
 	def _set_adj_upper(self, adj, upper):
 		changed = False
@@ -224,6 +205,29 @@ class PyBootchartWidget(gtk.DrawingArea):
 			adj.changed()
 		if value_changed:
 			adj.value_changed()
+
+	def _set_scroll_adjustments(self, hadj, vadj):
+		if hadj == None:
+			hadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+		if vadj == None:
+			vadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+			
+		if self.hadj_changed_signal_id != None and \
+		   self.hadj != None and hadj != self.hadj:
+			self.hadj.disconnect (self.hadj_changed_signal_id)
+		if self.vadj_changed_signal_id != None and \
+		   self.vadj != None and vadj != self.vadj:
+			self.vadj.disconnect (self.vadj_changed_signal_id)
+
+		if hadj != None:
+			self.hadj = hadj
+			self._set_adj_upper (self.hadj, self.zoom_ratio * self.chart_width)
+			self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed)
+
+		if vadj != None:
+			self.vadj = vadj
+			self._set_adj_upper (self.vadj, self.zoom_ratio * self.chart_height)
+			self.vadj_changed_signal_id = self.vadj.connect('value-changed', self.on_adjustments_changed)
 
 	def on_adjustments_changed(self, adj):
 		self.x = self.hadj.value / self.zoom_ratio

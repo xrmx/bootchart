@@ -20,7 +20,7 @@ import os
 import string
 import re
 import tarfile
-from time import *
+from time import clock
 from collections import defaultdict
 
 from samples import *
@@ -36,11 +36,11 @@ class ParseError(Exception):
 
 def _parse_headers(file):
 	"""Parses the headers of the bootchart."""
-        def parse((headers,last), line): 
-            if '=' in line: last,value = map(string.strip, line.split('=', 1))
+        def parse((headers, last), line): 
+            if '=' in line: last, value = map (string.strip, line.split('=', 1))
             else:           value = line.strip()
             headers[last] += value
-            return headers,last
+            return headers, last
         return reduce(parse, file.read().split('\n'), (defaultdict(str),''))[0]
 
 def _parse_timed_blocks(file):
@@ -76,7 +76,7 @@ def _parse_proc_ps_log(writer, file):
 
 			offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]		
 			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
-			userCpu, sysCpu, stime= int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
+			userCpu, sysCpu, stime = int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
 			# magic fixed point-ness ...
 			pid *= 1000
@@ -227,7 +227,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 
 	for time, lines in _parse_timed_blocks(file):
 		sample = DiskStatSample(time)		
-		relevant_tokens = [linetokens for linetokens in map(string.split,lines) if is_relevant_line(linetokens)]
+		relevant_tokens = [linetokens for linetokens in map (string.split,lines) if is_relevant_line(linetokens)]
 		
 		for tokens in relevant_tokens:
 			disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])			
@@ -318,9 +318,9 @@ def _parse_dmesg(writer, file):
 def _parse_pacct(writer, file):
 	# read LE int32
 	def _read_le_int32(file):
-		bytes = file.read(4)
-		return (ord(bytes[0]))       | (ord(bytes[1]) << 8) | \
-		       (ord(bytes[2]) << 16) | (ord(bytes[3]) << 24)
+		byts = file.read(4)
+		return (ord(byts[0]))       | (ord(byts[1]) << 8) | \
+		       (ord(byts[2]) << 16) | (ord(byts[3]) << 24)
 
 	parent_map = {}
 	parent_map[0] = 0
@@ -477,7 +477,7 @@ def parse_file(writer, state, filename):
 
 def parse_paths(writer, state, paths):
     for path in paths:
-        root,extension = os.path.splitext(path)
+        root, extension = os.path.splitext(path)
         if not(os.path.exists(path)):
             writer.warn("warning: path '%s' does not exist, ignoring." % path)
             continue
@@ -488,7 +488,7 @@ def parse_paths(writer, state, paths):
             state = parse_paths(writer, state, files)
         elif extension in [".tar", ".tgz", ".gz"]:
             if extension == ".gz":
-                root,extension = os.path.splitext(root)
+                root, extension = os.path.splitext(root)
                 if extension != ".tar":
                     writer.warn("warning: can only handle zipped tar files, not zipped '%s'-files; ignoring" % extension)
                     continue
@@ -554,23 +554,23 @@ def crop(writer, crop_after, state):
         writer.info("selected proc not found in tree")
         return
 
-    crop = idle + 300
-    writer.info("cropping at time %d" % crop)
-    while len(state.cpu_stats) \
-		and state.cpu_stats[-1].time > crop:
+    crop_at = idle + 300
+    writer.info ("cropping at time %d" % crop_at)
+    while len (state.cpu_stats) \
+		and state.cpu_stats[-1].time > crop_at:
         state.cpu_stats.pop()
-    while len(state.disk_stats) \
-		and state.disk_stats[-1].time > crop:
+    while len (state.disk_stats) \
+		and state.disk_stats[-1].time > crop_at:
         state.disk_stats.pop()
 
-    state.ps_stats.end_time = crop
-    while len(state.ps_stats.process_list) \
-		and state.ps_stats.process_list[-1].start_time > crop:
+    state.ps_stats.end_time = crop_at
+    while len (state.ps_stats.process_list) \
+		and state.ps_stats.process_list[-1].start_time > crop_at:
         state.ps_stats.process_list.pop()
     for proc in state.ps_stats.process_list:
-        proc.duration=min(proc.duration,crop-proc.start_time)
-	while len(proc.samples) \
-		    and proc.samples[-1].time >crop:
+        proc.duration = min (proc.duration, crop_at - proc.start_time)
+	while len (proc.samples) \
+		    and proc.samples[-1].time > crop_at:
             proc.samples.pop()
 
     return idle

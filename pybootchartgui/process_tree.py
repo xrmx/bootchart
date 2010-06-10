@@ -107,7 +107,7 @@ class ProcessTree:
 
         """
         if not process_subtree:
-            return 100000000;
+            return 100000000
         return min( [min(proc.start_time, self.get_start_time(proc.child_list)) for proc in process_subtree] )
 
     def get_end_time(self, process_subtree):
@@ -116,13 +116,13 @@ class ProcessTree:
 
         """
         if not process_subtree:
-            return -100000000;
+            return -100000000
         return max( [max(proc.start_time + proc.duration, self.get_end_time(proc.child_list)) for proc in process_subtree] )
 
     def get_max_pid(self, process_subtree):
         """Returns the max PID found in the process tree."""
         if not process_subtree:
-            return -100000000;
+            return -100000000
         return max( [max(proc.pid, self.get_max_pid(proc.child_list)) for proc in process_subtree] )
 
     def update_ppids_for_daemons(self, process_list):
@@ -236,7 +236,7 @@ class ProcessTree:
                 num_removed += self.merge_exploders(p.child_list, processes)
         return num_removed
 
-    def merge_siblings(self,process_subtree):
+    def merge_siblings(self, process_subtree):
         """Merges thread processes.  Sibling processes with the same command
 	   line are merged together.
 	   

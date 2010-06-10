@@ -30,7 +30,8 @@ class CPUSample:
 		self.swap = swap
 
 	def __str__(self):
-		return str(self.time) + "\t" + str(self.user) + "\t" + str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap);
+		return str(self.time) + "\t" + str(self.user) + "\t" + \
+		       str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap)
 		
 class ProcessSample:
 	def __init__(self, time, state, cpu_sample):
@@ -39,7 +40,7 @@ class ProcessSample:
 		self.cpu_sample = cpu_sample
 		
 	def __str__(self):
-		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample);
+		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample)
 
 class ProcessStats:
     def __init__(self, writer, process_map, sample_count, sample_period, start_time, end_time):
@@ -69,17 +70,17 @@ class Process:
 		self.last_user_cpu_time = None
 		self.last_sys_cpu_time = None
 
-		self.last_cpu_ns = 0;
-		self.last_blkio_delay_ns = 0;
-		self.last_swapin_delay_ns = 0;
+		self.last_cpu_ns = 0
+		self.last_blkio_delay_ns = 0
+		self.last_swapin_delay_ns = 0
 
 	# split this process' run - triggered by a name change
 	def split(self, writer, pid, cmd, ppid, start_time):
 		split = Process (writer, pid, cmd, ppid, start_time)
 
-		split.last_cpu_ns = self.last_cpu_ns;
-		split.last_blkio_delay_ns = self.last_blkio_delay_ns;
-		split.last_swapin_delay_ns = self.last_swapin_delay_ns;
+		split.last_cpu_ns = self.last_cpu_ns
+		split.last_blkio_delay_ns = self.last_blkio_delay_ns
+		split.last_swapin_delay_ns = self.last_swapin_delay_ns
 
 		return split
 	
@@ -104,8 +105,8 @@ class Process:
 		cpuLoad = userCpuLoad + sysCpuLoad
 		# normalize
 		if cpuLoad > 1.0:
-			userCpuLoad = userCpuLoad / cpuLoad;
-			sysCpuLoad = sysCpuLoad / cpuLoad;
+			userCpuLoad = userCpuLoad / cpuLoad
+			sysCpuLoad = sysCpuLoad / cpuLoad
 		return (userCpuLoad, sysCpuLoad)
 	
 	def set_parent(self, processMap):

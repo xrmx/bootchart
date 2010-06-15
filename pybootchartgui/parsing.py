@@ -363,7 +363,7 @@ def _parse_cmdline_log(writer, file):
 		lines = block.split('\n')
 		if len (lines) >= 3:
 #			print "Lines '%s'" % (lines[0])
-			pid = lines[0]
+			pid = int (lines[0])
 			values = {}
 			values['exe'] = lines[1].lstrip(':')
 			args = lines[2].lstrip(':').split('\0')
@@ -426,10 +426,13 @@ class ParserState:
 	# merge in the cmdline data
 	if self.cmdline is not None:
 		for proc in self.ps_stats.process_map.values():
-			if proc.pid in self.cmdline:
-				cmd = self.cmdline[proc.pid]
+			rpid = int (proc.pid / 1000)
+			if rpid in self.cmdline:
+				cmd = self.cmdline[rpid]
 				proc.exe = cmd['exe']
 				proc.args = cmd['args']
+#			else:
+#				print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
 
 	# re-parent any stray orphans if we can
         if self.parent_map is not None:

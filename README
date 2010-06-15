@@ -27,7 +27,8 @@ command-line, normally in /boot/grub/menu.lst:
 	initcall_debug printk.time=y quiet init=/sbin/bootchartd ...
 
 	Then - after bootup, run 'pybootchartgui -i' to get an interactive
-chart rendering tool.
+chart rendering tool. If you want to chart the initrd, add
+rdinitrd=/sbin/bootchartd to the kernel command-line.
 
 
 			    Why bootchart2 ?

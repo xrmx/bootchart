@@ -97,8 +97,11 @@ def _parse_proc_ps_log(writer, file):
 			process.last_sys_cpu_time = sysCpu
 		ltime = time
 
+	if len (timed_blocks) < 2:
+		return None
+
 	startTime = timed_blocks[0][0]
-	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
+	avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
 		
 	return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
 
@@ -177,6 +180,9 @@ def _parse_taskstats_log(writer, file):
 			process.last_blkio_delay_ns = blkio_delay_ns
 			process.last_swapin_delay_ns = swapin_delay_ns
 		ltime = time
+
+	if len (timed_blocks) < 2:
+		return None
 
 	startTime = timed_blocks[0][0]
 	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	

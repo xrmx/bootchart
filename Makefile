@@ -14,7 +14,8 @@ COLLECTOR = \
 	collector/collector.o \
 	collector/output.o \
 	collector/tasks.o \
-	collector/tasks-netlink.o
+	collector/tasks-netlink.o \
+	collector/dump.o
 
 all: bootchart-collector
 

@@ -788,7 +788,7 @@ int main (int argc, char *argv[])
 	if (in_initrd && sanity_check_initrd ())
 		goto exit;
 
-	pid = bootchart_find_running_pid ();
+	pid = bootchart_find_running_pid (NULL);
 	if (args.probe_running) {
 		clean_environment = pid < 0;
 		ret = pid < 0;

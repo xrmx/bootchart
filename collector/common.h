@@ -60,6 +60,7 @@ typedef struct {
 
 void arguments_set_defaults (Arguments *args);
 void arguments_parse        (Arguments *args, int argc, char **argv);
+void arguments_free         (Arguments *args);
 
 /* ---------------- output.c  ---------------- */
 
@@ -96,7 +97,7 @@ void        buffer_file_dump_frame_with_timestamp
 					const char *uptime, size_t uptimelen);
 
 int         buffers_extract_and_dump   (const char *output_path);
-int         bootchart_find_running_pid (void);
+int         bootchart_find_running_pid (Arguments *opt_args);
 
 /* ---------------- tasks.c  ---------------- */
 

@@ -175,10 +175,11 @@ buffers_extract_and_dump (const char *output_path)
 {
 	int pid, ret = 1;
 	DumpState *state;
+	Arguments  args;
 
 	chdir (output_path);
 
-	pid = bootchart_find_running_pid ();
+	pid = bootchart_find_running_pid (&args);
 	if (pid < 0) {
 		fprintf (stderr, "Failed to find the collector's pid\n");
 		return 1;
@@ -205,12 +206,18 @@ buffers_extract_and_dump (const char *output_path)
  * the --usleep mode we use to simplify our scripts.
  */
 int
-bootchart_find_running_pid (void)
+bootchart_find_running_pid (Arguments *opt_args)
 {
 	DIR *proc;
 	struct dirent *ent;
 	int pid = -1;
 	char exe_path[1024];
+	Arguments sargs, *args;
+
+	if (opt_args)
+		args = opt_args;
+	else
+		args = &sargs;
     
 	proc = opendir (PROC_PATH);
 	while ((ent = readdir (proc)) != NULL) {
@@ -230,7 +237,7 @@ bootchart_find_running_pid (void)
 		link_target[len] = '\0';
 
 		if (strstr (link_target, "bootchart-collector")) {
-			FILE *args;
+			FILE *argf;
 			int harmless = 0;
 
 			int p = atoi (ent->d_name);
@@ -241,22 +248,29 @@ bootchart_find_running_pid (void)
 				continue; /* I'm not novel */
 
 			strcpy (exe_path + strlen (exe_path) - strlen ("/exe"), "/cmdline");
-			args = fopen (exe_path, "r");
-			if (args) {
+			argf = fopen (exe_path, "r");
+			if (argf) {
 				int i;
 				char abuffer[4096];
 
-				len = fread (abuffer, 1, 4095, args);
+				len = fread (abuffer, 1, 4095, argf);
 				if (len > 0) {
 					/* step through args */
 					abuffer[len] = '\0';
-					for (i = 0; i < len - 1; i++)
-						if (abuffer[i] == '\0') {
-							if (!strcmp (abuffer + i + 1, "--usleep"))
-								harmless = 1;
-							/*	      fprintf (stderr, "arg '%s' -> %d\n", abuffer + i + 1, harmless); */
-						}
-					fclose (args);
+					int argc;
+					char *argv[128];
+					argv[0] = abuffer;
+					for (argc = i = 0; i < len && argc < 127; i++) {
+						if (argv[i] == '\0')
+							argv[++argc] = abuffer + 1;
+					}
+					arguments_set_defaults (args);
+					arguments_parse (args, argc, argv);
+
+					if (args->usleep_time)
+						harmless = 1;
+
+					fclose (argf);
 				}
 			}
 
@@ -267,6 +281,9 @@ bootchart_find_running_pid (void)
 		}
 	}
 	closedir (proc);
+
+	if (args == &sargs)
+		arguments_free (&sargs);
 
 	return pid;
 }

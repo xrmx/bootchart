@@ -784,9 +784,11 @@ int main (int argc, char *argv[])
 		goto exit;
 	}
 
-	in_initrd = am_in_initrd ();
-	if (in_initrd && sanity_check_initrd ())
-		goto exit;
+	if (!args.relative_time) { /* manually started */
+		in_initrd = am_in_initrd ();
+		if (in_initrd && sanity_check_initrd ())
+			goto exit;
+	}
 
 	pid = bootchart_find_running_pid (NULL);
 	if (args.probe_running) {

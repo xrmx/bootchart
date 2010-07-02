@@ -328,12 +328,14 @@ static void
 dump_cmdline (BufferFile *file, pid_t pid)
 {
 	int fd, len;
-	char str[PATH_MAX], path[PATH_MAX];
+	char str[PATH_MAX], path[PATH_MAX], buffer[4096];
 
 	sprintf (str, PROC_PATH "/%d/exe", pid);
 	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
 		return;
 	path[len] = '\0';
+
+	/* Zero delimited everything */
 
 	/* write <pid>\n<exe-path>\n */
 	sprintf (str, "%d\n:%s\n:", pid, path);
@@ -342,8 +344,27 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	/* write [zero delimited] <cmdline> */
 	sprintf (str, PROC_PATH "/%d/cmdline", pid);
 	fd = open (str, O_RDONLY);
-	if (fd >= 0) { /* usually no '\n's in arguments - we hope */
-		buffer_file_dump (file, fd);
+	if (fd >= 0) {
+		int i, start;
+
+		len = read (fd, buffer, 4096);
+		buffer[4095] = '\0';
+		for (start = i = 0; i < len; i++) {
+			int newline = buffer[i] == '\n';
+
+			/* new lines are not so good for rendering, and worse for parsing */
+			if (newline)
+				buffer[i] = '\0';
+
+			if (buffer[i] == '\0') {
+				buffer_file_append (file, buffer + start, i - start + 1);
+				if (newline) {
+					/* skip to the next arg */
+					for (; i < len && buffer[i] != '\0'; i++) ;
+				}
+				start = i + 1;
+			}
+		}
 		close (fd);
 	}
 

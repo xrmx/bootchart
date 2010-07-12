@@ -261,8 +261,8 @@ bootchart_find_running_pid (Arguments *opt_args)
 					char *argv[128];
 					argv[0] = abuffer;
 					for (argc = i = 0; i < len && argc < 127; i++) {
-						if (argv[i] == '\0')
-							argv[++argc] = abuffer + 1;
+						if (abuffer[i] == '\0')
+							argv[++argc] = abuffer + i + 1;
 					}
 					arguments_set_defaults (args);
 					arguments_parse (args, argc, argv);

@@ -724,6 +724,8 @@ void arguments_parse (Arguments *args, int argc, char **argv)
 	for (i = 1; i < argc; i++)  {
 		if (!argv[i]) continue;
     
+/*		fprintf (stderr, "arg %d = '%s'\n", i, argv[i]); */
+
 		/* commands with an argument */
 		if (i < argc - 1) {
 			const char *param = argv[i+1];

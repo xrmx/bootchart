@@ -69,7 +69,7 @@ find_chunks (DumpState *s)
 				if (errno == EINTR || errno == EAGAIN)
 					continue;
 				else {
-					fprintf (stderr, "Error '%s'\n", strerror (errno));
+					fprintf (stderr, "pread error '%s'\n", strerror (errno));
 					break;
 				}
 			}
@@ -118,12 +118,17 @@ static DumpState *open_pid (int pid)
  * wait a while hoping it exits (so we can
  * cleanup after it).
  */
-static void close_wait_pid (DumpState *s)
+static void close_wait_pid (DumpState *s, int avoid_kill)
 {
 	int i;
 
-	ptrace (PTRACE_KILL, s->pid, 0, 0);
+	if (!avoid_kill && ptrace (PTRACE_KILL, s->pid, 0, 0))
+		fprintf (stderr, "failed to ptrace_kill pid %d: %s\n",
+			 s->pid, strerror (errno));
+
+	/* presumably dead by now - but detach anyway */
 	ptrace (PTRACE_DETACH, s->pid, 0, 0);
+
 	close (s->mem);
 
 	/* wait at most second max */
@@ -195,7 +200,7 @@ buffers_extract_and_dump (const char *output_path)
 	} else
 		dump_buffers (state);
 
-	close_wait_pid (state);
+	close_wait_pid (state, ret);
 
 	return 0;
 }

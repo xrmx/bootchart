@@ -44,7 +44,6 @@ elif [ -f $CONF ]; then
         . $CONF
 else
         echo "$CONF missing"
-        exit 1
 fi
 
 # Start the boot logger.

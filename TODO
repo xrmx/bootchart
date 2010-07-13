@@ -4,11 +4,6 @@
 	+ traced %d processes of $$ (!) :-)
 	+ consumed %d seconds of CPU [ render these ... ]
 
-* why no dmesg logging on boot ? [!?]
-
-	* Get the process / fork-following netlink magic to run as a separate thread ...
-
-
 	+ horizontal zoom - should keep view horiz centered:
 	  but does not - cf. set_xscale
 
@@ -18,81 +13,39 @@
 			+ 'forked' ? ...
 			+ or can we do this by pid ? [ prolly ! ]
 
+	+ fix cumulative graphing - and boundary box bits
+
 	+ fix for profiling a running system ... [ get the origin right ! ]
-
-	+ the renderer - should not show the kernel etc.
-		- if it is > 5 mins from start etc.
-
-	* actually use the 'xscale' factor in draw.render [etc.]
-		+ to get horizontal zoom
+		+ the renderer - should not show the kernel etc.
+			- if it is > 5 mins from start etc.
 
 ** Features:
 
-* Use ptrace to extract the trace data from the daemon (cf. git branch)
+Use the same stats that Intel's tracer uses of I/O / scheduling foo ...
+	+ use them to avoid taskstats polling if there has been
+	  no scheduled timeslice (?)
 
-* Do taskstat based pid polling before /proc is mounted [ to capture that ]
-* Look for a taskstat interface to enumerate processes & pids ...
-	* Use the netlink interface to follow forks accurately
-	+ use PROC_EVENTS if it is there [ ~instant - and ~perfect ]
-	+ requires CONFIG_CONNECTOR and PROC_EVENTS ...
-	+ http://www.mail-archive.com/devel@openvz.org/msg16325.html
-	* Nice - it has a nano-second timestamp since boot
-		+ so we can get proc start & exit times -exactly- [neat]
-	* Nicer (!?) - will this give us task ids ? [ ie. threads so we
-	  don't have to go banging on /proc so slowly ].
-	+ /usr/include/linux/cn_proc.h
-		struct exec_proc_event {
-			__kernel_pid_t process_pid;
-			__kernel_pid_t process_tgid;
-		} exec;
-		struct fork_proc_event {
-			__kernel_pid_t parent_pid;
-			__kernel_pid_t parent_tgid;
-			__kernel_pid_t child_pid;
-			__kernel_pid_t child_tgid;
-		} fork;
-		struct exit_proc_event {
-			__kernel_pid_t process_pid;
-			__kernel_pid_t process_tgid;
-			__u32 exit_code, exit_signal;
-		} exit;
-	* nice ! ...
-
+Graph the swap / I/O delay stuff inside the bar (?)
 
 Account for the time taken to run the bootchart-collector ...
 	+ scale all other times by this ammount [!] ;-)
 	+ to make it -appear- as if it doesn't impact the system :-)
 
 * render I/O data backwards ... :-)
-	+ what steps in this data do we get ?
-
-* Add a cumulative graph view:
-	+ showing who used how much CPU over what time ...
-		+ pretty colors [etc.]
-
-* include the "exit conditions" into the source code (?)
-	+ compiled in ? or on the command-line ?
-	+ -- <exit procs> ...
-
-Test with an initrd
-
-FIXME:
-	+ make the 'extents' thing work [!]
-	+ if we have a short chart, it should be less wide.
-
-Graph the swap / I/O delay stuff inside the bar (?)
-
-
+	+ back-propagate delays that are longer than a rendered slice 
 
 Scale time discontinuously ? [ make the first seconds much longer ? ]
+	+ fun ! :-)
 
 Remove 'merge_logger' - no longer necessary - it's just one app ...
 	+ potentially we should hide / remove it though :-)
 
-* Merged from elsewhere:
+* Better data processing / shrinkage:
+	+ post process in C code as we dump the data
 	+ why process the data in python ? can't we do it earlier ?
 		+ adjust the previous sample etc.
-	+ helps to have the raw data - but we can do much better [!]
+	+ /proc/stat post-processing:
+		+ which fields do we actually parse & need ?
 
 Process taskstats in advance
 	+ elide all non-useful lines:
@@ -101,21 +54,8 @@ Process taskstats in advance
 * Export ODF, with a number of pie charts in it etc.
 	+ export cumulative data for rendering in ods ?
 	+ rather than adding manual rendering - which sucks (!?)
-
----------- ptrace re-write ----------
-
-* ptrace re-write [!]
-	+ process accounting fun [!?] ...
-
-	+ Use netlink to trace process forking etc.
-
-	* Need to do some ptrace IPC
-		+ let it continue until it locks-up ?
-		+ hand-shake somehow ? :-)
-		+ what's the story ?
-
-	* mount a tmpfs, create the chroot, and continue ... [!?]
-		+ daemonize if we are going to collect as/when we are up?
+	+ fun ... :-)
 
 
-	* SUSE initrd debugging; use "'shell=1'" - is good ... [!]
+Notes:
+	+ SUSE initrd debugging; use "'shell=1'" - is dead good ...

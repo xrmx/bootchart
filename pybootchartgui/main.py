@@ -36,6 +36,8 @@ def _mk_options_parser():
 			  help="do not prune the process tree")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")
+	parser.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,
+			  help="only display the boot time of the boot in text format (stdout)")	
 	parser.add_option("--very-quiet", action="store_true", dest="veryquiet", default=False,
 			  help="suppress all messages except errors")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,
@@ -115,6 +117,15 @@ def main(argv=None):
 		
 		if options.interactive or options.output == None:
 			gui.show(res, options)
+		elif options.boottime:
+			import math
+			proc_tree = res[3]
+			if proc_tree.idle:
+			    duration = proc_tree.idle
+			else:
+			    duration = proc_tree.duration
+			dur = duration / 100.0
+			print '%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
 		else:
 			if options.annotate_file:
 				f = open (options.annotate_file, "w")

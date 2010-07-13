@@ -19,6 +19,8 @@
 		+ the renderer - should not show the kernel etc.
 			- if it is > 5 mins from start etc.
 
+	+ re-write ever more of bootchartd from shell into C ...
+
 ** Features:
 
 Use the same stats that Intel's tracer uses of I/O / scheduling foo ...

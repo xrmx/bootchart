@@ -384,7 +384,11 @@ def draw_header (ctx, headers, duration):
 	
     for (headerkey, headertitle, mangle) in toshow:
         header_y += ctx.font_extents()[2]
-        txt = headertitle + ': ' + mangle(headers.get(headerkey))
+	if headerkey in headers:
+		value = headers.get(headerkey)
+	else:
+		value = ""
+        txt = headertitle + ': ' + mangle(value)
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
     dur = duration / 100.0

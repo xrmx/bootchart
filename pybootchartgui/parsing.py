@@ -378,6 +378,8 @@ def get_num_cpus(headers):
     no difference."""
     if headers is None:
         return 1
+    if headers.get("system.cpu.num"):
+	return int (headers.get("system.cpu.num"))
     cpu_model = headers.get("system.cpu")
     if cpu_model is None:
         return 1

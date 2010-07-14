@@ -19,8 +19,8 @@ COLLECTOR = \
 
 all: bootchart-collector
 
-bootchart-collector-static: $(COLLECTOR)
-	$(CC) -Wl,--strip-all -Os -static -Icollector -o $@ $^ $(LIBC_A_PATH)/libc.a
+%.o:%.c
+	$(CC) $(CFLAGS) -DVERSION=\"$(VER)\" -c $^ -o $@
 
 bootchart-collector: $(COLLECTOR)
 	$(CC) -lpthread -Icollector -o $@ $^

@@ -7,6 +7,7 @@
 #include <sys/ptrace.h>
 #include <sys/mman.h>
 #include <sys/klog.h>
+#include <sys/utsname.h>
 
 typedef struct {
 	int pid;
@@ -321,6 +322,9 @@ dump_dmsg (const char *output_path)
 
 	snprintf (fname, 4095, "%s/dmesg", output_path);
 	dmesg = fopen (fname, "w");
+	if (!dmesg)
+		return 1;
+
 	for (i = 0; i < count; i++) {
 
 		/* skip log level header '<2>...' eg. */
@@ -333,5 +337,110 @@ dump_dmsg (const char *output_path)
 	}
 	if (log[count - 1] != '\n')
 		fputs ("\n", dmesg);
+
+	fclose (dmesg);
+	return 0;
+}
+
+int
+dump_header (const char *output_path)
+{
+	FILE *header;
+	char fname[4096];
+
+	if (output_path) {
+		snprintf (fname, 4095, "%s/header", output_path);
+		header = fopen (fname, "w");
+	} else
+		header = stdout;
+
+	if (!header)
+		return 1;
+
+	fprintf (header, "version = " VERSION "\n");
+
+	{
+		time_t now;
+		char host_buf[4096];
+		char domain_buf[2048];
+		char time_buf[128];
+
+		if (!gethostname (host_buf, 2047) &&
+		    !getdomainname (domain_buf, 2048)) {
+			if (strlen (domain_buf)) {
+				strcat (host_buf, ".");
+				strcat (host_buf, domain_buf);
+			}
+		} else
+			strcpy (host_buf, "unknown");
+
+		now = time (NULL);
+		ctime_r (&now, time_buf);
+		if (strrchr (time_buf, '\n'))
+			*strrchr (time_buf, '\n') = '\0';
+
+		fprintf (header, "title = Boot chart for %s (%s)\n", host_buf, time_buf);
+	}
+
+	{
+		struct utsname ubuf;
+		if (!uname (&ubuf))
+			fprintf (header, "system.uname = %s %s %s %s\n",
+				 ubuf.sysname, ubuf.release, ubuf.version, ubuf.machine);
+	}
+	{
+		FILE *lsb;
+		char release[4096] = "";
+
+		lsb = popen ("lsb_release -sd", "r");
+		if (lsb && fgets (release, 4096, lsb)) {
+			if (release[0] == '"')
+				memmove (release, release + 1, strlen (release + 1));
+			if (strrchr (release, '"'))
+				*strrchr (release, '"') = '\0';
+		} else
+			release[0] = '\0';
+		fprintf (header, "system.release = %s\n", release);
+		if (lsb)
+			fclose (lsb);
+	}
+
+	{
+		FILE *cpuinfo = fopen ("/proc/cpuinfo", "r");
+		char line[4096];
+		char cpu_model[4096] = "";
+		int  cpus = 0;
+
+		while (cpuinfo && fgets (line, 4096, cpuinfo)) {
+			if (!strncmp (line, "model name", 10) && strchr (line, ':')) {
+				strcpy (cpu_model, strstr (line, ": ") + 2);
+				cpus++;
+			}
+		}
+		if (cpuinfo)
+			fclose (cpuinfo);
+		if (strrchr (cpu_model, '\n'))
+			*strrchr (cpu_model, '\n') = '\0';
+		fprintf (header, "system.cpu = %s %d\n", cpu_model, cpus);
+		fprintf (header, "system.cpu.num = %d\n", cpus);
+	}
+	{
+		FILE *cmdline = fopen ("/proc/cmdline", "r");
+		if (cmdline) {
+			char line [4096] = "";
+			fgets (line, 4096, cmdline);
+			fprintf (header, "system.kernel.options = %s", line);
+			fclose (cmdline);
+		}
+	}
+	{
+		fflush (header);
+		int maxpid = fork();
+		if (!maxpid) _exit(0);
+		fprintf (header, "system.maxpid = %d\n", maxpid);
+	}
+
+	if (header != stdout)
+		fclose (header);
 	return 0;
 }

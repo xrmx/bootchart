@@ -16,8 +16,8 @@
 	+ fix cumulative graphing - and boundary box bits
 
 	+ fix for profiling a running system ... [ get the origin right ! ]
-		+ the renderer - should not show the kernel etc.
-			- if it is > 5 mins from start etc.
+		+ the renderer (or collector ?) should subtract the initial
+		  times of each process for the cumulative graph ...
 
 	+ re-write ever more of bootchartd from shell into C ...
 

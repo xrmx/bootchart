@@ -704,6 +704,12 @@ clean_enviroment (void)
 	return ret;
 }
 
+static void
+test (void)
+{
+	dump_header (NULL);
+}
+
 void
 arguments_set_defaults (Arguments *args)
 {
@@ -753,6 +759,10 @@ void arguments_parse (Arguments *args, int argc, char **argv)
 		else if (!strcmp (argv[i], "-h") ||
 			 !strcmp (argv[i], "--help"))
 			usage();
+
+		else if (!strcmp (argv[i], "-t") ||
+			 !strcmp (argv[i], "--test"))
+			test();
       
 		/* appended args mode args */
 		else if (!args->hz)
@@ -798,11 +808,10 @@ int main (int argc, char *argv[])
 		Arguments remote_args;
 
 		ret = buffers_extract_and_dump (args.dump_path, &remote_args);
+		ret |= dump_header (args.dump_path);
+
 		if (!remote_args.relative_time)
-			dump_dmsg (args.dump_path);
-#ifdef IMPLEMENT_ME
-		dump_header (args.dump_path);
-#endif
+			ret |= dump_dmsg (args.dump_path);
 		if (!ret)
 			cleanup_dev ();
 		goto exit;

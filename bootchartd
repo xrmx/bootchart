@@ -109,26 +109,6 @@ wait_boot()
 	done;
 }
 
-# Log some basic information about the system.
-log_header()
-{
-    if [ -x "/usr/bin/dpkg-query" ]; then
-        version="$(dpkg-query -f'${Version}' -W bootchart)"
-    else
-        version="$(rpm -q bootchart --queryformat '%{VERSION}')"
-    fi
-    (	echo "version = $version"
-	echo "title = Boot chart for $(hostname) ($(date))"
-	echo "system.uname = $(uname -srvm)"
-	echo "system.release = $(lsb_release -sd)"
-	echo "system.cpu = $(grep '^model name' /proc/cpuinfo)"\
-         "($(grep -c '^model name' /proc/cpuinfo))"
-	echo "system.kernel.options = $(sed q /proc/cmdline)"
-	maxpid=$(/bin/bash -c 'echo $$')
-	echo "system.maxpid = $maxpid"
-    ) > header
-}
-
 # Extract the log data from the running bootchart collector
 # process (via ptrace) - fun. Store logs into $BOOTLOG_DEST.
 stop()
@@ -149,9 +129,6 @@ stop()
 		echo "Can't find bootchart output in $tmpdir - aborting"
 		exit 1
 	fi
-
-	# Write system information
-	log_header
 
 	# Archive it all up into the bootchart output
 	tar -zcf "$BOOTLOG_DEST" header dmesg *.log

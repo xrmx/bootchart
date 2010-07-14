@@ -153,9 +153,6 @@ stop()
 	# Write system information
 	log_header
 
-	# get kernel messages for kernel init logging
-	dmesg > dmesg
-
 	# Archive it all up into the bootchart output
 	tar -zcf "$BOOTLOG_DEST" header dmesg *.log
 

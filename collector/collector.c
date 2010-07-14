@@ -795,11 +795,12 @@ int main (int argc, char *argv[])
 	fprintf (stderr, "\n");
 
 	if (args.dump_path) {
-		ret = buffers_extract_and_dump (args.dump_path);
-#ifdef IMPLEMENT_ME
-		... [!] ...
+		Arguments remote_args;
+
+		ret = buffers_extract_and_dump (args.dump_path, &remote_args);
 		if (!remote_args.relative_time)
 			dump_dmsg (args.dump_path);
+#ifdef IMPLEMENT_ME
 		dump_header (args.dump_path);
 #endif
 		if (!ret)

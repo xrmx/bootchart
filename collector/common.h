@@ -96,7 +96,9 @@ void        buffer_file_dump_frame_with_timestamp
                                        (BufferFile *file, int input_fd,
 					const char *uptime, size_t uptimelen);
 
-int         buffers_extract_and_dump   (const char *output_path);
+int         buffers_extract_and_dump   (const char *output_path,
+					Arguments  *remote_args);
+int         dump_dmsg                  (const char *output_path);
 int         bootchart_find_running_pid (Arguments *opt_args);
 
 /* ---------------- tasks.c  ---------------- */

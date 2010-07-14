@@ -21,6 +21,9 @@
 
 	+ re-write ever more of bootchartd from shell into C ...
 
+	+ extend logs to to note when processes truly exit to improve
+	  duration rendering.
+
 ** Features:
 
 Use the same stats that Intel's tracer uses of I/O / scheduling foo ...

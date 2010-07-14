@@ -6,7 +6,7 @@
 
 #include <sys/ptrace.h>
 #include <sys/mman.h>
-
+#include <sys/klog.h>
 
 typedef struct {
 	int pid;
@@ -90,7 +90,8 @@ find_chunks (DumpState *s)
 	return ret;
 }
 
-static DumpState *open_pid (int pid)
+static DumpState *
+open_pid (int pid)
 {
 	char name[1024];
 	DumpState *s;
@@ -118,7 +119,8 @@ static DumpState *open_pid (int pid)
  * wait a while hoping it exits (so we can
  * cleanup after it).
  */
-static void close_wait_pid (DumpState *s, int avoid_kill)
+static void
+close_wait_pid (DumpState *s, int avoid_kill)
 {
 	int i;
 
@@ -176,15 +178,14 @@ static void dump_buffers (DumpState *s)
  * a running bootchartd process.
  */
 int
-buffers_extract_and_dump (const char *output_path)
+buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 {
-	int pid, ret = 1;
+	int pid, ret = 0;
 	DumpState *state;
-	Arguments  args;
 
 	chdir (output_path);
 
-	pid = bootchart_find_running_pid (&args);
+	pid = bootchart_find_running_pid (remote_args);
 	if (pid < 0) {
 		fprintf (stderr, "Failed to find the collector's pid\n");
 		return 1;
@@ -202,7 +203,7 @@ buffers_extract_and_dump (const char *output_path)
 
 	close_wait_pid (state, ret);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -291,4 +292,46 @@ bootchart_find_running_pid (Arguments *opt_args)
 		arguments_free (&sargs);
 
 	return pid;
+}
+
+/*
+ * Dump kernel dmesg log for kernel init charting.
+ */
+int
+dump_dmsg (const char *output_path)
+{
+	int size, i, count;
+	char *log = NULL;
+	char fname[4096];
+	FILE *dmesg;
+
+	for (size = 256 * 1024;; size *= 2) {
+		log = (char *)realloc (log, size);
+		count = klogctl (3, log, size);
+		if (count < size - 1)
+			break;
+	}
+
+	if (!count) {
+		fprintf (stderr, " odd - no dmesg log data\n");
+		return 1;
+	}
+	
+	log[count] = '\0';
+
+	snprintf (fname, 4095, "%s/dmesg", output_path);
+	dmesg = fopen (fname, "w");
+	for (i = 0; i < count; i++) {
+
+		/* skip log level header '<2>...' eg. */
+		while (i < count && log[i] != '>') i++;
+		i++;
+
+		/* drop line to disk */
+		while (i < count && log[i - 1] != '\n')
+			fputc (log[i++], dmesg);
+	}
+	if (log[count - 1] != '\n')
+		fputs ("\n", dmesg);
+	return 0;
 }

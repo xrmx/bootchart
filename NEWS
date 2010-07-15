@@ -1,3 +1,18 @@
+bootchart2 0.12.1
+	+ pybootchartgui
+		+ pylint cleanup
+		+ handle empty traces more elegantly
+		+ add '-t' / '--boot-time' argument (Matthew Bauer)
+	+ collector
+		+ now GPLv2
+		+ add rdinit support for very early initrd tracing
+		+ cleanup / re-factor code into separate modules
+		+ re-factor arg parsing, and parse remote process args
+		+ handle missing bootchartd.conf cleanly
+		+ move much of bootchartd from shell -> C
+			+ drop dmesg and uname usage
+			+ avoid rpm/dpkg with native version reporting
+
 bootchart2 0.12.0 (Michael Meeks)
 	+ collector
 		+ use netlink PROC_EVENTS to generate parentage data

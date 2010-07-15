@@ -1,3 +1,6 @@
+bootchart2 0.12.2
+ 	+ fix pthread compile / linking bug
+
 bootchart2 0.12.1
 	+ pybootchartgui
 		+ pylint cleanup

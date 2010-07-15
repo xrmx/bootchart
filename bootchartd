@@ -133,9 +133,7 @@ stop()
 	# Archive it all up into the bootchart output
 	tar -zcf "$BOOTLOG_DEST" header dmesg *.log
 
-	rm -f header dmesg *.log
-
-	# the collector itself cleans up it's own jail
+	rm -Rf $tmpdir
 
 	# Render the chart if configured (and the renderer is installed)
 	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then

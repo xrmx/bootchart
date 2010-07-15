@@ -1,5 +1,8 @@
 ** Bugs:
 
+* FIXME: are we merging / glupping threads properly ?
+	+ how can sreadahead apparently be doing no I/O ? :-)
+
 * Tracing metrics:
 	+ traced %d processes of $$ (!) :-)
 	+ consumed %d seconds of CPU [ render these ... ]
@@ -20,6 +23,12 @@
 		  times of each process for the cumulative graph ...
 
 	+ re-write ever more of bootchartd from shell into C ...
+		+ make the --dump thing return a success status,
+		+ poll the remote process (with ptrace ? - hmm ...)
+			+ to see if it has finished (?)
+			+ a good idea ? or will it introduce error ?
+			+ hmm.
+		+ have a 20 second delay before starting to poll it ?
 
 	+ extend logs to to note when processes truly exit to improve
 	  duration rendering.

@@ -132,9 +132,10 @@ proc_pid_scanner_get_tasks_start (PidScanner *scanner)
 	strcat (buffer, "/task");
 
 	dfd = openat (dirfd (ps->proc), buffer, O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_DIRECTORY);
-	if (dfd < 0)
+	if (dfd < 0) {
 		ps->proc_task = NULL;
-	else
+/*		fprintf (stderr, "error: failed to open '%s'\n", buffer); */
+	} else
 		ps->proc_task = fdopendir (dfd);
 }
 
@@ -169,7 +170,7 @@ proc_pid_scanner_get_tasks_next (PidScanner *scanner)
 		if (!isdigit (tent->d_name[0]))
 			continue;
 		if ((tpid = atoi (tent->d_name)) != ps->cur_pid) {
-			/*    fprintf (stdout, "pid %d has tpid %d\n", ps->cur_pid, tpid); */
+/*			fprintf (stderr, "pid %d has tpid %d\n", ps->cur_pid, tpid); */
 			return tpid;
 		}
 	}

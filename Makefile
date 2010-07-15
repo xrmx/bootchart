@@ -20,10 +20,10 @@ COLLECTOR = \
 all: bootchart-collector
 
 %.o:%.c
-	$(CC) $(CFLAGS) -DVERSION=\"$(VER)\" -c $^ -o $@
+	$(CC) $(CFLAGS) -pthread -DVERSION=\"$(VER)\" -c $^ -o $@
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) -lpthread -Icollector -o $@ $^
+	$(CC) -pthread -Icollector -o $@ $^
 
 py-install-compile:
 	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui

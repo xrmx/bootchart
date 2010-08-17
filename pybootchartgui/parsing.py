@@ -379,14 +379,14 @@ def get_num_cpus(headers):
     if headers is None:
         return 1
     if headers.get("system.cpu.num"):
-	return int (headers.get("system.cpu.num"))
+	return max (int (headers.get("system.cpu.num")), 1)
     cpu_model = headers.get("system.cpu")
     if cpu_model is None:
         return 1
     mat = re.match(".*\\((\\d+)\\)", cpu_model)
     if mat is None:
         return 1
-    return int(mat.group(1))
+    return max (int(mat.group(1)), 1)
 
 class ParserState:
     def __init__(self):

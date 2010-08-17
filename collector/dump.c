@@ -38,7 +38,7 @@ find_chunks (DumpState *s)
 	snprintf (buffer, 1024, "/proc/%d/maps", s->pid);
 	maps = fopen (buffer, "r");
 
-	while (!result && fgets (buffer, 4096, maps)) {
+	while (!result && fgets (buffer, 1024, maps)) {
 		char *p, *copy;
 		size_t start, end, toread, read_bytes;
 

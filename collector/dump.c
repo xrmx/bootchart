@@ -402,7 +402,7 @@ dump_header (const char *output_path)
 			release[0] = '\0';
 		fprintf (header, "system.release = %s\n", release);
 		if (lsb)
-			fclose (lsb);
+			pclose (lsb);
 	}
 
 	{

@@ -412,10 +412,10 @@ dump_header (const char *output_path)
 		int  cpus = 0;
 
 		while (cpuinfo && fgets (line, 4096, cpuinfo)) {
-			if (!strncmp (line, "model name", 10) && strchr (line, ':')) {
+			if (!strncmp (line, "model name", 10) && strchr (line, ':'))
 				strcpy (cpu_model, strstr (line, ": ") + 2);
+			if (!strncasecmp (line, "processor", 9))
 				cpus++;
-			}
 		}
 		if (cpuinfo)
 			fclose (cpuinfo);

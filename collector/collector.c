@@ -454,7 +454,7 @@ static int get_family_id(int sd)
 	rep_len = recv(sd, &ans, sizeof(ans), 0);
 	if (ans.n.nlmsg_type == NLMSG_ERROR ||
 	    (rep_len < 0) || !NLMSG_OK((&ans.n), rep_len))
-		return 0;
+		return -1;
 
 	na = (struct nlattr *) GENLMSG_DATA(&ans);
 	na = (struct nlattr *) ((char *) na + NLA_ALIGN(na->nla_len));
@@ -481,7 +481,7 @@ init_taskstat (void)
 
 	netlink_taskstats_id = get_family_id (netlink_socket);
 
-	return 1;
+	return netlink_taskstats_id >= 0;
 error:
 	if (netlink_socket >= 0)
 		close (netlink_socket);

@@ -342,6 +342,17 @@ dump_dmsg (const char *output_path)
 	return 0;
 }
 
+/* sane ASCII chars only please */
+static void
+rewrite_ascii (char *string)
+{
+	char *p;
+	for (p = string; *p; p++) {
+		if (!isgraph (*p) && !isblank (*p))
+			*p = '.';
+	}
+}
+
 int
 dump_header (const char *output_path)
 {
@@ -361,8 +372,8 @@ dump_header (const char *output_path)
 
 	{
 		time_t now;
-		char host_buf[4096];
-		char domain_buf[2048];
+		char host_buf[4096] = { '\0' };
+		char domain_buf[2048] = { '\0' };
 		char time_buf[128];
 
 		if (!gethostname (host_buf, 2047) &&
@@ -373,6 +384,8 @@ dump_header (const char *output_path)
 			}
 		} else
 			strcpy (host_buf, "unknown");
+
+		rewrite_ascii (host_buf);
 
 		now = time (NULL);
 		ctime_r (&now, time_buf);

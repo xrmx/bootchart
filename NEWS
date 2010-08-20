@@ -1,3 +1,17 @@
+bootchart2 0.12.3
+	+ collector
+		+ pclose after popen (Riccardo Magliocchetti (xrmx))
+		+ fix buffer overflow (xrmx)
+		+ count 'processor:' in /proc/cpuinfo for ARM (Michael)
+		+ get model name from that line too for ARM (xrmx)
+		+ store /proc/cpuinfo in the boot-chart archive (xrmx)
+		+ try harder to detect missing TASKSTATS (Michael)
+		+ sanity-check invalid domain names (Michael)
+		+ detect missing PROC_EVENTS more reliably (Michael)
+		+ README fixes (xrmx, Michael)
+	+ pybootchartgui
+		+ make num_cpu parsing robust (Michael)
+
 bootchart2 0.12.2
  	+ fix pthread compile / linking bug
 

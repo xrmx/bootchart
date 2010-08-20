@@ -323,6 +323,23 @@ dump_proc_stat (BufferFile *file, int pid)
 	close (fd);
 }
 
+static void
+dump_proc_cpuinfo (BufferFile *file)
+{
+	int  fd;
+	char filename[PATH_MAX];
+
+	sprintf (filename, PROC_PATH "/cpuinfo");
+
+	fd = open (filename, O_RDONLY);
+	if (fd < 0)
+		return;
+
+	buffer_file_dump (file, fd);
+
+	close (fd);
+}
+
 /* ---- called from netlink thread ---- */
 static void
 dump_cmdline (BufferFile *file, pid_t pid)
@@ -781,7 +798,7 @@ int main (int argc, char *argv[])
 	int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
 	PidScanner *scanner = NULL;
 	unsigned long reltime = 0;
-	BufferFile *stat_file, *disk_file, *per_pid_file;
+	BufferFile *stat_file, *disk_file, *per_pid_file, *cpuinfo_file;
 	PidEventClosure pid_ev_cl;
 	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
 	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
@@ -859,10 +876,11 @@ int main (int argc, char *argv[])
 		per_pid_file = buffer_file_new (&map, "taskstats.log");
 	else
 		per_pid_file = buffer_file_new (&map, "proc_ps.log");
+	cpuinfo_file = buffer_file_new (&map, "proc_cpuinfo.log");
 	pid_ev_cl.cmdline_file = buffer_file_new (&map, "cmdline2.log");
 	pid_ev_cl.paternity_file = buffer_file_new (&map, "paternity.log");
 
-	if (!stat_file || !disk_file || !per_pid_file ||
+	if (!stat_file || !disk_file || !per_pid_file || !cpuinfo_file ||
 	    !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file) {
 		fprintf (stderr, "Error allocating output buffers\n");
 		return 1;
@@ -879,6 +897,9 @@ int main (int argc, char *argv[])
 		if (! reltime)
 			exit (1);
 	}
+
+	/* Dump /proc/cpuinfo for easier debugging with unexpected formats */
+	dump_proc_cpuinfo (cpuinfo_file);
 
 	while (1) {
 		pid_t pid;

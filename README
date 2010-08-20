@@ -30,6 +30,10 @@ command-line, normally in /boot/grub/menu.lst:
 chart rendering tool. If you want to chart the initrd, add
 rdinitrd=/sbin/bootchartd to the kernel command-line.
 
+	To make bootchart2 work best, please ensure your kernel is
+configured with CONFIG_PROC_EVENTS=y and CONFIG_TASKSTATS=y, without
+these we are slower, less accurate, and produce an uglier task 
+hierarchy.
 
 			    Why bootchart2 ?
 			   ------------------

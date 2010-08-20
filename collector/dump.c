@@ -421,20 +421,27 @@ dump_header (const char *output_path)
 	{
 		FILE *cpuinfo = fopen ("/proc/cpuinfo", "r");
 		char line[4096];
-		char cpu_model[4096] = "";
+		char cpu_model[4096] = {'\0'};
+		char cpu_model_alt[4096] = {'\0'};
+		char *cpu_m = cpu_model;
 		int  cpus = 0;
 
 		while (cpuinfo && fgets (line, 4096, cpuinfo)) {
 			if (!strncmp (line, "model name", 10) && strchr (line, ':'))
 				strcpy (cpu_model, strstr (line, ": ") + 2);
-			if (!strncasecmp (line, "processor", 9))
+			/* ARM platforms save cpu model on Processor field so try to get it */
+			if (!strncasecmp (line, "processor", 9)) {
 				cpus++;
+				strcpy (cpu_model_alt, strstr (line, ": ") + 2);
+			}
 		}
 		if (cpuinfo)
 			fclose (cpuinfo);
-		if (strrchr (cpu_model, '\n'))
-			*strrchr (cpu_model, '\n') = '\0';
-		fprintf (header, "system.cpu = %s %d\n", cpu_model, cpus);
+		if (!cpu_model[0])
+			cpu_m = cpu_model_alt;
+		if (strrchr (cpu_m, '\n'))
+			*strrchr (cpu_m, '\n') = '\0';
+		fprintf (header, "system.cpu = %s %d\n", cpu_m, cpus);
 		fprintf (header, "system.cpu.num = %d\n", cpus);
 	}
 	{

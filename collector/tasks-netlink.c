@@ -355,6 +355,23 @@ handle_news (NetLinkPidScanner *nls, struct cn_msg *cn_hdr)
         }
 }
 
+static size_t
+netlink_recvfrom (NetLinkPidScanner *nls, char *buffer)
+{
+	socklen_t from_nla_len;
+	struct sockaddr_nl from_nla;
+
+	ZERO_ARRAY (buffer);
+
+	ZERO (from_nla);
+        from_nla.nl_family = AF_NETLINK;
+        from_nla.nl_groups = CN_IDX_PROC;
+        from_nla.nl_pid = 1;
+
+	return recvfrom (nls->socket, buffer, BUFF_SIZE, 0,
+			 (struct sockaddr*)&from_nla, &from_nla_len);
+}
+
 static void *
 netlink_listen_thread (void *user_data)
 {
@@ -362,27 +379,14 @@ netlink_listen_thread (void *user_data)
   
 	struct cn_msg *cn_hdr;
 
-	struct sockaddr_nl kern_nla, from_nla;
-	socklen_t from_nla_len;
 	char buff[BUFF_SIZE];
 	size_t recv_len = 0;
-
-	ZERO (kern_nla);
-        kern_nla.nl_family = AF_NETLINK;
-        kern_nla.nl_groups = CN_IDX_PROC;
-        kern_nla.nl_pid = 1;
 
 	for (;;) {
                 struct nlmsghdr *nlh = (struct nlmsghdr*)buff;
 
-		ZERO_ARRAY (buff);
-		from_nla_len = sizeof (from_nla);
-
-                memcpy (&from_nla, &kern_nla, sizeof (from_nla));
-
 		/* block here mostly waiting for news ... */
-                recv_len = recvfrom (nls->socket, buff, BUFF_SIZE, 0,
-				     (struct sockaddr*)&from_nla, &from_nla_len);
+                recv_len = netlink_recvfrom (nls, buff);
                 if (recv_len < 1)
 			continue;
 
@@ -439,7 +443,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
          */
         nls->socket = socket (PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
         if (nls->socket == -1) {
-		fprintf (stderr, "netlink socket error");
+		fprintf (stderr, "netlink socket error\n");
                 return NULL;
         }
         my_nla.nl_family = AF_NETLINK;
@@ -447,7 +451,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         my_nla.nl_pid = getpid();
 
         if (bind (nls->socket, (struct sockaddr *)&my_nla, sizeof(my_nla))) {
-		fprintf (stderr, "binding nls->socket error");
+		fprintf (stderr, "binding nls->socket error\n");
                 goto close_and_exit;
         }
         nl_hdr = (struct nlmsghdr *)buff;
@@ -468,7 +472,31 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         if (send (nls->socket, nl_hdr, nl_hdr->nlmsg_len, 0) != nl_hdr->nlmsg_len) {
 		fprintf(stderr, "failed to send proc connector mcast ctl op!\n");
                 goto close_and_exit;
-        }
+        } else {
+		size_t recv_len;
+                struct nlmsghdr *nlh = (struct nlmsghdr*)buff;
+
+                recv_len = netlink_recvfrom (nls, buff);
+		if (recv_len < 1 || !NLMSG_OK (nlh, recv_len) ||
+		    nlh->nlmsg_type != NLMSG_DONE) {
+			fprintf (stderr, "Failed to connect to PROC_EVENT via netlink\n");
+			goto close_and_exit;
+		} else {
+			struct proc_event *ev;
+			struct cn_msg *cn_hdr;
+
+                        cn_hdr = NLMSG_DATA (nlh);
+			ev = (struct proc_event*)cn_hdr->data;
+
+			if (ev->what != PROC_EVENT_NONE || ev->event_data.ack.err) {
+				fprintf (stderr, "error: expecting an EVENT_NONE in response "
+					 "to PROC_EVENT connect (err 0x%x)\n",
+					 ev->event_data.ack.err);
+				goto close_and_exit;
+			}
+			/* we made it ... */
+		}
+	}
 
 	pthread_mutex_init (&nls->lock, NULL);
 

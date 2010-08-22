@@ -203,8 +203,10 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
 		y = (point[1] - y_base) * -yscale + y_trans + bar_h
 		return x, y
 
-	xscale = float (chart_bounds[2]) / max (x for (x, y) in data)
-	yscale = float (chart_bounds[3]) / max (y for (x, y) in data)
+	max_x = max (x for (x, y) in data)
+	max_y = max (y for (x, y) in data)
+	xscale = float (chart_bounds[2]) / max_x
+	yscale = float (chart_bounds[3]) / max_y
     
 	first = transform_point_coords (data[0], x_shift, 0, xscale, yscale, \
 				        chart_bounds[0], chart_bounds[1])

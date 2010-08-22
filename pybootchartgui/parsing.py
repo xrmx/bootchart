@@ -273,6 +273,9 @@ def _parse_dmesg(writer, file):
 	inc = 1.0 / 1000000
 	kernel = Process(writer, idx, "k-boot", 0, 0.1)
 	processMap['k-boot'] = kernel
+	base_ts = False
+	max_ts = 0
+	clock_fscked = False
 	for line in file.read().split('\n'):
 		t = timestamp_re.match (line)
 		if t is None:
@@ -280,6 +283,20 @@ def _parse_dmesg(writer, file):
 			continue
 
 		time_ms = float (t.group(1)) * 1000
+		# looks like we may have a huge diff after the clock
+		# has been set up. This could lead to huge graph:
+		# so huge we will be killed by the OOM.
+		# So instead of using the plain timestamp we will
+		# use a delta to first one and skip the first one
+		# for convenience
+		if max_ts == 0 and not base_ts and time_ms > 1000:
+			base_ts = time_ms
+			clock_fscked = True
+			continue
+		max_ts = max(time_ms, max_ts)
+		if clock_fscked:
+#			print "clock fscked!: %f instead of %f" % (time_ms - base_ts, time_ms)
+			time_ms -= base_ts
 		m = split_re.match (t.group(2))
 
 		if m is None:

@@ -205,6 +205,9 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
 
 	max_x = max (x for (x, y) in data)
 	max_y = max (y for (x, y) in data)
+	# avoid divide by zero when we render I/O utilization and max is 0
+	if max_y == 0:
+		max_y = 1.0
 	xscale = float (chart_bounds[2]) / max_x
 	yscale = float (chart_bounds[3]) / max_y
     

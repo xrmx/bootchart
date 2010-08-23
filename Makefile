@@ -42,7 +42,6 @@ install-collector: all install-chroot
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
 
 install: all py-install-compile install-collector
-	mkdir -p $RPM_BUILD_ROOT/lib/bootchart/mnt
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic collector/*.o

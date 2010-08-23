@@ -552,9 +552,18 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	legends = []
 	labels = []
 	pid_to_color = {}
+	m_proc_list = {}
+
+	# merge pids with the same cmd
+	for proc in proc_tree.process_list:
+		if not proc.cmd in m_proc_list:
+			m_proc_list[proc.cmd] = proc
+			continue
+		p = m_proc_list[proc.cmd]
+		proc_tree.merge_processes(p, proc)
 
 	# render each pid in order
-	for proc in proc_tree.process_list:
+	for proc in m_proc_list.values():
 		row = {}
 		cuml = 0.0
 

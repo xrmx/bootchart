@@ -420,12 +420,18 @@ dump_header (const char *output_path)
 
 	{
 		FILE *cpuinfo = fopen ("/proc/cpuinfo", "r");
+		FILE *cpuinfo_dump;
+		char fname[4096];
 		char line[4096];
 		char cpu_model[4096] = {'\0'};
 		char cpu_model_alt[4096] = {'\0'};
 		char *cpu_m = cpu_model;
 		int  cpus = 0;
 
+		sprintf (fname, "%s/proc_cpuinfo.log", output_path);
+		cpuinfo_dump = fopen(fname, "w");
+
+		/* Dump /proc/cpuinfo for easier debugging with unexpected formats */
 		while (cpuinfo && fgets (line, 4096, cpuinfo)) {
 			if (!strncmp (line, "model name", 10) && strchr (line, ':'))
 				strcpy (cpu_model, strstr (line, ": ") + 2);
@@ -434,9 +440,13 @@ dump_header (const char *output_path)
 				cpus++;
 				strcpy (cpu_model_alt, strstr (line, ": ") + 2);
 			}
+			if (cpuinfo_dump)
+				fprintf(cpuinfo_dump, "%s", line);
 		}
 		if (cpuinfo)
 			fclose (cpuinfo);
+		if (cpuinfo_dump)
+			fclose(cpuinfo_dump);
 		if (!cpu_model[0])
 			cpu_m = cpu_model_alt;
 		if (strrchr (cpu_m, '\n'))

@@ -211,7 +211,7 @@ class ProcessTree:
 
             if is_app_tree:
                 for child in p.child_list:
-                    self.__merge_processes(p, child)
+                    self.merge_processes(p, child)
                     num_removed += 1
                 p.child_list = []
             else:
@@ -228,7 +228,7 @@ class ProcessTree:
             if processes in processes and len(p.child_list) > 0:
                 subtreemap = self.getProcessMap(p.child_list)
                 for child in subtreemap.values():
-                    self.__merge_processes(p, child)
+                    self.merge_processes(p, child)
                     num_removed += len(subtreemap)
                     p.child_list = []
                     p.cmd += " (+)"
@@ -251,7 +251,7 @@ class ProcessTree:
                 idx -= 1
                 num_removed += 1
                 p.child_list.extend(nextp.child_list)
-                self.__merge_processes(p, nextp)
+                self.merge_processes(p, nextp)
             num_removed += self.merge_siblings(p.child_list)
             idx += 1
         if len(process_subtree) > 0:
@@ -271,14 +271,14 @@ class ProcessTree:
             if len(p.child_list) == 1 and p.child_list[0].cmd == p.cmd:
                 child = p.child_list[0]
                 p.child_list = list(child.child_list)
-                self.__merge_processes(p, child)
+                self.merge_processes(p, child)
                 num_removed += 1
                 continue
             num_removed += self.merge_runs(p.child_list)
             idx += 1
         return num_removed
 
-    def __merge_processes(self, p1, p2):
+    def merge_processes(self, p1, p2):
         """Merges two process' samples."""
         p1.samples.extend(p2.samples)
         p1.samples.sort( key = lambda p: p.time )

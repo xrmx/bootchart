@@ -275,7 +275,6 @@ def _parse_dmesg(writer, file):
 	processMap['k-boot'] = kernel
 	base_ts = False
 	max_ts = 0
-	clock_fscked = False
 	for line in file.read().split('\n'):
 		t = timestamp_re.match (line)
 		if t is None:
@@ -291,11 +290,10 @@ def _parse_dmesg(writer, file):
 		# for convenience
 		if max_ts == 0 and not base_ts and time_ms > 1000:
 			base_ts = time_ms
-			clock_fscked = True
 			continue
 		max_ts = max(time_ms, max_ts)
-		if clock_fscked:
-#			print "clock fscked!: %f instead of %f" % (time_ms - base_ts, time_ms)
+		if base_ts:
+#			print "fscked clock: used %f instead of %f" % (time_ms - base_ts, time_ms)
 			time_ms -= base_ts
 		m = split_re.match (t.group(2))
 

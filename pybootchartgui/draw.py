@@ -532,7 +532,8 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 		print "degenerate boot chart"
 		return
 
-	pix_per_ns = chart_bounds[3] / total_time
+	# be conservative to avoid overlap of cumulative chart
+	pix_per_ns = math.floor (chart_bounds[3] / total_time * 100000000) / 100000000
 #	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
 	# FIXME: we really need to aggregate by process name

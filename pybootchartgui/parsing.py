@@ -212,21 +212,17 @@ def _parse_proc_stat_log(file):
 		
 def _parse_proc_disk_stat_log(file, numCpu):
 	"""
-	Parse file for disk stats, but only look at the whole disks, eg. sda,
+	Parse file for disk stats, but only look at the whole device, eg. sda,
 	not sda1, sda2 etc. The format of relevant lines should be:
 	{major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
 	"""
-	disk_regex_re = re.compile ('^[hsv]d.$')
-	
+	disk_regex_re = re.compile ('^([hsv]d.|mtdblock\d|mmcblk\d)$')
+
 	# this gets called an awful lot.
 	def is_relevant_line(linetokens):
 		if len(linetokens) != 14:
 			return False
 		disk = linetokens[2]
-		if len (disk) != 3:
-			return False
-		if disk == 'sda':
-			return True
 		return disk_regex_re.match(disk)
 	
 	disk_stat_samples = []

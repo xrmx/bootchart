@@ -492,23 +492,6 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 def elide_bootchart(proc):
 	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
 
-def accumulate_time(times, proc):
-
-	if elide_bootchart(proc):
-		return 0.0
-
-	time_so_far = 0.0
-	for sample in proc.samples:
-		time_so_far += sample.cpu_sample.user + sample.cpu_sample.sys
-		if not sample.time in times:
-			times[sample.time] = 1
-
-
-	for c in proc.child_list:
-		time_so_far += accumulate_time (times, c)
-
-	return time_so_far
-
 
 def make_color():
 	h = random.random()
@@ -520,10 +503,26 @@ def make_color():
 
 def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	time_hash = {}
-
 	total_time = 0.0
-	for root in proc_tree.process_tree:
-		total_time += accumulate_time (time_hash, root)
+	m_proc_list = {}
+
+	for proc in proc_tree.process_list:
+
+		if elide_bootchart(proc):
+			continue
+
+		for sample in proc.samples:
+			total_time += sample.cpu_sample.user + sample.cpu_sample.sys
+			if not sample.time in time_hash:
+				time_hash[sample.time] = 1
+
+		# merge pids with the same cmd
+		if not proc.cmd in m_proc_list:
+			m_proc_list[proc.cmd] = proc
+			continue
+		p = m_proc_list[proc.cmd]
+		proc_tree.merge_processes(p, proc)
+
 
 	# all the sample times
 	times = time_hash.keys()
@@ -532,13 +531,10 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 		print "degenerate boot chart"
 		return
 
-	# be conservative to avoid overlap of cumulative chart
-	pix_per_ns = math.floor (chart_bounds[3] / total_time * 100000000) / 100000000
+	pix_per_ns = chart_bounds[3] / total_time
 #	print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
 
-	# FIXME: we really need to aggregate by process name
 	# FIXME: we have duplicates in the process list too [!] - why !?
-	# FIXME: rendering a legend would be nice too ...
 
 	# Render bottom up, left to right 
 	below = {}
@@ -553,23 +549,11 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	legends = []
 	labels = []
 	pid_to_color = {}
-	m_proc_list = {}
-
-	# merge pids with the same cmd
-	for proc in proc_tree.process_list:
-		if not proc.cmd in m_proc_list:
-			m_proc_list[proc.cmd] = proc
-			continue
-		p = m_proc_list[proc.cmd]
-		proc_tree.merge_processes(p, proc)
 
 	# render each pid in order
 	for proc in m_proc_list.values():
 		row = {}
 		cuml = 0.0
-
-		if elide_bootchart(proc):
-			continue
 
 #		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (proc.samples))
 		for sample in proc.samples:

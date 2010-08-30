@@ -95,6 +95,10 @@ DEP_STROKE = 1.0
 # Process description date format.
 DESC_TIME_FORMAT = "mm:ss.SSS"
 
+# Cumulative coloring bits
+HSV_MAX_MOD = 31
+HSV_STEP = 7
+
 # Process states
 STATE_UNDEFINED = 0
 STATE_RUNNING   = 1
@@ -242,7 +246,6 @@ leg_s = 10
 MIN_IMG_W = 800
 CUML_HEIGHT = 1000
 OPTIONS = None
-
 
 def extents(xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
 	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
@@ -492,7 +495,6 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 def elide_bootchart(proc):
 	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
 
-
 class CumlSample:
 	def __init__(self, proc):
 		self.cmd = proc.cmd
@@ -504,9 +506,17 @@ class CumlSample:
 		self.samples.extend (proc.samples)
 		self.samples.sort (key = lambda p: p.time)
 
+	def next(self):
+		global palette_idx
+		palette_idx += HSV_STEP
+		return palette_idx
+
 	def get_color(self):
 		if self.color is None:
-			h = random.random()
+			i = self.next() % HSV_MAX_MOD
+			h = 0.0
+			if i is not 0:
+				h = (1.0 * i) / HSV_MAX_MOD 
 			s = 0.5
 			v = 1.0
 			c = colorsys.hsv_to_rgb (h, s, v)
@@ -515,6 +525,9 @@ class CumlSample:
 
 
 def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
+	global palette_idx
+	palette_idx = 0
+
 	time_hash = {}
 	total_time = 0.0
 	m_proc_list = {}

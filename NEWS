@@ -1,3 +1,13 @@
+bootchart2 0.12.4:
+	+ bootchartd
+		+ reduce overhead caused by pidof (Riccardo)
+	+ pybootchartgui
+		+ handle dmesg timestamps with big delta (Riccardo)
+		+ avoid divide by zero when rendering I/O utilization (Riccardo)
+		+ add process grouping in the cumulative chart (Riccardo)
+		+ fix cpu time calculation in cumulative chart (Riccardo)
+		+ get i/o statistics for flash based devices (Riccardo)
+
 bootchart2 0.12.3
 	+ collector
 		+ pclose after popen (Riccardo Magliocchetti (xrmx))

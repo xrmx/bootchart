@@ -2,8 +2,8 @@ VER=0.12.3
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
-CC = gcc
-CFLAGS = -g -Wall -O0
+CC ?= gcc
+CFLAGS ?= -g -Wall -O0
 
 BINDIR ?= /usr/bin
 PY_LIBDIR ?= /usr/lib/python2.6

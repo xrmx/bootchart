@@ -493,12 +493,25 @@ def elide_bootchart(proc):
 	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
 
 
-def make_color():
-	h = random.random()
-	s = 0.5
-	v = 1.0
-	c = colorsys.hsv_to_rgb (h, s, v)
-	return (c[0], c[1], c[2], 1.0)
+class CumlSample:
+	def __init__(self, proc):
+		self.cmd = proc.cmd
+		self.samples = []
+		self.merge_samples (proc)
+		self.color = None
+
+	def merge_samples(self, proc):
+		self.samples.extend (proc.samples)
+		self.samples.sort (key = lambda p: p.time)
+
+	def get_color(self):
+		if self.color is None:
+			h = random.random()
+			s = 0.5
+			v = 1.0
+			c = colorsys.hsv_to_rgb (h, s, v)
+			self.color = (c[0], c[1], c[2], 1.0)
+		return self.color
 
 
 def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
@@ -507,7 +520,6 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	m_proc_list = {}
 
 	for proc in proc_tree.process_list:
-
 		if elide_bootchart(proc):
 			continue
 
@@ -518,11 +530,10 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 
 		# merge pids with the same cmd
 		if not proc.cmd in m_proc_list:
-			m_proc_list[proc.cmd] = proc
+			m_proc_list[proc.cmd] = CumlSample (proc)
 			continue
-		p = m_proc_list[proc.cmd]
-		proc_tree.merge_processes(p, proc)
-
+		s = m_proc_list[proc.cmd]
+		s.merge_samples (proc)
 
 	# all the sample times
 	times = time_hash.keys()
@@ -548,15 +559,14 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 
 	legends = []
 	labels = []
-	pid_to_color = {}
 
 	# render each pid in order
-	for proc in m_proc_list.values():
+	for cs in m_proc_list.values():
 		row = {}
 		cuml = 0.0
 
-#		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (proc.samples))
-		for sample in proc.samples:
+#		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (cs.samples))
+		for sample in cs.samples:
 			cuml += sample.cpu_sample.user + sample.cpu_sample.sys
 			row[sample.time] = cuml
 		process_total_time = cuml
@@ -569,14 +579,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 		y = last_below = below[last_time]
 		last_cuml = cuml = 0.0
 
-		# make and store color
-		color = make_color ()
-		pid_to_color[proc.pid] = color
-		ctx.set_source_rgba(*color)
-
-#		if proc.cmd == 'modprobe':
-#			ctx.set_source_rgba(0,0,0,1)
-			
+		ctx.set_source_rgba(*cs.get_color())
 		for time in times:
 			render_seg = False
 
@@ -619,7 +622,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 
 		# render legend if it will fit
 		if cuml > 8:
-			label = proc.cmd
+			label = cs.cmd
 			extnts = ctx.text_extents(label)
 			label_w = extnts[2]
 			label_h = extnts[3]
@@ -627,10 +630,10 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 			labels.append((label,
 				       chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
 				       y + (cuml + label_h) / 2))
-			if proc in legends:
+			if cs in legends:
 				print "ARGH - duplicate process in list !"
 
-		legends.append ((proc, process_total_time))
+		legends.append ((cs, process_total_time))
 
 		below = row
 
@@ -661,12 +664,12 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 	legends.sort(lambda a, b: cmp (b[1], a[1]))
 	ctx.set_font_size(TEXT_FONT_SIZE)
 	for t in legends:
-		proc = t[0]
+		cs = t[0]
 		time = t[1]
 		x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
 		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
-		str = "%s - %.0f(ms) (%2.2f%%)" % (proc.cmd, time/1000000, (time/total_time) * 100.0)
-		draw_legend_box(ctx, str, pid_to_color [proc.pid], x, y, leg_s)
+		str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
+		draw_legend_box(ctx, str, cs.color, x, y, leg_s)
 		i = i + 1
 		if i >= LEGENDS_TOTAL:
 			break

@@ -1,6 +1,6 @@
 bootchart2 0.12.4:
 	+ bootchartd
-		+ reduce overhead caused by pidof (Riccardo)
+		+ reduce overhead caused by pidof (Riccardo Magliocchetti)
 	+ pybootchartgui
 		+ handle dmesg timestamps with big delta (Riccardo)
 		+ avoid divide by zero when rendering I/O utilization (Riccardo)

@@ -89,8 +89,8 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.io))
 	
 	def testParseLogDir(self):		
-		res = parsing.parse(writer, [self.rootdir], False)		
-		self.assertEqual(4, len(res))
+		res = parsing.parse(writer, [self.rootdir], False, None, None)
+		self.assertEqual(6, len(res))
 	
 if __name__ == '__main__':
     unittest.main()

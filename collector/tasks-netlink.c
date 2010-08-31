@@ -38,6 +38,7 @@
 #include <linux/connector.h>
 #include <linux/netlink.h>
 #include "linux/cn_proc.h"
+#include <poll.h>
 
 #define SEND_MESSAGE_LEN (NLMSG_LENGTH(sizeof(struct cn_msg) + \
                                        sizeof(enum proc_cn_mcast_op)))
@@ -475,6 +476,14 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         } else {
 		size_t recv_len;
                 struct nlmsghdr *nlh = (struct nlmsghdr*)buff;
+		struct pollfd pr = { 0, };
+
+		pr.fd = nls->socket;
+		pr.events = POLLIN;
+		if (poll (&pr, 1, 50 /* ms */) || !(pr.revents & POLLIN)) {
+			fprintf (stderr, "No PROC_EVENTs present\n");
+			goto close_and_exit;
+		}
 
                 recv_len = netlink_recvfrom (nls, buff);
 		if (recv_len < 1 || !NLMSG_OK (nlh, recv_len) ||

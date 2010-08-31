@@ -120,10 +120,10 @@ open_pid (int pid)
  * wait a while hoping it exits (so we can
  * cleanup after it).
  */
-static void
-close_wait_pid (DumpState *s, int avoid_kill)
+static int
+close_pid (DumpState *s, int avoid_kill)
 {
-	int i;
+	int pid;
 
 	if (!avoid_kill && ptrace (PTRACE_KILL, s->pid, 0, 0))
 		fprintf (stderr, "failed to ptrace_kill pid %d: %s\n",
@@ -133,17 +133,28 @@ close_wait_pid (DumpState *s, int avoid_kill)
 	ptrace (PTRACE_DETACH, s->pid, 0, 0);
 
 	close (s->mem);
+	pid = s->pid;
+	free (s);
 
+	return pid;
+}
+
+static void
+close_wait_pid (DumpState *s, int avoid_kill)
+{
+	int i, pid;
+
+	pid = close_pid (s, avoid_kill);
+	/* 's' invalid */
+	
 	/* wait at most second max */
 	for (i = 0; i < 100; i++) {
 		char buffer[1024];
-		sprintf (buffer, PROC_PATH "/%d/cmdline", s->pid);
+		sprintf (buffer, PROC_PATH "/%d/cmdline", pid);
 		if (access (buffer, R_OK))
 			break;
 		usleep (10 * 1000);
 	}
-
-	free (s);
 }
 
 static void dump_buffers (DumpState *s)
@@ -181,7 +192,7 @@ static void dump_buffers (DumpState *s)
 int
 buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 {
-	int pid, ret = 0;
+	int i, pid, ret = 0;
 	DumpState *state;
 
 	chdir (output_path);
@@ -193,16 +204,24 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	}
 	fprintf (stderr, "Extracting profile data from pid %d\n", pid);
 
-	if (!(state = open_pid (pid))) 
-		return 1;
+	/* the kernel for reasons of it's own really likes to return
+	   ESRCH - No such process from pread randomly, so retry a bit */
+	for (i = 0; i < 8; i++) {
+		if (!(state = open_pid (pid)))
+			return 1;
 
-	if (find_chunks (state)) {
-		fprintf (stderr, "Couldn't find state structures on pid %d's stack\n", pid);
-		ret = 1;
-	} else
-		dump_buffers (state);
-
-	close_wait_pid (state, ret);
+		if (find_chunks (state)) {
+			ret = 1;
+			fprintf (stderr, "Couldn't find state structures on pid %d's stack%s\n",
+				 pid, i < 7 ? ", retrying" : " aborting");
+			close_pid (state, 1);
+		} else {
+			ret = 0;
+			dump_buffers (state);
+			close_wait_pid (state, 0);
+			break;
+		}
+	}
 
 	return ret;
 }

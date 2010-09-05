@@ -436,8 +436,7 @@ class ParserState:
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \
-	       self.ps_stats != None and self.cpu_stats != None and \
-	       self.mem_stats != None
+	       self.ps_stats != None and self.cpu_stats != None
 
 
     def compile(self, writer):

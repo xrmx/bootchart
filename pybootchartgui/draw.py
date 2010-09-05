@@ -357,28 +357,29 @@ def render(ctx, options, xscale, headers, cpu_stats, \
 
 	# render mem usage
 	chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)
-	mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
-	draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
-	draw_legend_box(ctx, "Used", MEM_USED_COLOR, off_x + 240, curr_y+20, leg_s)
-	draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
-	draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
-			 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
-	draw_box_ticks(ctx, chart_rect, sec_w)
-	draw_annotations(ctx, proc_tree, times, chart_rect)
-	draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
-		   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in mem_stats], \
-		   proc_tree, [0, mem_scale])
-	draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, \
-		   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
-		   proc_tree, [0, mem_scale])
-	draw_chart(ctx, MEM_CACHED_COLOR, True, chart_rect, \
-		   [(sample.time, sample.records['Cached']) for sample in mem_stats], \
-		   proc_tree, [0, mem_scale])
-	draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, \
-		   [(sample.time, float(sample.records['SwapTotal'] - sample.records['SwapFree'])) for sample in mem_stats], \
-		   proc_tree, None)
+	if mem_stats and clip_visible (clip, chart_rect):
+		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
+		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Used", MEM_USED_COLOR, off_x + 240, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
+		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
+				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
+		draw_box_ticks(ctx, chart_rect, sec_w)
+		draw_annotations(ctx, proc_tree, times, chart_rect)
+		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_CACHED_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['Cached']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, \
+			   [(sample.time, float(sample.records['SwapTotal'] - sample.records['SwapFree'])) for sample in mem_stats], \
+			   proc_tree, None)
 
-	curr_y = curr_y + meminfo_bar_h
+		curr_y = curr_y + meminfo_bar_h
 
 	# draw process boxes
 	proc_height = h

@@ -249,6 +249,28 @@ def _parse_proc_disk_stat_log(file, numCpu):
 	
 	return disk_stats
 
+def _parse_proc_meminfo_log(file):
+	"""
+	Parse file for global memory statistics.
+	The format of relevant lines should be: ^key: value( unit)?
+	"""
+
+	mem_stats = []
+
+	for time, lines in _parse_timed_blocks(file):
+		sample = MemSample(time)
+
+		for line in lines:
+			match = re.match('([^ \t:]+):\s*(\d+).*', line)
+			if match:
+				sample.add_value(match.group(1), int(match.group(2)))
+			else:
+				raise ParseError("Invalid meminfo line \"%s\"" % match.groups(0))
+
+		mem_stats.append(sample)
+
+	return mem_stats
+
 # if we boot the kernel with: initcall_debug printk.time=1 we can
 # get all manner of interesting data from the dmesg output
 # We turn this into a pseudo-process tree: each event is
@@ -410,10 +432,12 @@ class ParserState:
 	self.kernel = None
 	self.filename = None
 	self.parent_map = None
+	self.mem_stats = None
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \
-	       self.ps_stats != None and self.cpu_stats != None
+	       self.ps_stats != None and self.cpu_stats != None and \
+	       self.mem_stats != None
 
 
     def compile(self, writer):
@@ -476,6 +500,8 @@ def _do_parse(writer, state, name, file):
 	state.taskstats = True
     elif name == "proc_stat.log":
         state.cpu_stats = _parse_proc_stat_log(file)
+    elif name == "proc_meminfo.log":
+        state.mem_stats = _parse_proc_meminfo_log(file)
     elif name == "dmesg":
        state.kernel = _parse_dmesg(writer, file)
     elif name == "cmdline2.log":
@@ -627,4 +653,4 @@ def parse(writer, paths, prune, crop_after, annotate):
 
     monitored_app = state.headers.get("profile.process")
     proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)
-    return (state.headers, state.cpu_stats, state.disk_stats, proc_tree, times, state.filename)
+    return (state.headers, state.cpu_stats, state.disk_stats, state.mem_stats, proc_tree, times, state.filename)

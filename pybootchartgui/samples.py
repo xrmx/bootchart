@@ -32,7 +32,15 @@ class CPUSample:
 	def __str__(self):
 		return str(self.time) + "\t" + str(self.user) + "\t" + \
 		       str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap)
-		
+
+class MemSample:
+	def __init__(self, time):
+		self.time = time
+		self.records = {}
+
+	def add_value(self, name, value):
+		self.records[name] = value
+
 class ProcessSample:
 	def __init__(self, time, state, cpu_sample):
 		self.time = time

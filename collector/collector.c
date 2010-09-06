@@ -778,13 +778,13 @@ int main (int argc, char *argv[])
 	Arguments args;
 	int i, use_taskstat;
 	int in_initrd, clean_environment = 1;
-	int stat_fd, disk_fd, uptime_fd, pid, ret = 1;
+	int stat_fd, disk_fd, uptime_fd, meminfo_fd,  pid, ret = 1;
 	PidScanner *scanner = NULL;
 	unsigned long reltime = 0;
-	BufferFile *stat_file, *disk_file, *per_pid_file;
+	BufferFile *stat_file, *disk_file, *per_pid_file, *meminfo_file;
 	PidEventClosure pid_ev_cl;
-	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, NULL };
-	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", NULL };
+	int *fds[] = { &stat_fd, &disk_fd, &uptime_fd, &meminfo_fd, NULL };
+	const char *fd_names[] = { "/stat", "/diskstats", "/uptime", "/meminfo", NULL };
 	StackMap map = STACK_MAP_INIT; /* make me findable */
 
 	arguments_set_defaults (&args);
@@ -859,10 +859,11 @@ int main (int argc, char *argv[])
 		per_pid_file = buffer_file_new (&map, "taskstats.log");
 	else
 		per_pid_file = buffer_file_new (&map, "proc_ps.log");
+	meminfo_file = buffer_file_new (&map, "proc_meminfo.log");
 	pid_ev_cl.cmdline_file = buffer_file_new (&map, "cmdline2.log");
 	pid_ev_cl.paternity_file = buffer_file_new (&map, "paternity.log");
 
-	if (!stat_file || !disk_file || !per_pid_file ||
+	if (!stat_file || !disk_file || !per_pid_file || !meminfo_file ||
 	    !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file) {
 		fprintf (stderr, "Error allocating output buffers\n");
 		return 1;
@@ -904,6 +905,7 @@ int main (int argc, char *argv[])
 
 		buffer_file_dump_frame_with_timestamp (stat_file, stat_fd, uptime, uptimelen);
 		buffer_file_dump_frame_with_timestamp (disk_file, disk_fd, uptime, uptimelen);
+		buffer_file_dump_frame_with_timestamp (meminfo_file, meminfo_fd, uptime, uptimelen);
 
 		/* output data for each pid */
 		buffer_file_append (per_pid_file, uptime, uptimelen);

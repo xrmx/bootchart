@@ -57,6 +57,14 @@ IO_COLOR = (0.76, 0.48, 0.48, 0.5)
 DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
 # CPU load chart color.
 FILE_OPEN_COLOR = (0.20, 0.71, 0.71, 1.0)
+# Mem cached color
+MEM_CACHED_COLOR = CPU_COLOR
+# Mem used color
+MEM_USED_COLOR = IO_COLOR
+# Buffers color
+MEM_BUFFERS_COLOR = (0.4, 0.4, 0.4, 0.3)
+# Swap color
+MEM_SWAP_COLOR = DISK_TPUT_COLOR
 	
 # Process border color.
 PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
@@ -197,47 +205,56 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 	ctx.set_line_width(0.5)
 	x_shift = proc_tree.start_time
 
 	def transform_point_coords(point, x_base, y_base, \
 				   xscale, yscale, x_trans, y_trans):
 		x = (point[0] - x_base) * xscale + x_trans
-		y = (point[1] - y_base) * -yscale + y_trans + bar_h
+		y = (point[1] - y_base) * -yscale + y_trans + chart_bounds[3]
 		return x, y
 
 	max_x = max (x for (x, y) in data)
 	max_y = max (y for (x, y) in data)
-	# avoid divide by zero when we render I/O utilization and max is 0
+	# avoid divide by zero
 	if max_y == 0:
 		max_y = 1.0
 	xscale = float (chart_bounds[2]) / max_x
-	yscale = float (chart_bounds[3]) / max_y
-    
-	first = transform_point_coords (data[0], x_shift, 0, xscale, yscale, \
+	# If data_range is given, scale the chart so that the value range in
+	# data_range matches the chart bounds exactly.
+	# Otherwise, scale so that the actual data matches the chart bounds.
+	if data_range:
+		yscale = float(chart_bounds[3]) / (data_range[1] - data_range[0])
+		ybase = data_range[0]
+	else:
+		yscale = float(chart_bounds[3]) / max_y
+		ybase = 0
+
+	first = transform_point_coords (data[0], x_shift, ybase, xscale, yscale, \
 				        chart_bounds[0], chart_bounds[1])
-	last =  transform_point_coords (data[-1], x_shift, 0, xscale, yscale, \
+	last =  transform_point_coords (data[-1], x_shift, ybase, xscale, yscale, \
 				        chart_bounds[0], chart_bounds[1])
     
 	ctx.set_source_rgba(*color)
 	ctx.move_to(*first)
 	for point in data:
-		x, y = transform_point_coords (point, x_shift, 0, xscale, yscale, \
+		x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
 					       chart_bounds[0], chart_bounds[1])
 		ctx.line_to(x, y)
 	if fill:
 		ctx.stroke_preserve()
-		ctx.line_to(last[0], chart_bounds[1]+bar_h)
-		ctx.line_to(first[0], chart_bounds[1]+bar_h)
+		ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
+		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], first[1])
 		ctx.fill()
 	else:
 		ctx.stroke()
 	ctx.set_line_width(1.0)
 
-header_h = 280
 bar_h = 55
+meminfo_bar_h = 2 * bar_h
+header_h = 110 + 2 * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
 # offsets
 off_x, off_y = 10, 10
 sec_w_base = 50 # the width of a second
@@ -247,7 +264,7 @@ MIN_IMG_W = 800
 CUML_HEIGHT = 1000
 OPTIONS = None
 
-def extents(xscale, headers, cpu_stats, disk_stats, proc_tree, times, filename):
+def extents(xscale, headers, cpu_stats, disk_stats, mem_stats, proc_tree, times, filename):
 	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + header_h + 2 * off_y
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
@@ -264,9 +281,9 @@ def clip_visible(clip, rect):
 # Render the chart.
 # 
 def render(ctx, options, xscale, headers, cpu_stats, \
-	   disk_stats, proc_tree, times, filename):
+	   disk_stats, mem_stats, proc_tree, times, filename):
 	(w, h) = extents (xscale, headers, cpu_stats, \
-			  disk_stats, proc_tree, times, filename)
+			  disk_stats, mem_stats, proc_tree, times, filename)
 
 	global OPTIONS
 	OPTIONS = options
@@ -299,11 +316,11 @@ def render(ctx, options, xscale, headers, cpu_stats, \
 		draw_annotations (ctx, proc_tree, times, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in cpu_stats], \
-			    proc_tree) 
+			    proc_tree, None) 
 		# render CPU load
 		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys) for sample in cpu_stats], \
-			    proc_tree)
+			    proc_tree, None)
 
 	curr_y = curr_y + 30 + bar_h
 
@@ -318,14 +335,14 @@ def render(ctx, options, xscale, headers, cpu_stats, \
 		draw_annotations (ctx, proc_tree, times, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.util) for sample in disk_stats], \
-			    proc_tree)
+			    proc_tree, None)
 
 	# render disk throughput
 	max_sample = max (disk_stats, key = lambda s: s.tput)
 	if clip_visible (clip, chart_rect):
 		draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect, \
 			    [(sample.time, sample.tput) for sample in disk_stats], \
-			    proc_tree)
+			    proc_tree, None)
 	
 	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
@@ -336,12 +353,40 @@ def render(ctx, options, xscale, headers, cpu_stats, \
 	label = "%dMB/s" % round ((max_sample.tput) / 1024.0)
 	draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
+	curr_y = curr_y + 30 + bar_h
+
+	# render mem usage
+	chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)
+	if mem_stats and clip_visible (clip, chart_rect):
+		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
+		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Used", MEM_USED_COLOR, off_x + 240, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
+		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
+				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
+		draw_box_ticks(ctx, chart_rect, sec_w)
+		draw_annotations(ctx, proc_tree, times, chart_rect)
+		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_CACHED_COLOR, True, chart_rect, \
+			   [(sample.time, sample.records['Cached']) for sample in mem_stats], \
+			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, \
+			   [(sample.time, float(sample.records['SwapTotal'] - sample.records['SwapFree'])) for sample in mem_stats], \
+			   proc_tree, None)
+
+		curr_y = curr_y + meminfo_bar_h
+
 	# draw process boxes
 	proc_height = h
 	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
 		proc_height -= CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y + bar_h, w, proc_height, sec_w)
+	draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y, w, proc_height, sec_w)
 	
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)

@@ -1,12 +1,18 @@
 bootchart2 0.12.4:
 	+ bootchartd
 		+ reduce overhead caused by pidof (Riccardo Magliocchetti)
+	+ collector
+		+ attempt to retry ptrace to avoid bogus ENOSYS (Michael)
+		+ add meminfo polling (Dave Martin)
 	+ pybootchartgui
 		+ handle dmesg timestamps with big delta (Riccardo)
 		+ avoid divide by zero when rendering I/O utilization (Riccardo)
 		+ add process grouping in the cumulative chart (Riccardo)
 		+ fix cpu time calculation in cumulative chart (Riccardo)
 		+ get i/o statistics for flash based devices (Riccardo)
+		+ prettier coloring for the cumulative graphs (Michael)
+		+ fix interactive CPU rendering (Michael)
+		+ render memory usage graph (Dave Martin)
 
 bootchart2 0.12.3
 	+ collector

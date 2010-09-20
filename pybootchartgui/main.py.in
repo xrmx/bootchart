@@ -1,5 +1,8 @@
-#  This file is part of pybootchartgui.
-
+#
+# ***********************************************************************
+#  Warning: This file is auto-generated from main.py.in - edit it there.
+# ***********************************************************************
+#
 #  pybootchartgui is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
@@ -24,7 +27,7 @@ import batch
 def _mk_options_parser():
 	"""Make an options parser."""
 	usage = "%prog [options] PATH, ..., PATH"
-	version = "%prog v0.0.0"
+	version = "%prog v@VER@"
 	parser = optparse.OptionParser(usage, version=version)
 	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
 			  help="start in active mode")

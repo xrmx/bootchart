@@ -17,7 +17,7 @@ COLLECTOR = \
 	collector/tasks-netlink.o \
 	collector/dump.o
 
-all: bootchart-collector
+all: bootchart-collector pybootchartgui/main.py
 
 %.o:%.c
 	$(CC) $(CFLAGS) -pthread -DVERSION=\"$(VER)\" -c $^ -o $@
@@ -25,7 +25,10 @@ all: bootchart-collector
 bootchart-collector: $(COLLECTOR)
 	$(CC) -pthread -Icollector -o $@ $^
 
-py-install-compile:
+pybootchartgui/main.py: pybootchartgui/main.py.in
+	sed -s "s/@VER@/$(VER)/g" $^ > $@
+
+py-install-compile: pybootchartgui/main.py
 	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
 	cp pybootchartgui/*.py $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
 	install -D -m 755 pybootchartgui.py $(DESTDIR)$(BINDIR)/pybootchartgui
@@ -44,7 +47,8 @@ install-collector: all install-chroot
 install: all py-install-compile install-collector
 
 clean:
-	-rm -f bootchart-collector bootchart-collector-dynamic collector/*.o
+	-rm -f bootchart-collector bootchart-collector-dynamic \
+	collector/*.o pybootchartgui/main.py
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

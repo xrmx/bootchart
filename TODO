@@ -3,7 +3,7 @@
 * FIXME: are we merging / glupping threads properly ?
 	+ how can sreadahead apparently be doing no I/O ? :-)
 
-	+ extend rectangles in rendered outpu to to note when
+	+ extend rectangles in rendered output to note when
 	  processes truly exit to improve duration rendering.
 		+ expand the tasks API for this.
 
@@ -27,13 +27,14 @@
 		+ poll the remote process (with ptrace ? - hmm ...)
 			+ to see if it has finished (?)
 			+ a good idea ? or will it introduce error ?
-			+ hmm.
 		+ have a 20 second delay before starting to poll it ?
 
 ** Features:
 
 Add some tabs to the interactive renderer to show the raw files:
-kernel dmesg, header, and perhaps the full (processed) cmdline2 log
+	+ kernel dmesg
+	+ header
+	+ perhaps the full (processed) cmdline2 log
 
 Use the same stats that Intel's tracer uses of I/O / scheduling foo ...
 	+ use them to avoid taskstats polling if there has been

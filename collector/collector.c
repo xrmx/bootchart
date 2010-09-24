@@ -481,7 +481,7 @@ init_taskstat (void)
 
 	netlink_taskstats_id = get_family_id (netlink_socket);
 
-	return netlink_taskstats_id >= 0;
+	return netlink_taskstats_id > 0;
 error:
 	if (netlink_socket >= 0)
 		close (netlink_socket);

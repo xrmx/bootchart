@@ -3,7 +3,7 @@
 * FIXME: are we merging / glupping threads properly ?
 	+ how can sreadahead apparently be doing no I/O ? :-)
 
-	+ extend rectangles in rendered outpu to to note when
+	+ extend rectangles in rendered output to note when
 	  processes truly exit to improve duration rendering.
 		+ expand the tasks API for this.
 

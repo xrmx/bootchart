@@ -148,7 +148,7 @@ if [ $$ -eq 1 ]; then
 	echo "Starting bootchart logging"
 
 	# Are we running in the initrd ?
-	if [ ! -e /dev/random ]; then
+	if [ -x /init -o -x /linuxrc ]; then
 		IN_INITRD="yes"
 		start &
 	else # running inside the main system

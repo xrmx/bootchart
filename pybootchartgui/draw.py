@@ -24,6 +24,7 @@ class RenderOptions:
 	def __init__(self, app_options):
 		# should we render a cumulative CPU time chart
 		self.cumulative = True
+		self.charts = True
 		self.kernel_only = False
 		self.app_options = app_options
 
@@ -263,7 +264,9 @@ OPTIONS = None
 
 def extents(options, xscale, trace):
 	w = int (trace.proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
-	h = proc_h * trace.proc_tree.num_proc + header_h + 2 * off_y
+	h = proc_h * trace.proc_tree.num_proc + 2 * off_y
+	if options.charts:
+		h += header_h
 	if trace.proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)
@@ -275,30 +278,9 @@ def clip_visible(clip, rect):
 	ymin = min (clip[1] + clip[3], rect[1] + rect[3])
 	return (xmin > xmax and ymin > ymax)
 
-#
-# Render the chart.
-#
-def render(ctx, options, xscale, trace):
-	(w, h) = extents (options, xscale, trace)
-	global OPTIONS
-	OPTIONS = options.app_options
+def render_charts(ctx, clip, trace, curr_y, w, h, sec_w):
 
 	proc_tree = trace.proc_tree
-
-	# x, y, w, h
-	clip = ctx.clip_extents()
-
-	sec_w = int (xscale * sec_w_base)
-	ctx.set_line_width(1.0)
-	ctx.select_font_face(FONT_NAME)
-	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
-	w -= 2*off_x
-	# draw the title and headers
-	if proc_tree.idle:
-	    duration = proc_tree.idle
-	else:
-	    duration = proc_tree.duration
-	curr_y = draw_header (ctx, trace.headers, duration)
 
 	# render bar legend
 	ctx.set_font_size(LEGEND_FONT_SIZE)
@@ -378,6 +360,36 @@ def render(ctx, options, xscale, trace):
 			   proc_tree, None)
 
 		curr_y = curr_y + meminfo_bar_h
+
+	return curr_y
+
+#
+# Render the chart.
+#
+def render(ctx, options, xscale, trace):
+	(w, h) = extents (options, xscale, trace)
+	global OPTIONS
+	OPTIONS = options.app_options
+
+	proc_tree = trace.proc_tree
+
+	# x, y, w, h
+	clip = ctx.clip_extents()
+
+	sec_w = int (xscale * sec_w_base)
+	ctx.set_line_width(1.0)
+	ctx.select_font_face(FONT_NAME)
+	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+	w -= 2*off_x
+	# draw the title and headers
+	if proc_tree.idle:
+	    duration = proc_tree.idle
+	else:
+	    duration = proc_tree.duration
+	curr_y = draw_header (ctx, trace.headers, duration)
+
+	if options.charts:
+		curr_y = render_charts (ctx, clip, trace, curr_y, w, h, sec_w)
 
 	# draw process boxes
 	proc_height = h

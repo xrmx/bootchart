@@ -28,11 +28,11 @@ class PyBootchartWidget(gtk.DrawingArea):
 		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
-	def __init__(self, trace, app_options):
+	def __init__(self, trace, options):
 		gtk.DrawingArea.__init__(self)
 
 		self.trace = trace
-		self.options = RenderOptions (app_options)
+		self.options = options
 
 		self.set_flags(gtk.CAN_FOCUS)
 
@@ -255,10 +255,10 @@ class PyBootchartShell(gtk.VBox):
 		</toolbar>
 	</ui>
 	'''
-	def __init__(self, window, trace, app_options):
+	def __init__(self, window, trace, options):
 		gtk.VBox.__init__(self)
 
-		self.widget = PyBootchartWidget(trace, app_options)
+		self.widget = PyBootchartWidget(trace, options)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()
@@ -310,8 +310,8 @@ class PyBootchartShell(gtk.VBox):
 	def grab_focus(self, window):
 		window.set_focus(self.widget)
 
-class PyBootchartWindow(gtk.Window):
 
+class PyBootchartWindow(gtk.Window):
 
 	def __init__(self, trace, app_options):
 		gtk.Window.__init__(self)
@@ -323,12 +323,22 @@ class PyBootchartWindow(gtk.Window):
 		tab_page = gtk.Notebook()
 		window.add(tab_page)
 
-		full_tree = PyBootchartShell(window, trace, app_options)
+		full_opts = RenderOptions(app_options)
+		full_tree = PyBootchartShell(window, trace, full_opts)
 		tab_page.append_page (full_tree, gtk.Label("Full tree"))
+		tab_page.show_all()
+
+		kernel_opts = RenderOptions(app_options)
+		kernel_opts.cumulative = False
+		kernel_opts.charts = False
+		kernel_opts.kernel_only = False
+		kernel_tree = PyBootchartShell(window, trace, kernel_opts)
+		tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
 		tab_page.show_all()
 
 		full_tree.grab_focus(self)
 		self.show()
+
 
 def show(trace, options):
 	win = PyBootchartWindow(trace, options)

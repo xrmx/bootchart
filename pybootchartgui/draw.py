@@ -20,8 +20,12 @@ import re
 import random
 import colorsys
 
-# should we render a cumulative CPU time chart
-WITH_CUMULATIVE_CHART = True
+class RenderOptions:
+	def __init__(self, app_options):
+		# should we render a cumulative CPU time chart
+		self.cumulative = True
+		self.kernel_only = False
+		self.app_options = app_options
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -257,10 +261,10 @@ MIN_IMG_W = 800
 CUML_HEIGHT = 1000
 OPTIONS = None
 
-def extents(xscale, trace):
+def extents(options, xscale, trace):
 	w = int (trace.proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
 	h = proc_h * trace.proc_tree.num_proc + header_h + 2 * off_y
-	if trace.proc_tree.taskstats and WITH_CUMULATIVE_CHART:
+	if trace.proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)
 
@@ -275,9 +279,9 @@ def clip_visible(clip, rect):
 # Render the chart.
 #
 def render(ctx, options, xscale, trace):
-	(w, h) = extents (xscale, trace)
+	(w, h) = extents (options, xscale, trace)
 	global OPTIONS
-	OPTIONS = options
+	OPTIONS = options.app_options
 
 	proc_tree = trace.proc_tree
 
@@ -377,7 +381,7 @@ def render(ctx, options, xscale, trace):
 
 	# draw process boxes
 	proc_height = h
-	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
+	if proc_tree.taskstats and options.cumulative:
 		proc_height -= CUML_HEIGHT
 
 	draw_process_bar_chart(ctx, clip, trace.proc_tree,
@@ -388,7 +392,7 @@ def render(ctx, options, xscale, trace):
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
 #	draw a cumulative CPU time per-application graph
-	if proc_tree.taskstats and WITH_CUMULATIVE_CHART:
+	if proc_tree.taskstats and options.cumulative:
 	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w)

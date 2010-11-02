@@ -17,8 +17,8 @@ import gobject
 import gtk
 import gtk.gdk
 import gtk.keysyms
-
 import draw
+from draw import RenderOptions
 
 class PyBootchartWidget(gtk.DrawingArea):
 	__gsignals__ = {
@@ -28,11 +28,11 @@ class PyBootchartWidget(gtk.DrawingArea):
 		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
-	def __init__(self, trace, options):
+	def __init__(self, trace, app_options):
 		gtk.DrawingArea.__init__(self)
 
 		self.trace = trace
-		self.options = options
+		self.options = RenderOptions (app_options)
 
 		self.set_flags(gtk.CAN_FOCUS)
 
@@ -52,7 +52,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.xscale = 1.0
                 self.x, self.y = 0.0, 0.0
 
-		self.chart_width, self.chart_height = draw.extents(self.xscale, self.trace)
+		self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
 		self.hadj = None
 		self.vadj = None
 		self.hadj_changed_signal_id = None
@@ -96,8 +96,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 	def set_xscale(self, xscale):
 	    old_mid_x = self.x + self.hadj.page_size / 2
 	    self.xscale = xscale
-	    self.chart_width, self.chart_height = draw.extents(self.xscale, self.trace)
-	    new_x = old_mid_x 
+	    self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
+	    new_x = old_mid_x
 	    self.zoom_image (self.zoom_ratio)
 
 	def on_expand(self, action):
@@ -120,7 +120,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 	    self.set_xscale(1.0)
 
         def show_toggled(self, button):
-            self.options.show_all = button.get_property ('active')
+            self.options.app_options.show_all = button.get_property ('active')
 	    self.queue_draw()
 
         POS_INCREMENT = 100
@@ -257,7 +257,7 @@ class PyBootchartWindow(gtk.Window):
 	</ui>
 	'''
 
-	def __init__(self, trace, options):
+	def __init__(self, trace, app_options):
 		gtk.Window.__init__(self)
 
 		window = self
@@ -266,7 +266,7 @@ class PyBootchartWindow(gtk.Window):
 		vbox = gtk.VBox()
 		window.add(vbox)
 
-		self.widget = PyBootchartWidget(trace, options)
+		self.widget = PyBootchartWidget(trace, app_options)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()

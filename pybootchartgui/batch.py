@@ -15,8 +15,9 @@
 
 import cairo
 import draw
+from draw import RenderOptions
 
-def render(writer, trace, options, filename):
+def render(writer, trace, app_options, filename):
     handlers = {
         "png": (lambda w, h: cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h), \
                 lambda sfc: sfc.write_to_png(filename)),
@@ -24,17 +25,18 @@ def render(writer, trace, options, filename):
         "svg": (lambda w, h: cairo.SVGSurface(filename, w, h), lambda sfc: 0)
     }
 
-    if options.format is None:
+    if app_options.format is None:
         fmt = filename.rsplit('.', 1)[1]
     else:
-        fmt = options.format
+        fmt = app_options.format
 
     if not (fmt in handlers):
         writer.error ("Unknown format '%s'." % fmt)
         return 10
 
     make_surface, write_surface = handlers[fmt]
-    (w, h) = draw.extents (1.0, trace)
+    options = RenderOptions (app_options)
+    (w, h) = draw.extents (options, 1.0, trace)
     w = max (w, draw.MIN_IMG_W)
     surface = make_surface (w, h)
     ctx = cairo.Context (surface)

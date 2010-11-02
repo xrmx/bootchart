@@ -37,6 +37,7 @@ class Trace:
 	self.cpu_stats = None
 	self.cmdline = None
 	self.kernel = None
+	self.kernel_tree = None
 	self.filename = None
 	self.parent_map = None
 	self.mem_stats = None
@@ -69,10 +70,15 @@ class Trace:
                         times.append(None)
 
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
+				     self.ps_stats.sample_period,
 				     self.headers.get("profile.process"),
 				     options.prune, idle, self.taskstats,
 				     self.parent_map is not None)
-#       return (state.headers, state.cpu_stats, state.disk_stats, state.mem_stats, proc_tree, times, state.filename)
+
+	if self.kernel is not None:
+		self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
+					       self.headers.get("profile.process"),
+					       False, None, None, True)
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \

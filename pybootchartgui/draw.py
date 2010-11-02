@@ -21,12 +21,19 @@ import random
 import colorsys
 
 class RenderOptions:
+
 	def __init__(self, app_options):
 		# should we render a cumulative CPU time chart
 		self.cumulative = True
 		self.charts = True
 		self.kernel_only = False
 		self.app_options = app_options
+
+	def proc_tree (self, trace):
+		if self.kernel_only:
+			return trace.kernel_tree
+		else:
+			return trace.proc_tree
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -263,11 +270,12 @@ CUML_HEIGHT = 1000
 OPTIONS = None
 
 def extents(options, xscale, trace):
-	w = int (trace.proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
-	h = proc_h * trace.proc_tree.num_proc + 2 * off_y
+	proc_tree = options.proc_tree(trace)
+	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
+	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += header_h
-	if trace.proc_tree.taskstats and options.cumulative:
+	if proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)
 
@@ -278,9 +286,9 @@ def clip_visible(clip, rect):
 	ymin = min (clip[1] + clip[3], rect[1] + rect[3])
 	return (xmin > xmax and ymin > ymax)
 
-def render_charts(ctx, clip, trace, curr_y, w, h, sec_w):
+def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
-	proc_tree = trace.proc_tree
+	proc_tree = options.proc_tree(trace)
 
 	# render bar legend
 	ctx.set_font_size(LEGEND_FONT_SIZE)
@@ -371,7 +379,7 @@ def render(ctx, options, xscale, trace):
 	global OPTIONS
 	OPTIONS = options.app_options
 
-	proc_tree = trace.proc_tree
+	proc_tree = options.proc_tree (trace)
 
 	# x, y, w, h
 	clip = ctx.clip_extents()
@@ -386,17 +394,21 @@ def render(ctx, options, xscale, trace):
 	    duration = proc_tree.idle
 	else:
 	    duration = proc_tree.duration
-	curr_y = draw_header (ctx, trace.headers, duration)
+
+	if not options.kernel_only:
+		curr_y = draw_header (ctx, trace.headers, duration)
+	else:
+		curr_y = 0;
 
 	if options.charts:
-		curr_y = render_charts (ctx, clip, trace, curr_y, w, h, sec_w)
+		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h, sec_w)
 
 	# draw process boxes
 	proc_height = h
 	if proc_tree.taskstats and options.cumulative:
 		proc_height -= CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, clip, trace.proc_tree,
+	draw_process_bar_chart(ctx, clip, options, proc_tree,
 			       trace.times, curr_y, w, proc_height, sec_w)
 
 	curr_y = proc_height
@@ -409,15 +421,17 @@ def render(ctx, options, xscale, trace):
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w)
 
-def draw_process_bar_chart(ctx, clip, proc_tree, times, curr_y, w, h, sec_w):
-	draw_legend_box (ctx, "Running (%cpu)", \
-			 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
-	draw_legend_box (ctx, "Unint.sleep (I/O)", \
-			 PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
-	draw_legend_box (ctx, "Sleeping", \
-			 PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
-	draw_legend_box (ctx, "Zombie", \
-			 PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
+def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
+
+	if not options.kernel_only:
+		draw_legend_box (ctx, "Running (%cpu)",
+				 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
+		draw_legend_box (ctx, "Unint.sleep (I/O)",
+				 PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
+		draw_legend_box (ctx, "Sleeping",
+				 PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
+		draw_legend_box (ctx, "Zombie",
+				 PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
 
 	chart_rect = [off_x, curr_y+60, w, h - 2 * off_y - (curr_y+60) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)

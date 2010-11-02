@@ -321,20 +321,20 @@ class PyBootchartWindow(gtk.Window):
 		window.set_default_size(750, 550)
 
 		tab_page = gtk.Notebook()
+		tab_page.show()
 		window.add(tab_page)
 
 		full_opts = RenderOptions(app_options)
 		full_tree = PyBootchartShell(window, trace, full_opts)
 		tab_page.append_page (full_tree, gtk.Label("Full tree"))
-		tab_page.show_all()
 
-		kernel_opts = RenderOptions(app_options)
-		kernel_opts.cumulative = False
-		kernel_opts.charts = False
-		kernel_opts.kernel_only = False
-		kernel_tree = PyBootchartShell(window, trace, kernel_opts)
-		tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
-		tab_page.show_all()
+		if len (trace.kernel) > 2:
+			kernel_opts = RenderOptions(app_options)
+			kernel_opts.cumulative = False
+			kernel_opts.charts = False
+			kernel_opts.kernel_only = True
+			kernel_tree = PyBootchartShell(window, trace, kernel_opts)
+			tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
 
 		full_tree.grab_focus(self)
 		self.show()

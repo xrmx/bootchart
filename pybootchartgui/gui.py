@@ -28,10 +28,10 @@ class PyBootchartWidget(gtk.DrawingArea):
 		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
-	def __init__(self, res, options):
+	def __init__(self, trace, options):
 		gtk.DrawingArea.__init__(self)
 
-		self.res = res
+		self.trace = trace
 		self.options = options
 
 		self.set_flags(gtk.CAN_FOCUS)
@@ -52,7 +52,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.xscale = 1.0
                 self.x, self.y = 0.0, 0.0
 
-		self.chart_width, self.chart_height = draw.extents(self.xscale, *res)
+		self.chart_width, self.chart_height = draw.extents(self.xscale, self.trace)
 		self.hadj = None
 		self.vadj = None
 		self.hadj_changed_signal_id = None
@@ -69,13 +69,13 @@ class PyBootchartWidget(gtk.DrawingArea):
 		cr.clip()
 		self.draw(cr, self.get_allocation())
 		return False
-		
-	def draw(self, cr, rect):	
+
+	def draw(self, cr, rect):
 		cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
 		cr.paint()
                 cr.scale(self.zoom_ratio, self.zoom_ratio)
                 cr.translate(-self.x, -self.y)
-		draw.render(cr, self.options, self.xscale, *self.res)
+		draw.render(cr, self.options, self.xscale, self.trace)
 
 	def position_changed(self):
 		self.emit("position-changed", self.x, self.y)
@@ -96,7 +96,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 	def set_xscale(self, xscale):
 	    old_mid_x = self.x + self.hadj.page_size / 2
 	    self.xscale = xscale
-	    self.chart_width, self.chart_height = draw.extents(self.xscale, *self.res)
+	    self.chart_width, self.chart_height = draw.extents(self.xscale, self.trace)
 	    new_x = old_mid_x 
 	    self.zoom_image (self.zoom_ratio)
 
@@ -112,7 +112,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 	def on_zoom_out(self, action):
             self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
 
-	def on_zoom_fit(self, action):		
+	def on_zoom_fit(self, action):
             self.zoom_to_rect(self.get_allocation())
 
 	def on_zoom_100(self, action):
@@ -135,7 +135,7 @@ class PyBootchartWidget(gtk.DrawingArea):
                 elif event.keyval == gtk.keysyms.Down:
                         self.y += self.POS_INCREMENT/self.zoom_ratio
                 else:
-                        return False                
+                        return False
                 self.queue_draw()
 		self.position_changed()
                 return True
@@ -212,7 +212,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 			hadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 		if vadj == None:
 			vadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-			
+
 		if self.hadj_changed_signal_id != None and \
 		   self.hadj != None and hadj != self.hadj:
 			self.hadj.disconnect (self.hadj_changed_signal_id)
@@ -257,20 +257,20 @@ class PyBootchartWindow(gtk.Window):
 	</ui>
 	'''
 
-	def __init__(self, res, options):
+	def __init__(self, trace, options):
 		gtk.Window.__init__(self)
 
 		window = self
-		window.set_title("Bootchart %s" % res[5])
+		window.set_title("Bootchart %s" % trace.filename)
 		window.set_default_size(750, 550)
 		vbox = gtk.VBox()
 		window.add(vbox)
 
-		self.widget = PyBootchartWidget(res, options)
+		self.widget = PyBootchartWidget(trace, options)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()
-		
+
 		# Add the accelerator group to the toplevel window
 		accelgroup = uimanager.get_accel_group()
 		window.add_accel_group(accelgroup)
@@ -318,7 +318,7 @@ class PyBootchartWindow(gtk.Window):
 
 		self.show_all()
 
-def show(res, options):
-	win = PyBootchartWindow(res, options)
+def show(trace, options):
+	win = PyBootchartWindow(trace, options)
 	win.connect('destroy', gtk.main_quit)
 	gtk.main()

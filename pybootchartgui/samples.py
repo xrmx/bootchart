@@ -46,7 +46,7 @@ class ProcessSample:
 		self.time = time
 		self.state = state
 		self.cpu_sample = cpu_sample
-		
+
 	def __str__(self):
 		return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample)
 
@@ -60,7 +60,7 @@ class ProcessStats:
 		writer.info ("%d samples, avg. sample length %f" % (self.sample_count, self.sample_period))
 		writer.info ("process list size: %d" % len (self.process_map.values()))
 
-class Process:	
+class Process:
 	def __init__(self, writer, pid, cmd, ppid, start_time):
 		self.writer = writer
 		self.pid = pid
@@ -91,23 +91,22 @@ class Process:
 		split.last_swapin_delay_ns = self.last_swapin_delay_ns
 
 		return split
-	
+
 	def __str__(self):
 		return " ".join([str(self.pid), self.cmd, str(self.ppid), '[ ' + str(len(self.samples)) + ' samples ]' ])
-	
+
 	def calc_stats(self, samplePeriod):
 		if self.samples:
 			firstSample = self.samples[0]
 			lastSample = self.samples[-1]
 			self.start_time = min(firstSample.time, self.start_time)
 			self.duration = lastSample.time - self.start_time + samplePeriod
-			
+
 		activeCount = sum( [1 for sample in self.samples if sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0] )
 		activeCount = activeCount + sum( [1 for sample in self.samples if sample.state == 'D'] )
 		self.active = (activeCount>2)
-		
+
 	def calc_load(self, userCpu, sysCpu, interval):
-		
 		userCpuLoad = float(userCpu - self.last_user_cpu_time) / interval
 		sysCpuLoad = float(sysCpu - self.last_sys_cpu_time) / interval
 		cpuLoad = userCpuLoad + sysCpuLoad
@@ -116,7 +115,7 @@ class Process:
 			userCpuLoad = userCpuLoad / cpuLoad
 			sysCpuLoad = sysCpuLoad / cpuLoad
 		return (userCpuLoad, sysCpuLoad)
-	
+
 	def set_parent(self, processMap):
 		if self.ppid != None:
 			self.parent = processMap.get (self.ppid)

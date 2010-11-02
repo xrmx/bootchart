@@ -26,6 +26,104 @@ from collections import defaultdict
 from samples import *
 from process_tree import ProcessTree
 
+# Parsing produces as its end result a 'Trace'
+
+class Trace:
+    def __init__(self, writer, paths, options):
+        self.headers = None
+	self.disk_stats = None
+	self.ps_stats = None
+	self.taskstats = None
+	self.cpu_stats = None
+	self.cmdline = None
+	self.kernel = None
+	self.filename = None
+	self.parent_map = None
+	self.mem_stats = None
+
+	parse_paths (writer, self, paths)
+	if not self.valid():
+		raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
+
+	# Turn that parsed information into something more useful
+	# link processes into a tree of pointers, calculate statistics
+	self.compile(writer)
+
+	# Crop the chart to the end of the first idle period after the given
+	# process
+	if options.crop_after:
+            idle = crop(writer, options.crop_after, state)
+	else:
+            idle = None
+
+	# Annotate other times as the first start point of given process lists
+	self.times = [ idle ]
+	if options.annotate:
+            for procnames in options.annotate:
+                names = [x[:15] for x in procnames.split(",")]
+                for proc in state.ps_stats.process_list:
+                    if proc.cmd in names:
+		        times.append(proc.start_time)
+			break
+		    else:
+                        times.append(None)
+
+        self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
+				     self.headers.get("profile.process"),
+				     options.prune, idle, self.taskstats)
+#       return (state.headers, state.cpu_stats, state.disk_stats, state.mem_stats, proc_tree, times, state.filename)
+
+    def valid(self):
+        return self.headers != None and self.disk_stats != None and \
+	       self.ps_stats != None and self.cpu_stats != None
+
+
+    def compile(self, writer):
+
+	def find_parent_id_for(pid):
+		if pid is 0:
+			return 0
+		ppid = self.parent_map.get(pid)
+		if ppid:
+			# many of these double forks are so short lived
+			# that we have no samples, or process info for them
+			# so climb the parent hierarcy to find one
+			if int (ppid * 1000) not in self.ps_stats.process_map:
+#				print "Pid '%d' short lived with no process" % ppid
+				ppid = find_parent_id_for (ppid)
+#			else:
+#				print "Pid '%d' has an entry" % ppid
+		else:
+#			print "Pid '%d' missing from pid map" % pid
+			return 0
+		return ppid
+
+	# merge in the cmdline data
+	if self.cmdline is not None:
+		for proc in self.ps_stats.process_map.values():
+			rpid = int (proc.pid / 1000)
+			if rpid in self.cmdline:
+				cmd = self.cmdline[rpid]
+				proc.exe = cmd['exe']
+				proc.args = cmd['args']
+#			else:
+#				print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
+
+	# re-parent any stray orphans if we can
+        if self.parent_map is not None:
+		for process in self.ps_stats.process_map.values():
+			ppid = find_parent_id_for (int(process.pid / 1000))
+			if ppid:
+				process.ppid = ppid * 1000
+
+	# stitch the tree together with pointers
+	for process in self.ps_stats.process_map.values():
+		process.set_parent (self.ps_stats.process_map)
+
+	# count on fingers variously
+	for process in self.ps_stats.process_map.values():
+		process.calc_stats (self.ps_stats.sample_period)
+
 class ParseError(Exception):
 	"""Represents errors during parse of the bootchart."""
 	def __init__(self, value):
@@ -74,7 +172,7 @@ def _parse_proc_ps_log(writer, file):
 			if line is '': continue
 			tokens = line.split(' ')
 
-			offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]		
+			offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]
 			pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
 			userCpu, sysCpu, stime = int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
@@ -87,12 +185,12 @@ def _parse_proc_ps_log(writer, file):
 			else:
 				process = Process(writer, pid, cmd.strip('()'), ppid, min(time, stime))
 				processMap[pid] = process
-			
+
 			if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
 				userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
 				cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
 				process.samples.append(ProcessSample(time, state, cpuSample))
-			
+
 			process.last_user_cpu_time = userCpu
 			process.last_sys_cpu_time = sysCpu
 		ltime = time
@@ -102,7 +200,7 @@ def _parse_proc_ps_log(writer, file):
 
 	startTime = timed_blocks[0][0]
 	avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
-		
+
 	return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
 
 def _parse_taskstats_log(writer, file):
@@ -175,7 +273,7 @@ def _parse_taskstats_log(writer, file):
 						      delta_blkio_delay_ns,
 						      delta_swapin_delay_ns)
 				process.samples.append(ProcessSample(time, state, cpuSample))
-			
+
 			process.last_cpu_ns = cpu_ns
 			process.last_blkio_delay_ns = blkio_delay_ns
 			process.last_swapin_delay_ns = swapin_delay_ns
@@ -185,10 +283,10 @@ def _parse_taskstats_log(writer, file):
 		return None
 
 	startTime = timed_blocks[0][0]
-	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)	
-		
+	avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)
+
 	return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
-	
+
 def _parse_proc_stat_log(file):
 	samples = []
 	ltimes = None
@@ -421,72 +519,6 @@ def get_num_cpus(headers):
         return 1
     return max (int(mat.group(1)), 1)
 
-class ParserState:
-    def __init__(self):
-        self.headers = None
-	self.disk_stats = None
-	self.ps_stats = None
-	self.taskstats = None
-	self.cpu_stats = None
-	self.cmdline = None
-	self.kernel = None
-	self.filename = None
-	self.parent_map = None
-	self.mem_stats = None
-
-    def valid(self):
-        return self.headers != None and self.disk_stats != None and \
-	       self.ps_stats != None and self.cpu_stats != None
-
-
-    def compile(self, writer):
-
-	def find_parent_id_for(pid):
-		if pid is 0:
-			return 0
-		ppid = self.parent_map.get(pid)
-		if ppid:
-			# many of these double forks are so short lived
-			# that we have no samples, or process info for them
-			# so climb the parent hierarcy to find one
-			if int (ppid * 1000) not in self.ps_stats.process_map:
-#				print "Pid '%d' short lived with no process" % ppid
-				ppid = find_parent_id_for (ppid)
-#			else:
-#				print "Pid '%d' has an entry" % ppid
-		else:
-#			print "Pid '%d' missing from pid map" % pid
-			return 0
-		return ppid
-
-	# merge in the cmdline data
-	if self.cmdline is not None:
-		for proc in self.ps_stats.process_map.values():
-			rpid = int (proc.pid / 1000)
-			if rpid in self.cmdline:
-				cmd = self.cmdline[rpid]
-				proc.exe = cmd['exe']
-				proc.args = cmd['args']
-#			else:
-#				print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
-
-	# re-parent any stray orphans if we can
-        if self.parent_map is not None:
-		for process in self.ps_stats.process_map.values():
-			ppid = find_parent_id_for (int(process.pid / 1000))
-			if ppid:
-				process.ppid = ppid * 1000
-
-	# stitch the tree together with pointers
-	for process in self.ps_stats.process_map.values():
-		process.set_parent (self.ps_stats.process_map)
-
-	# count on fingers variously
-	for process in self.ps_stats.process_map.values():
-		process.calc_stats (self.ps_stats.sample_period)
-	
-
-
 def _do_parse(writer, state, name, file):
     writer.status("parsing '%s'" % name)
     t1 = clock()
@@ -621,35 +653,3 @@ def crop(writer, crop_after, state):
             proc.samples.pop()
 
     return idle
-
-
-def parse(writer, paths, prune, crop_after, annotate):
-    state = parse_paths (writer, ParserState(), paths)
-    if not state.valid():
-        raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
-
-    # Turn that parsed information into something more useful
-    # link processes into a tree of pointers, calculate statistics
-    state.compile(writer)
-
-    # Crop the chart to the end of the first idle period after the given
-    # process
-    if crop_after:
-        idle = crop(writer, crop_after, state)
-    else:
-        idle = None
-    # Annotate other times as the first start point of given process lists
-    times = [ idle ]
-    if annotate:
-        for procnames in annotate:
-            names = [x[:15] for x in procnames.split(",")]
-            for proc in state.ps_stats.process_list:
-                if proc.cmd in names:
-		            times.append(proc.start_time)
-		            break
-	    else:
-                times.append(None)
-
-    monitored_app = state.headers.get("profile.process")
-    proc_tree = ProcessTree(writer, state.kernel, state.ps_stats, monitored_app, prune, idle, state.taskstats)
-    return (state.headers, state.cpu_stats, state.disk_stats, state.mem_stats, proc_tree, times, state.filename)

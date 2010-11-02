@@ -169,14 +169,13 @@ def draw_label_in_box(ctx, color, label, x, y, w, maxx):
             label_x = x - label_w - 5
 	draw_text(ctx, label, color, label_x, y)
 
-def draw_5sec_labels(ctx, rect, sec_w):
+def draw_sec_labels(ctx, rect, sec_w, nsecs):
         ctx.set_font_size(AXIS_FONT_SIZE)
 	for i in range(0, rect[2] + 1, sec_w):
-		if ((i / sec_w) % 5 == 0) :
+		if ((i / sec_w) % nsecs == 0) :
 			label = "%ds" % (i / sec_w)
 			label_w = ctx.text_extents(label)[2]
 			draw_text(ctx, label, TEXT_COLOR, rect[0] + i - label_w/2, rect[1] - 2)
-
 
 def draw_box_ticks(ctx, rect, sec_w):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))
@@ -287,7 +286,6 @@ def clip_visible(clip, rect):
 	return (xmin > xmax and ymin > ymax)
 
 def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
-
 	proc_tree = options.proc_tree(trace)
 
 	# render bar legend
@@ -398,7 +396,7 @@ def render(ctx, options, xscale, trace):
 	if not options.kernel_only:
 		curr_y = draw_header (ctx, trace.headers, duration)
 	else:
-		curr_y = 0;
+		curr_y = off_y;
 
 	if options.charts:
 		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h, sec_w)
@@ -408,8 +406,8 @@ def render(ctx, options, xscale, trace):
 	if proc_tree.taskstats and options.cumulative:
 		proc_height -= CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, clip, options, proc_tree,
-			       trace.times, curr_y, w, proc_height, sec_w)
+	draw_process_bar_chart(ctx, clip, options, proc_tree, trace.times,
+			       curr_y, w, proc_height, sec_w)
 
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
@@ -422,7 +420,7 @@ def render(ctx, options, xscale, trace):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w)
 
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
-
+	header_size = 0
 	if not options.kernel_only:
 		draw_legend_box (ctx, "Running (%cpu)",
 				 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
@@ -432,12 +430,18 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 				 PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Zombie",
 				 PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
+		header_size = 45
 
-	chart_rect = [off_x, curr_y+60, w, h - 2 * off_y - (curr_y+60) + proc_h]
+	chart_rect = [off_x, curr_y + header_size + 15,
+		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
 
 	draw_box_ticks (ctx, chart_rect, sec_w)
-	draw_5sec_labels (ctx, chart_rect, sec_w)
+	if sec_w > 100:
+		nsec = 1
+	else:
+		nsec = 5
+	draw_sec_labels (ctx, chart_rect, sec_w, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
 	y = curr_y + 60

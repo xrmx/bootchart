@@ -28,7 +28,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
 	}
 
-	def __init__(self, trace, options):
+	def __init__(self, trace, options, xscale):
 		gtk.DrawingArea.__init__(self)
 
 		self.trace = trace
@@ -49,7 +49,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 		self.connect("position-changed", self.on_position_changed)
 
 		self.zoom_ratio = 1.0
-		self.xscale = 1.0
+		self.xscale = xscale
                 self.x, self.y = 0.0, 0.0
 
 		self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
@@ -255,10 +255,10 @@ class PyBootchartShell(gtk.VBox):
 		</toolbar>
 	</ui>
 	'''
-	def __init__(self, window, trace, options):
+	def __init__(self, window, trace, options, xscale):
 		gtk.VBox.__init__(self)
 
-		self.widget = PyBootchartWidget(trace, options)
+		self.widget = PyBootchartWidget(trace, options, xscale)
 
 		# Create a UIManager instance
 		uimanager = self.uimanager = gtk.UIManager()
@@ -298,10 +298,11 @@ class PyBootchartShell(gtk.VBox):
 		toolbar = uimanager.get_widget('/ToolBar')
 		hbox.pack_start(toolbar, True, True)
 
-		# Misc. options
-		button = gtk.CheckButton("Show more")
-		button.connect ('toggled', self.widget.show_toggled)
-		hbox.pack_start (button, False, True)
+		if not options.kernel_only:
+			# Misc. options
+			button = gtk.CheckButton("Show more")
+			button.connect ('toggled', self.widget.show_toggled)
+			hbox.pack_start (button, False, True)
 
 		self.pack_start(hbox, False)
 		self.pack_start(scrolled)
@@ -325,7 +326,7 @@ class PyBootchartWindow(gtk.Window):
 		window.add(tab_page)
 
 		full_opts = RenderOptions(app_options)
-		full_tree = PyBootchartShell(window, trace, full_opts)
+		full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
 		tab_page.append_page (full_tree, gtk.Label("Full tree"))
 
 		if len (trace.kernel) > 2:
@@ -333,7 +334,7 @@ class PyBootchartWindow(gtk.Window):
 			kernel_opts.cumulative = False
 			kernel_opts.charts = False
 			kernel_opts.kernel_only = True
-			kernel_tree = PyBootchartShell(window, trace, kernel_opts)
+			kernel_tree = PyBootchartShell(window, trace, kernel_opts, 5.0)
 			tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
 
 		full_tree.grab_focus(self)

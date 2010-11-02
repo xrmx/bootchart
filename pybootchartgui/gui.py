@@ -329,7 +329,7 @@ class PyBootchartWindow(gtk.Window):
 		full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
 		tab_page.append_page (full_tree, gtk.Label("Full tree"))
 
-		if len (trace.kernel) > 2:
+		if trace.kernel is not None and len (trace.kernel) > 2:
 			kernel_opts = RenderOptions(app_options)
 			kernel_opts.cumulative = False
 			kernel_opts.charts = False

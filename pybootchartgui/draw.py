@@ -515,6 +515,10 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
+
+	if y > clip[1] + clip[3] or y + proc_h + 2 < clip[1]:
+		return
+
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
 	last_tx = -1

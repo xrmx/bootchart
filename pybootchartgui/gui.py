@@ -241,8 +241,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
 PyBootchartWidget.set_set_scroll_adjustments_signal('set-scroll-adjustments')
 
-class PyBootchartWindow(gtk.Window):
-
+class PyBootchartShell(gtk.VBox):
 	ui = '''
 	<ui>
 		<toolbar name="ToolBar">
@@ -256,15 +255,8 @@ class PyBootchartWindow(gtk.Window):
 		</toolbar>
 	</ui>
 	'''
-
-	def __init__(self, trace, app_options):
-		gtk.Window.__init__(self)
-
-		window = self
-		window.set_title("Bootchart %s" % trace.filename)
-		window.set_default_size(750, 550)
-		vbox = gtk.VBox()
-		window.add(vbox)
+	def __init__(self, window, trace, app_options):
+		gtk.VBox.__init__(self)
 
 		self.widget = PyBootchartWidget(trace, app_options)
 
@@ -311,12 +303,32 @@ class PyBootchartWindow(gtk.Window):
 		button.connect ('toggled', self.widget.show_toggled)
 		hbox.pack_start (button, False, True)
 
-		vbox.pack_start(hbox, False)
-		vbox.pack_start(scrolled)
-
-		self.set_focus(self.widget)
-
+		self.pack_start(hbox, False)
+		self.pack_start(scrolled)
 		self.show_all()
+
+	def grab_focus(self, window):
+		window.set_focus(self.widget)
+
+class PyBootchartWindow(gtk.Window):
+
+
+	def __init__(self, trace, app_options):
+		gtk.Window.__init__(self)
+
+		window = self
+		window.set_title("Bootchart %s" % trace.filename)
+		window.set_default_size(750, 550)
+
+		tab_page = gtk.Notebook()
+		window.add(tab_page)
+
+		full_tree = PyBootchartShell(window, trace, app_options)
+		tab_page.append_page (full_tree, gtk.Label("Full tree"))
+		tab_page.show_all()
+
+		full_tree.grab_focus(self)
+		self.show()
 
 def show(trace, options):
 	win = PyBootchartWindow(trace, options)

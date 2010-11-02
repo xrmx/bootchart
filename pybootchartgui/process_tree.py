@@ -37,7 +37,9 @@ class ProcessTree:
     LOGGER_PROC = 'bootchart-colle'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, writer, kernel, psstats, monitoredApp, prune, idle, taskstats, for_testing = False):
+    def __init__(self, writer, kernel, psstats, monitoredApp, prune,
+                 idle, taskstats, accurate_parentage,
+                 for_testing = False):
         self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
@@ -49,7 +51,8 @@ class ProcessTree:
 	self.sample_period = psstats.sample_period
 
 	self.build()
-        self.update_ppids_for_daemons(self.process_list)
+        if not accurate_parentage:
+            self.update_ppids_for_daemons(self.process_list)
 
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
@@ -89,8 +92,6 @@ class ProcessTree:
     def sort(self, process_subtree):
         """Sort process tree."""
         for p in process_subtree:
-# FIXME should we sort by CPU usage too ?
-# FIXME: we should collapse time-less parents ...
             p.child_list.sort(key = lambda p: p.pid)
             self.sort(p.child_list)
 
@@ -148,11 +149,11 @@ class ProcessTree:
             for p in process_list:
                 p.child_list = []
             self.build()
-            
+
     def prune(self, process_subtree, parent):
         """Prunes the process tree by removing idle processes and processes
 	   that only live for the duration of a single top sample.  Sibling
-	   processes with the same command line (i.e. threads) are merged 
+	   processes with the same command line (i.e. threads) are merged
 	   together. This filters out sleepy background processes, short-lived
 	   processes and bootcharts' analysis tools.
         """

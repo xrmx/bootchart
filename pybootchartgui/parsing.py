@@ -70,7 +70,8 @@ class Trace:
 
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
 				     self.headers.get("profile.process"),
-				     options.prune, idle, self.taskstats)
+				     options.prune, idle, self.taskstats,
+				     self.parent_map is not None)
 #       return (state.headers, state.cpu_stats, state.disk_stats, state.mem_stats, proc_tree, times, state.filename)
 
     def valid(self):
@@ -299,15 +300,14 @@ def _parse_proc_stat_log(file):
 			system = float((times[2] + times[5] + times[6]) - (ltimes[2] + ltimes[5] + ltimes[6]))
 			idle = float(times[3] - ltimes[3])
 			iowait = float(times[4] - ltimes[4])
-			
+
 			aSum = max(user + system + idle + iowait, 1)
 			samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum) )
-		
-		ltimes = times		
+
+		ltimes = times
 		# skip the rest of statistics lines
 	return samples
 
-		
 def _parse_proc_disk_stat_log(file, numCpu):
 	"""
 	Parse file for disk stats, but only look at the whole device, eg. sda,
@@ -322,19 +322,19 @@ def _parse_proc_disk_stat_log(file, numCpu):
 			return False
 		disk = linetokens[2]
 		return disk_regex_re.match(disk)
-	
+
 	disk_stat_samples = []
 
 	for time, lines in _parse_timed_blocks(file):
-		sample = DiskStatSample(time)		
+		sample = DiskStatSample(time)
 		relevant_tokens = [linetokens for linetokens in map (string.split,lines) if is_relevant_line(linetokens)]
-		
+
 		for tokens in relevant_tokens:
-			disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])			
+			disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])
 			sample.add_diskdata([rsect, wsect, use])
-		
+
 		disk_stat_samples.append(sample)
-			
+
 	disk_stats = []
 	for sample1, sample2 in zip(disk_stat_samples[:-1], disk_stat_samples[1:]):
 		interval = sample1.time - sample2.time
@@ -344,7 +344,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 		util = float( sums[2] ) / 10 / interval / numCpu
 		util = max(0.0, min(1.0, util))
 		disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
-	
+
 	return disk_stats
 
 def _parse_proc_meminfo_log(file):
@@ -372,7 +372,7 @@ def _parse_proc_meminfo_log(file):
 # if we boot the kernel with: initcall_debug printk.time=1 we can
 # get all manner of interesting data from the dmesg output
 # We turn this into a pseudo-process tree: each event is
-# characterised by a 
+# characterised by a
 # we don't try to detect a "kernel finished" state - since the kernel
 # continues to do interesting things after init is called.
 #
@@ -442,15 +442,15 @@ def _parse_dmesg(writer, file):
 				process.duration = (time_ms / 10) - process.start_time
 			else:
 				print "corrupted init call for %s" % (func)
-				
+
 		elif type == "async_waiting" or type == "async_continuing":
 			continue # ignore
 
 	return processMap.values()
-	
+
 #
 # Parse binary pacct accounting file output if we have one
-# cf. /usr/include/linux/acct.h 
+# cf. /usr/include/linux/acct.h
 #
 def _parse_pacct(writer, file):
 	# read LE int32
@@ -540,7 +540,7 @@ def _do_parse(writer, state, name, file):
     elif name == "paternity.log":
        state.parent_map = _parse_paternity_log(writer, file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
-        state.ps_stats = _parse_proc_ps_log(writer, file)
+       state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
        state.parent_map = _parse_pacct(writer, file)
     t2 = clock()

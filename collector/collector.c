@@ -851,6 +851,7 @@ int main (int argc, char *argv[])
 				 path, strerror (errno));
 			exit (1);
 		}
+		free (path);
 	}
 
 	stat_file = buffer_file_new (&map, "proc_stat.log");

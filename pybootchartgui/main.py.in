@@ -114,10 +114,8 @@ def main(argv=None):
 			print "No path given, trying /var/log/bootchart.tgz"
 			args = [ "/var/log/bootchart.tgz" ]
 
+		res = parsing.Trace(writer, args, options)
 
-		res = parsing.parse(writer, args, options.prune,
-				    options.crop_after, options.annotate)
-		
 		if options.interactive or options.output == None:
 			gui.show(res, options)
 		elif options.boottime:

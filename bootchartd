@@ -9,7 +9,7 @@
 #
 # To profile the boot process, bootchartd should be called instead of
 # /sbin/init.  Modify the kernel command line to include:
-# 
+#
 # init=/sbin/bootchartd initcall_debug printk.time=y quiet
 #
 # bootchartd will then start itself in background and exec /sbin/init
@@ -83,7 +83,7 @@ wait_boot()
 
 	# Wait for /proc first - without it we have issues
 	while [ ! -e /proc/cmdline ]; do
-	    $USLEEP 5000
+		$USLEEP 5000
 	done
 
 	# early_login in FC4 starts gdm early, so fall back to mingetty
@@ -112,13 +112,13 @@ stop()
 {
 	tmpdir=`mktemp -d /tmp/bootchart.XXXXXXXXXX`
 	if [ "z$tmpdir" = "z" ]; then
-	    echo "Failed to generate directory for logging"
-	    exit 1
+		echo "Failed to generate directory for logging"
+		exit 1
 	fi
 
 	if ! /lib/bootchart/bootchart-collector --dump $tmpdir; then
-	    echo "Can't extract boot chart from collector"
-	    exit 1
+		echo "Can't extract boot chart from collector"
+		exit 1
 	fi
 
 	cd $tmpdir
@@ -134,16 +134,16 @@ stop()
 
 	# Render the chart if configured (and the renderer is installed)
 	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then
-                cd $AUTO_RENDER_DIR
+		cd $AUTO_RENDER_DIR
 		/usr/bin/pybootchartgui -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
-        fi
+	fi
 }
 
 if [ $$ -eq 1 ]; then
-        # Either started by the kernel - in which case, we start the
-        # logger in background and exec init [ re-using this pid (1) ]
-        # Or - started after the initrd has completed, in which case
-        # we try to do nothing much.
+	# Either started by the kernel - in which case, we start the
+	# logger in background and exec init [ re-using this pid (1) ]
+	# Or - started after the initrd has completed, in which case
+	# we try to do nothing much.
 	INIT_PROCESS="yes"
 	echo "Starting bootchart logging"
 
@@ -160,7 +160,7 @@ if [ $$ -eq 1 ]; then
 		$USLEEP 250000
 		echo "bootchart continuing boot" >> $TMPFS/kmsg
 	fi
-	
+
 	# Optionally, an alternative init(1) process may be specified using
 	# the kernel command line (e.g. "bootchart_init=/sbin/initng")
 	init="/sbin/init"
@@ -169,13 +169,13 @@ if [ $$ -eq 1 ]; then
 			init="${i#*=}"
 			break
 		fi
-                if [ "${i%%=*}" = "init" ]; then
+		if [ "${i%%=*}" = "init" ]; then
 			_init=${i#*=}
 			if test "$_init" != "/sbin/bootchartd"; then
-                           init="$_init"
-                        fi
-                        break
-                fi
+				init="$_init"
+			fi
+			break
+		fi
 	done
 	export PATH=$OLDPATH
 

@@ -1,3 +1,18 @@
+bootchart2 UNRELEASED:
+	+ bootchartd
+		+ better check for initrd (Riccardo Magliocchetti)
+		+ code cleanup (Riccardo)
+		+ make the list of processes we are waiting for editable
+		  in config file by EXIT_PROC (Riccardo)
+	+ collector
+		+ try harder with taskstats (Michael)
+		+ plug some small leaks (Riccardo)
+	+ pybootchartgui
+		+ report bootchart version in cli interface (Michael)
+		+ improve rendering performance (Michael)
+		+ GUI improvements (Michael)
+		+ lot of cleanups (Michael)
+
 bootchart2 0.12.4:
 	+ bootchartd
 		+ reduce overhead caused by pidof (Riccardo Magliocchetti)

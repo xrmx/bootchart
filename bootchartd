@@ -76,8 +76,6 @@ start()
 # Wait for the boot process to end.
 wait_boot()
 {
-	local runlevel=$( sed -n '/^ *#/d; /^$/d; s/.*:\(.*\):initdefault:.*/\1/g; p; q' /etc/inittab )
-
 	# The processes we have to wait for
 	local exit_proc="kdm_greet xterm konsole gnome-terminal metacity mutter compiz ldm icewm-session enlightenment"
 
@@ -86,12 +84,6 @@ wait_boot()
 		$USLEEP 5000
 	done
 
-	# early_login in FC4 starts gdm early, so fall back to mingetty
-	local early_login="no"
-	grep -q early_login proc/cmdline && early_login="yes"
-	if [ "x$runlevel" = "x2" -o "x$runlevel" = "x3" -o "$early_login" = "yes" ]; then
-		exit_proc="mingetty agetty rungetty getty"
-	fi
 	while true; do
 		if [ -n "$exit_proc" -a -n "$( pidof $exit_proc )" ]; then
 			# give an unambiguous settle afterwards - so we get

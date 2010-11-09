@@ -165,8 +165,8 @@ if [ $$ -eq 1 ]; then
 			_init=${i#*=}
 			if test "$_init" != "/sbin/bootchartd"; then
 				init="$_init"
+				break
 			fi
-			break
 		fi
 	done
 	export PATH=$OLDPATH

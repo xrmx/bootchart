@@ -4,6 +4,7 @@ bootchart2 UNRELEASED:
 		+ code cleanup (Riccardo)
 		+ make the list of processes we are waiting for editable
 		  in config file by EXIT_PROC (Riccardo)
+		+ fix parsing of cmdline for alternative init system (Riccardo)
 	+ collector
 		+ try harder with taskstats (Michael)
 		+ plug some small leaks (Riccardo)

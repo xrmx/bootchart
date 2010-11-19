@@ -21,7 +21,6 @@ import os
 import optparse
 
 import parsing
-import gui
 import batch
 
 def _mk_options_parser():
@@ -117,6 +116,7 @@ def main(argv=None):
 		res = parsing.Trace(writer, args, options)
 
 		if options.interactive or options.output == None:
+			import gui
 			gui.show(res, options)
 		elif options.boottime:
 			import math

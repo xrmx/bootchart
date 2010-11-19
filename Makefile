@@ -9,7 +9,7 @@ BINDIR ?= /usr/bin
 PY_LIBDIR ?= /usr/lib/python2.6
 PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
 LIBC_A_PATH = /usr/lib
-
+SYSTEMD_UNIT_DIR = /lib/systemd/system
 COLLECTOR = \
 	collector/collector.o \
 	collector/output.o \
@@ -43,6 +43,12 @@ install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
+
+install-service:
+	install -m 0644 bootchart.service \
+	       bootchart-done.service \
+	       bootchart-done.timer \
+	       $(SYSTEMD_UNIT_DIR)      
 
 install: all py-install-compile install-collector
 

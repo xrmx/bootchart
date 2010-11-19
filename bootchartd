@@ -61,6 +61,8 @@ start()
 
 	# Otherwise, manually launched to profile something
 	else
+		# bail out, if already running
+		pidof bootchart-collector && exit 0
 #		echo "bootchartd started manually" >> kmsg
 		/lib/bootchart/bootchart-collector -r $SAMPLE_HZ &
 

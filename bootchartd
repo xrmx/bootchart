@@ -46,9 +46,9 @@ CONF="/etc/bootchartd.conf"
 if [ -f $PWD/bootchartd.conf ]; then
 	. $PWD/bootchartd.conf
 elif [ -f $CONF ]; then
-        . $CONF
+	. $CONF
 else
-        echo "$CONF missing"
+	echo "$CONF missing"
 fi
 
 # Start the boot logger.

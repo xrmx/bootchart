@@ -32,9 +32,9 @@ py-install-compile: pybootchartgui/main.py
 	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
 	cp pybootchartgui/*.py $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
 	install -D -m 755 pybootchartgui.py $(DESTDIR)$(BINDIR)/pybootchartgui
-	cd $(DESTDIR)$(PY_SITEDIR)/pybootchartgui ; \
+	[ -z "$(NO_PYTHON_COMPILE)" ] && ( cd $(DESTDIR)$(PY_SITEDIR)/pybootchartgui ; \
 		python $(PY_LIBDIR)/py_compile.py *.py ; \
-		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py
+		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py ); :
 
 install-chroot:
 	install -d $(DESTDIR)/lib/bootchart/tmpfs

@@ -5,6 +5,8 @@ bootchart2 UNRELEASED:
 		+ make the list of processes we are waiting for editable
 		  in config file by EXIT_PROC (Riccardo)
 		+ fix parsing of cmdline for alternative init system (Riccardo)
+		+ fixed calling init in initramfs (Harald)
+		+ exit 0 for start, if the collector is already running (Harald)
 	+ collector
 		+ try harder with taskstats (Michael)
 		+ plug some small leaks (Riccardo)
@@ -13,6 +15,10 @@ bootchart2 UNRELEASED:
 		+ improve rendering performance (Michael)
 		+ GUI improvements (Michael)
 		+ lot of cleanups (Michael)
+	+ Makefile
+		+ do not python compile if NO_PYTHON_COMPILE is set (Harald)
+	+ systemd service files
+		+ added them and install (Harald)
 
 bootchart2 0.12.4:
 	+ bootchartd

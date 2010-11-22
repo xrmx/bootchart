@@ -1,3 +1,8 @@
+bootchart2 CURRENT:
+	+ Misc (Michael)
+		+ remove confusing, obsolete setup.py
+		+ install docs to /usr/share/
+
 bootchart2 0.12.6:
 	+ bootchartd
 		+ better check for initrd (Riccardo Magliocchetti)

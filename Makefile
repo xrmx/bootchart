@@ -44,6 +44,10 @@ install-collector: all install-chroot
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
 
+install-docs:
+	install -m 644 -D README $(DESTDIR)/usr/share/docs/bootchartd/README
+	install -m 644 -D README.pybootchart $(DESTDIR)/usr/share/docs/bootchartd/README.pybootchart
+
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)
 	install -m 0644 bootchart.service \
@@ -51,7 +55,7 @@ install-service:
 	       bootchart-done.timer \
 	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)
 
-install: all py-install-compile install-collector install-service
+install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \

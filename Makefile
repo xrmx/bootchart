@@ -45,11 +45,11 @@ install-collector: all install-chroot
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
 
 install-service:
-	mkdir -p $(DESTDIR)/$(SYSTEMD_UNIT_DIR)
+	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)
 	install -m 0644 bootchart.service \
 	       bootchart-done.service \
 	       bootchart-done.timer \
-	       $(DESTDIR)/$(SYSTEMD_UNIT_DIR)      
+	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)
 
 install: all py-install-compile install-collector install-service
 

@@ -480,7 +480,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 
 		pr.fd = nls->socket;
 		pr.events = POLLIN;
-		if (poll (&pr, 1, 50 /* ms */) || !(pr.revents & POLLIN)) {
+		if ((poll (&pr, 1, 50 /* ms */) <= 0) || (!(pr.revents & POLLIN))) {
 			fprintf (stderr, "No PROC_EVENTs present\n");
 			goto close_and_exit;
 		}

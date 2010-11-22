@@ -1,4 +1,4 @@
-bootchart2 0.12.5:
+bootchart2 0.12.6:
 	+ bootchartd
 		+ better check for initrd (Riccardo Magliocchetti)
 		+ code cleanup (Riccardo)
@@ -21,6 +21,9 @@ bootchart2 0.12.5:
 		+ do not python compile if NO_PYTHON_COMPILE is set (Harald)
 	+ systemd service files
 		+ added them and install (Harald, Wulf C. Krueger)
+
+bootchart2 0.12.5:
+	+ administrative snafu version; pull before pushing...
 
 bootchart2 0.12.4:
 	+ bootchartd

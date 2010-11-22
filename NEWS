@@ -1,4 +1,4 @@
-bootchart2 UNRELEASED:
+bootchart2 0.12.5:
 	+ bootchartd
 		+ better check for initrd (Riccardo Magliocchetti)
 		+ code cleanup (Riccardo)
@@ -10,15 +10,17 @@ bootchart2 UNRELEASED:
 	+ collector
 		+ try harder with taskstats (Michael)
 		+ plug some small leaks (Riccardo)
-	+ pybootchartgui
-		+ report bootchart version in cli interface (Michael)
-		+ improve rendering performance (Michael)
-		+ GUI improvements (Michael)
-		+ lot of cleanups (Michael)
+		+ fix missing PROC_EVENTS detection (Riccardo)
+	+ pybootchartgui (Michael)
+		+ add kernel bootchart tab to interactive gui
+		+ report bootchart version in cli interface
+		+ improve rendering performance
+		+ GUI improvements
+		+ lot of cleanups
 	+ Makefile
 		+ do not python compile if NO_PYTHON_COMPILE is set (Harald)
 	+ systemd service files
-		+ added them and install (Harald)
+		+ added them and install (Harald, Wulf C. Krueger)
 
 bootchart2 0.12.4:
 	+ bootchartd

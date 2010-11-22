@@ -15,7 +15,7 @@ bootchart2 0.12.6:
 	+ collector
 		+ try harder with taskstats (Michael)
 		+ plug some small leaks (Riccardo)
-		+ fix missing PROC_EVENTS detection (Riccardo)
+		+ fix missing PROC_EVENTS detection (Harald)
 	+ pybootchartgui (Michael)
 		+ add kernel bootchart tab to interactive gui
 		+ report bootchart version in cli interface

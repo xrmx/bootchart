@@ -240,10 +240,12 @@ bootchart_find_running_pid (Arguments *opt_args)
 	char exe_path[1024];
 	Arguments sargs, *args;
 
-	if (opt_args)
+	if (opt_args) {
 		args = opt_args;
-	else
+	} else {
 		args = &sargs;
+		arguments_set_defaults (args);
+	}
     
 	proc = opendir (PROC_PATH);
 	while ((ent = readdir (proc)) != NULL) {

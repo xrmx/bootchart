@@ -464,7 +464,7 @@ static int get_family_id(int sd)
 	return id;
 }
 
-int
+static int
 init_taskstat (void)
 {
 	struct sockaddr_nl addr;

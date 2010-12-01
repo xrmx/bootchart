@@ -777,7 +777,7 @@ int main (int argc, char *argv[])
 {
 	Arguments args;
 	int i, use_taskstat;
-	int in_initrd, clean_environment = 1;
+	int in_initrd = 0, clean_environment = 1;
 	int stat_fd, disk_fd, uptime_fd, meminfo_fd,  pid, ret = 1;
 	PidScanner *scanner = NULL;
 	unsigned long reltime = 0;

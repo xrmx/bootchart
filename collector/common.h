@@ -91,7 +91,6 @@ typedef struct {
 BufferFile *buffer_file_new            (StackMap *sm, const char *output_fname);
 void        buffer_file_dump           (BufferFile *file, int input_fd);
 void        buffer_file_append         (BufferFile *file, const char *str, size_t len);
-void        buffer_file_append         (BufferFile *file, const char *str, size_t len);
 void        buffer_file_dump_frame_with_timestamp
                                        (BufferFile *file, int input_fd,
 					const char *uptime, size_t uptimelen);

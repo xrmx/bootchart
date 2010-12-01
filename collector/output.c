@@ -87,7 +87,7 @@ void
 buffer_file_dump (BufferFile *file, int input_fd)
 {
 	for (;;) {
-		unsigned long to_read = CHUNK_PAYLOAD - file->cur->length;
+		ssize_t to_read = CHUNK_PAYLOAD - file->cur->length;
 
 		to_read = read (input_fd, file->cur->data + file->cur->length, to_read);
 		if (to_read < 0) {

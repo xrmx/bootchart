@@ -130,6 +130,10 @@ STATE_ZOMBIE    = 5
 STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, \
 		PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
+# CumulativeStats Types
+STAT_TYPE_CPU = 0
+STAT_TYPE_IO = 1
+
 # Convert ps process state to an int
 def get_proc_state(flag):
 	return "RSDTZXW".find(flag) + 1
@@ -265,7 +269,7 @@ sec_w_base = 50 # the width of a second
 proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
-CUML_HEIGHT = 1000
+CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
 
 def extents(options, xscale, trace):
@@ -413,11 +417,17 @@ def render(ctx, options, xscale, trace):
 	ctx.set_font_size(SIG_FONT_SIZE)
 	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
-#	draw a cumulative CPU time per-application graph
+	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
-	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT - off_y * 2)
+	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w)
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_CPU)
+
+	# draw a cumulative I/O-time-per-process graph
+	if proc_tree.taskstats and options.cumulative:
+	        cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
+		if clip_visible (clip, cuml_rect):
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)
 
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
 	header_size = 0
@@ -600,7 +610,7 @@ class CumlSample:
 		return self.color
 
 
-def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
+def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	global palette_idx
 	palette_idx = 0
 
@@ -612,10 +622,20 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 		if elide_bootchart(proc):
 			continue
 
-		for sample in proc.samples:
-			total_time += sample.cpu_sample.user + sample.cpu_sample.sys
-			if not sample.time in time_hash:
-				time_hash[sample.time] = 1
+		# The next "if" should ideally be above the total_time += line,
+		# as that is the only difference, between the if and else parts.
+		# However, I am not aware of python doing any runtime optimizations
+		# based on the const-ness of the stat_type parameter.
+		if stat_type is STAT_TYPE_CPU:
+			for sample in proc.samples:
+				total_time += sample.cpu_sample.user + sample.cpu_sample.sys
+				if not sample.time in time_hash:
+					time_hash[sample.time] = 1
+		else:
+			for sample in proc.samples:
+				total_time += sample.cpu_sample.io
+				if not sample.time in time_hash:
+					time_hash[sample.time] = 1
 
 		# merge pids with the same cmd
 		if not proc.cmd in m_proc_list:
@@ -654,10 +674,16 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 		row = {}
 		cuml = 0.0
 
-#		print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (cs.samples))
-		for sample in cs.samples:
-			cuml += sample.cpu_sample.user + sample.cpu_sample.sys
-			row[sample.time] = cuml
+		if stat_type is STAT_TYPE_CPU:
+			# print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (cs.samples))
+			for sample in cs.samples:
+				cuml += sample.cpu_sample.user + sample.cpu_sample.sys
+				row[sample.time] = cuml
+		else:
+			for sample in cs.samples:
+				cuml += sample.cpu_sample.io
+				row[sample.time] = cuml
+
 		process_total_time = cuml
 
 		# hide really tiny processes
@@ -744,8 +770,13 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w):
 
 	# misleading - with multiple CPUs ...
 #	idle = ((dur_secs - cpu_secs) / dur_secs) * 100.0
-	label = "Cumulative CPU usage, by process; total CPU: " \
-		" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
+	if stat_type is STAT_TYPE_CPU:
+		label = "Cumulative CPU usage, by process; total CPU: " \
+			" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
+	else:
+		label = "Cumulative I/O usage, by process; total I/O: " \
+			" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
+
 	draw_text(ctx, label, TEXT_COLOR, chart_bounds[0] + off_x,
 		  chart_bounds[1] + font_height)
 

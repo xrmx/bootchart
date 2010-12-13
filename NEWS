@@ -1,4 +1,6 @@
 bootchart2 CURRENT:
+	+ pybootchartgui
+		+ render cumulative I/O time chart (Sankar P)
 	+ Misc (Michael)
 		+ remove confusing, obsolete setup.py
 		+ install docs to /usr/share/

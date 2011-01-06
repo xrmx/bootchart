@@ -8,7 +8,7 @@ CFLAGS ?= -g -Wall -O0
 BINDIR ?= /usr/bin
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
-PY_LIBDIR := $(shell python -c "from distutils import sysconfig; print sysconfig.get_config_var('DESTLIB')")
+PY_LIBDIR := $(shell python -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
 else
 PY_LIBDIR = /usr/lib/python2.6
 endif

@@ -23,8 +23,8 @@ import tarfile
 from time import clock
 from collections import defaultdict
 
-from samples import *
-from process_tree import ProcessTree
+from .samples import *
+from .process_tree import ProcessTree
 
 # Parsing produces as its end result a 'Trace'
 

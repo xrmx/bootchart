@@ -17,8 +17,8 @@ import gobject
 import gtk
 import gtk.gdk
 import gtk.keysyms
-import draw
-from draw import RenderOptions
+from . import draw
+from .draw import RenderOptions
 
 class PyBootchartWidget(gtk.DrawingArea):
 	__gsignals__ = {

@@ -241,7 +241,7 @@ def _parse_taskstats_log(writer, file):
             ppid *= 1000
 
             # when the process name changes, we re-write the pid.
-            if pidRewrites.has_key(opid):
+            if opid in pidRewrites:
                 pid = pidRewrites[opid]
             else:
                 pid = opid

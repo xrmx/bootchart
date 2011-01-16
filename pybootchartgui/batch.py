@@ -14,8 +14,8 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 import cairo
-import draw
-from draw import RenderOptions
+from . import draw
+from .draw import RenderOptions
 
 def render(writer, trace, app_options, filename):
     handlers = {

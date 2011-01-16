@@ -49,10 +49,10 @@ class ProcessTree:
             process_list = psstats.process_map.values()
         else:
             process_list = kernel + psstats.process_map.values()
-	self.process_list = sorted(process_list, key = lambda p: p.pid)
-	self.sample_period = sample_period
+        self.process_list = sorted(process_list, key = lambda p: p.pid)
+        self.sample_period = sample_period
 
-	self.build()
+        self.build()
         if not accurate_parentage:
             self.update_ppids_for_daemons(self.process_list)
 
@@ -64,31 +64,31 @@ class ProcessTree:
         if for_testing:
             return
 
-	removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
-	writer.status("merged %i logger processes" % removed)
+        removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
+        writer.status("merged %i logger processes" % removed)
 
-	if prune:
+        if prune:
             p_processes = self.prune(self.process_tree, None)
-	    p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
-	    p_threads = self.merge_siblings(self.process_tree)
-	    p_runs = self.merge_runs(self.process_tree)
-	    writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
+            p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
+            p_threads = self.merge_siblings(self.process_tree)
+            p_runs = self.merge_runs(self.process_tree)
+            writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
 
         self.sort(self.process_tree)
 
-	self.start_time = self.get_start_time(self.process_tree)
+        self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
-	self.duration = self.end_time - self.start_time
+        self.duration = self.end_time - self.start_time
 
-	self.num_proc = self.num_nodes(self.process_tree)
+        self.num_proc = self.num_nodes(self.process_tree)
 
     def build(self):
         """Build the process tree from the list of top samples."""
         self.process_tree = []
-	for proc in self.process_list:
+        for proc in self.process_list:
             if not proc.parent:
                 self.process_tree.append(proc)
-	    else:
+            else:
                 proc.parent.child_list.append(proc)
 
     def sort(self, process_subtree):
@@ -106,7 +106,7 @@ class ProcessTree:
 
     def get_start_time(self, process_subtree):
         """Returns the start time of the process subtree.  This is the start
-	   time of the earliest process.
+           time of the earliest process.
 
         """
         if not process_subtree:
@@ -154,14 +154,14 @@ class ProcessTree:
 
     def prune(self, process_subtree, parent):
         """Prunes the process tree by removing idle processes and processes
-	   that only live for the duration of a single top sample.  Sibling
-	   processes with the same command line (i.e. threads) are merged
-	   together. This filters out sleepy background processes, short-lived
-	   processes and bootcharts' analysis tools.
+           that only live for the duration of a single top sample.  Sibling
+           processes with the same command line (i.e. threads) are merged
+           together. This filters out sleepy background processes, short-lived
+           processes and bootcharts' analysis tools.
         """
         def is_idle_background_process_without_children(p):
             process_end = p.start_time + p.duration
-	    return not p.active and \
+            return not p.active and \
                    process_end >= self.start_time + self.duration and \
                    p.start_time > self.start_time and \
                    p.duration > 0.9 * self.duration and \
@@ -196,8 +196,8 @@ class ProcessTree:
 
     def merge_logger(self, process_subtree, logger_proc, monitored_app, app_tree):
         """Merges the logger's process subtree.  The logger will typically
-	   spawn lots of sleep and cat processes, thus polluting the
-	   process tree.
+           spawn lots of sleep and cat processes, thus polluting the
+           process tree.
 
         """
         num_removed = 0
@@ -206,7 +206,7 @@ class ProcessTree:
             if logger_proc == p.cmd and not app_tree:
                 is_app_tree = True
                 num_removed += self.merge_logger(p.child_list, logger_proc, monitored_app, is_app_tree)
-		# don't remove the logger itself
+                # don't remove the logger itself
                 continue
 
             if app_tree and monitored_app != None and monitored_app == p.cmd:
@@ -223,7 +223,7 @@ class ProcessTree:
 
     def merge_exploders(self, process_subtree, processes):
         """Merges specific process subtrees (used for processes which usually
-	   spawn huge meaningless process trees).
+           spawn huge meaningless process trees).
 
         """
         num_removed = 0
@@ -241,7 +241,7 @@ class ProcessTree:
 
     def merge_siblings(self, process_subtree):
         """Merges thread processes.  Sibling processes with the same command
-	   line are merged together.
+           line are merged together.
 
         """
         num_removed = 0
@@ -264,7 +264,7 @@ class ProcessTree:
 
     def merge_runs(self, process_subtree):
         """Merges process runs.  Single child processes which share the same
-	   command line with the parent are merged.
+           command line with the parent are merged.
 
         """
         num_removed = 0

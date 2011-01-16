@@ -141,7 +141,8 @@ class ParseError(Exception):
 
 def _parse_headers(file):
     """Parses the headers of the bootchart."""
-    def parse((headers, last), line):
+    def parse(acc, line):
+        (headers, last) = acc
         if '=' in line: last, value = map (string.strip, line.split('=', 1))
         else:           value = line.strip()
         headers[last] += value

@@ -16,6 +16,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import sys
 import os
 import optparse
@@ -81,7 +83,7 @@ class Writer:
 
 def _mk_writer(options):
 	def write(s):
-		print s
+		print(s)
 	return Writer(write, options)
 	
 def _get_filename(paths, options):
@@ -110,7 +112,7 @@ def main(argv=None):
 		writer = _mk_writer(options)
 
 		if len(args) == 0:
-			print "No path given, trying /var/log/bootchart.tgz"
+			print("No path given, trying /var/log/bootchart.tgz")
 			args = [ "/var/log/bootchart.tgz" ]
 
 		res = parsing.Trace(writer, args, options)
@@ -126,7 +128,7 @@ def main(argv=None):
 			else:
 			    duration = proc_tree.duration
 			dur = duration / 100.0
-			print '%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
+			print('%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60)))
 		else:
 			if options.annotate_file:
 				f = open (options.annotate_file, "w")
@@ -134,9 +136,9 @@ def main(argv=None):
 					for time in res[4]:
 						if time is not None:
 							# output as ms
-							print >> f, time * 10
+							print(time * 10, file=f)
 						else:
-							print >> f
+							print(file=f)
 				finally:
 					f.close()
 			filename = _get_filename(args, options)
@@ -154,7 +156,7 @@ def main(argv=None):
 
 		return 0
 	except parsing.ParseError, ex:
-		print("Parse error: %s" % ex)
+		print(("Parse error: %s" % ex))
 		return 2
 
 

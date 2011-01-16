@@ -43,9 +43,9 @@ class TestBCParser(unittest.TestCase):
 			tokens = line.split();
 			process = sorted_processes[index]
 			if debug:	
-				print tokens[0:4]
-				print process.pid, process.cmd, process.ppid, len(process.samples)
-				print '-------------------'
+				print(tokens[0:4])
+				print(process.pid, process.cmd, process.ppid, len(process.samples))
+				print('-------------------')
 			
 			self.assertEqual(tokens[0], str(process.pid))
 			self.assertEqual(tokens[1], str(process.cmd))
@@ -63,9 +63,9 @@ class TestBCParser(unittest.TestCase):
 			tokens = line.split('\t')
 			sample = samples[index]
 			if debug:		
-				print line.rstrip()
-				print sample
-				print '-------------------'
+				print(line.rstrip())
+				print(sample)
+				print('-------------------')
 			
 			self.assertEqual(tokens[0], str(sample.time))
 			self.assert_(floatEq(float(tokens[1]), sample.read))
@@ -80,9 +80,9 @@ class TestBCParser(unittest.TestCase):
 			tokens = line.split('\t')
 			sample = samples[index]
 			if debug:
-				print line.rstrip()
-				print sample
-				print '-------------------'
+				print(line.rstrip())
+				print(sample)
+				print('-------------------')
 			self.assert_(floatEq(float(tokens[0]), sample.time))
 			self.assert_(floatEq(float(tokens[1]), sample.user))
 			self.assert_(floatEq(float(tokens[2]), sample.sys))

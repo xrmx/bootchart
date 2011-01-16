@@ -648,7 +648,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	times = time_hash.keys()
 	times.sort()
 	if len (times) < 2:
-		print "degenerate boot chart"
+		print("degenerate boot chart")
 		return
 
 	pix_per_ns = chart_bounds[3] / total_time
@@ -746,7 +746,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 				       chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
 				       y + (cuml + label_h) / 2))
 			if cs in legends:
-				print "ARGH - duplicate process in list !"
+				print("ARGH - duplicate process in list !")
 
 		legends.append ((cs, process_total_time))
 

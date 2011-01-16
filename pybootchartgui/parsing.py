@@ -447,7 +447,7 @@ def _parse_dmesg(writer, file):
                 process = processMap[func]
                 process.duration = (time_ms / 10) - process.start_time
             else:
-                print "corrupted init call for %s" % (func)
+                print("corrupted init call for %s" % (func))
 
         elif type == "async_waiting" or type == "async_continuing":
             continue # ignore
@@ -470,7 +470,7 @@ def _parse_pacct(writer, file):
     while file.read(1) != "": # ignore flags
         ver = file.read(1)
         if ord(ver) < 3:
-            print "Invalid version 0x%x" % (ord(ver))
+            print("Invalid version 0x%x" % (ord(ver)))
             return None
 
         file.seek (14, 1)     # user, group etc.
@@ -491,7 +491,7 @@ def _parse_paternity_log(writer, file):
 #                       print "paternity of %d is %d" % (int(elems[0]), int(elems[1]))
             parent_map[int(elems[0])] = int(elems[1])
         elif line is not '':
-            print "Odd paternity line '%s'" % (line)
+            print("Odd paternity line '%s'" % (line))
     return parent_map
 
 def _parse_cmdline_log(writer, file):

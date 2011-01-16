@@ -583,7 +583,7 @@ def parse_paths(writer, state, paths):
                 tf = tarfile.open(path, 'r:*')
                 for name in tf.getnames():
                     state = _do_parse(writer, state, name, tf.extractfile(name))
-            except tarfile.ReadError, error:
+            except tarfile.ReadError as error:
                 raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
             finally:
                 if tf != None:

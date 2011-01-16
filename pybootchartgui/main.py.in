@@ -155,7 +155,7 @@ def main(argv=None):
 				render()
 
 		return 0
-	except parsing.ParseError, ex:
+	except parsing.ParseError as ex:
 		print(("Parse error: %s" % ex))
 		return 2
 

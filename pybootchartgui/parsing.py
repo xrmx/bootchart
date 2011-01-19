@@ -22,6 +22,7 @@ import re
 import tarfile
 from time import clock
 from collections import defaultdict
+from functools import reduce
 
 from .samples import *
 from .process_tree import ProcessTree

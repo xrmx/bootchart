@@ -144,8 +144,10 @@ def _parse_headers(file):
     """Parses the headers of the bootchart."""
     def parse(acc, line):
         (headers, last) = acc
-        if '=' in line: last, value = map (string.strip, line.split('=', 1))
-        else:           value = line.strip()
+        if '=' in line:
+            last, value = map (lambda x: x.strip(), line.split('=', 1))
+        else:
+            value = line.strip()
         headers[last] += value
         return headers, last
     return reduce(parse, file.read().split('\n'), (defaultdict(str),''))[0]
@@ -335,7 +337,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 
     for time, lines in _parse_timed_blocks(file):
         sample = DiskStatSample(time)
-        relevant_tokens = [linetokens for linetokens in map (string.split,lines) if is_relevant_line(linetokens)]
+        relevant_tokens = [linetokens for linetokens in map (lambda x: x.split(),lines) if is_relevant_line(linetokens)]
 
         for tokens in relevant_tokens:
             disk, rsect, wsect, use = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])

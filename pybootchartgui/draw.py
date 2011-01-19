@@ -167,14 +167,14 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 def draw_label_in_box(ctx, color, label, x, y, w, maxx):
 	label_w = ctx.text_extents(label)[2]
 	label_x = x + w / 2 - label_w / 2
-        if label_w + 10 > w:
-            label_x = x + w + 5
-        if label_x + label_w > maxx:
-            label_x = x - label_w - 5
+	if label_w + 10 > w:
+		label_x = x + w + 5
+	if label_x + label_w > maxx:
+		label_x = x - label_w - 5
 	draw_text(ctx, label, color, label_x, y)
 
 def draw_sec_labels(ctx, rect, sec_w, nsecs):
-        ctx.set_font_size(AXIS_FONT_SIZE)
+	ctx.set_font_size(AXIS_FONT_SIZE)
 	for i in range(0, rect[2] + 1, sec_w):
 		if ((i / sec_w) % nsecs == 0) :
 			label = "%ds" % (i / sec_w)
@@ -203,12 +203,12 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_dash([4, 4])
 
     for time in times:
-	if time is not None:
-	    x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration)
+        if time is not None:
+            x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 
-	    ctx.move_to(rect[0] + x, rect[1] + 1)
-	    ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
-	    ctx.stroke()
+            ctx.move_to(rect[0] + x, rect[1] + 1)
+            ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
+            ctx.stroke()
 
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
@@ -299,7 +299,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, curr_y+20, leg_s)
 
 	# render I/O wait
-        chart_rect = (off_x, curr_y+30, w, bar_h)
+	chart_rect = (off_x, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
 		draw_box_ticks (ctx, chart_rect, sec_w)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
@@ -393,9 +393,9 @@ def render(ctx, options, xscale, trace):
 	w -= 2*off_x
 	# draw the title and headers
 	if proc_tree.idle:
-	    duration = proc_tree.idle
+		duration = proc_tree.idle
 	else:
-	    duration = proc_tree.duration
+		duration = proc_tree.duration
 
 	if not options.kernel_only:
 		curr_y = draw_header (ctx, trace.headers, duration)
@@ -419,13 +419,13 @@ def render(ctx, options, xscale, trace):
 
 	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
-	        cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
+		cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_CPU)
 
 	# draw a cumulative I/O-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
-	        cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
+		cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)
 
@@ -475,10 +475,10 @@ def draw_header (ctx, headers, duration):
 
     for (headerkey, headertitle, mangle) in toshow:
         header_y += ctx.font_extents()[2]
-	if headerkey in headers:
-		value = headers.get(headerkey)
-	else:
-		value = ""
+        if headerkey in headers:
+            value = headers.get(headerkey)
+        else:
+            value = ""
         txt = headertitle + ': ' + mangle(value)
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
@@ -575,7 +575,7 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 		ctx.line_to(px, y + proc_h / 2)
 		ctx.line_to(px, py)
 	ctx.stroke()
-        ctx.set_dash([])
+	ctx.set_dash([])
 
 # elide the bootchart collector - it is quite distorting
 def elide_bootchart(proc):

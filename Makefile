@@ -6,9 +6,10 @@ CC ?= gcc
 CFLAGS ?= -g -Wall -O0
 
 BINDIR ?= /usr/bin
+PYTHON ?= python
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
-PY_LIBDIR := $(shell python -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
+PY_LIBDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
 else
 PY_LIBDIR = /usr/lib/python2.6
 endif
@@ -39,8 +40,8 @@ py-install-compile: pybootchartgui/main.py
 	cp pybootchartgui/*.py $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
 	install -D -m 755 pybootchartgui.py $(DESTDIR)$(BINDIR)/pybootchartgui
 	[ -z "$(NO_PYTHON_COMPILE)" ] && ( cd $(DESTDIR)$(PY_SITEDIR)/pybootchartgui ; \
-		python $(PY_LIBDIR)/py_compile.py *.py ; \
-		PYTHONOPTIMIZE=1 python $(PY_LIBDIR)/py_compile.py *.py ); :
+		$(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ; \
+		PYTHONOPTIMIZE=1 $(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ); :
 
 install-chroot:
 	install -d $(DESTDIR)/lib/bootchart/tmpfs

@@ -7,6 +7,7 @@ CFLAGS ?= -g -Wall -O0
 
 BINDIR ?= /usr/bin
 PYTHON ?= python
+DOCDIR ?= /usr/share/docs/bootchart
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
 PY_LIBDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
@@ -52,8 +53,8 @@ install-collector: all install-chroot
 	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
 
 install-docs:
-	install -m 644 -D README $(DESTDIR)/usr/share/docs/bootchartd/README
-	install -m 644 -D README.pybootchart $(DESTDIR)/usr/share/docs/bootchartd/README.pybootchart
+	install -m 644 -D README $(DESTDIR)$(DOCDIR)/README
+	install -m 644 -D README.pybootchart $(DESTDIR)$(DOCDIR)/README.pybootchart
 
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)

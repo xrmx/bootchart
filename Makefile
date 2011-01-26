@@ -26,10 +26,10 @@ COLLECTOR = \
 all: bootchart-collector pybootchartgui/main.py
 
 %.o:%.c
-	$(CC) $(CFLAGS) -pthread -DVERSION=\"$(VER)\" -c $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -DVERSION=\"$(VER)\" -c $^ -o $@
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) -pthread -Icollector -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
 
 pybootchartgui/main.py: pybootchartgui/main.py.in
 	sed -s "s/@VER@/$(VER)/g" $^ > $@

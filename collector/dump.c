@@ -125,8 +125,9 @@ close_pid (DumpState *s, int avoid_kill)
 {
 	int pid;
 
-	if (!avoid_kill && ptrace (PTRACE_KILL, s->pid, 0, 0))
-		fprintf (stderr, "failed to ptrace_kill pid %d: %s\n",
+	/* Rather terminate the process then killing, less scary messages */
+	if (!avoid_kill && kill(s->pid,SIGTERM))
+		fprintf (stderr, "failed to terminate pid %d: %s\n",
 			 s->pid, strerror (errno));
 
 	/* presumably dead by now - but detach anyway */

@@ -8,16 +8,17 @@ CFLAGS ?= -g -Wall -O0
 BINDIR ?= /usr/bin
 PYTHON ?= python
 DOCDIR ?= /usr/share/docs/bootchart
+LIBDIR ?= /lib
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
 PY_LIBDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
 else
-PY_LIBDIR = /usr/lib/python2.6
+PY_LIBDIR = /usr$(LIBDIR)/python2.6
 endif
 endif
 PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
-LIBC_A_PATH = /usr/lib
-SYSTEMD_UNIT_DIR = /lib/systemd/system
+LIBC_A_PATH = /usr$(LIBDIR)
+SYSTEMD_UNIT_DIR = $(LIBDIR)/systemd/system
 COLLECTOR = \
 	collector/collector.o \
 	collector/output.o \
@@ -25,10 +26,13 @@ COLLECTOR = \
 	collector/tasks-netlink.o \
 	collector/dump.o
 
-all: bootchart-collector pybootchartgui/main.py
+all: bootchart-collector bootchartd pybootchartgui/main.py
 
 %.o:%.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -DVERSION=\"$(VER)\" -c $^ -o $@
+
+bootchartd: bootchartd.in
+	sed -s "s:@LIBDIR@:$(LIBDIR):g" $^ > $@
 
 bootchart-collector: $(COLLECTOR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
@@ -45,12 +49,12 @@ py-install-compile: pybootchartgui/main.py
 		PYTHONOPTIMIZE=1 $(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ); :
 
 install-chroot:
-	install -d $(DESTDIR)/lib/bootchart/tmpfs
+	install -d $(DESTDIR)$(LIBDIR)/bootchart/tmpfs
 
 install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)/sbin/bootchartd
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/bootchartd.conf
-	install -m 755 -D bootchart-collector $(DESTDIR)/lib/bootchart/bootchart-collector
+	install -m 755 -D bootchart-collector $(DESTDIR)$(LIBDIR)/bootchart/bootchart-collector
 
 install-docs:
 	install -m 644 -D README $(DESTDIR)$(DOCDIR)/README
@@ -67,7 +71,7 @@ install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o pybootchartgui/main.py
+	collector/*.o pybootchartgui/main.py bootchartd
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

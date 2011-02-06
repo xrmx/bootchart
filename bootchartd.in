@@ -22,8 +22,9 @@
 # Use a directory we know will be there, such that we can mount
 # our 'proc' without having to touch a (potentially) read-only
 # file-system.
-TMPFS="/lib/bootchart/tmpfs"
-COLLECTOR_BIN="/lib/bootchart/bootchart-collector"
+LIBDIR="@LIBDIR@"
+TMPFS="${LIBDIR}/bootchart/tmpfs"
+COLLECTOR_BIN="${LIBDIR}/bootchart/bootchart-collector"
 
 # some initrds don't have usleep etc.
 USLEEP="$COLLECTOR_BIN --usleep"

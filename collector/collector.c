@@ -673,8 +673,8 @@ static void
 cleanup_dev (void)
 {
 	if (!access (MOVE_DEV_PATH "/kmsg", W_OK)) {
-		umount (MOVE_DEV_PATH PROC_PATH);
-		umount (MOVE_DEV_PATH);
+		umount2 (MOVE_DEV_PATH PROC_PATH, MNT_DETACH);
+		umount2 (MOVE_DEV_PATH, MNT_DETACH);
 		rmdir (MOVE_DEV_PATH);
 	}
 }
@@ -684,7 +684,7 @@ clean_enviroment (void)
 {
 	int ret = 0;
 
-	if (umount (PROC_PATH) < 0) {
+	if (umount2 (PROC_PATH, MNT_DETACH) < 0) {
 		perror ("umount " PROC_PATH);
 		ret = 1;
 	}
@@ -696,7 +696,7 @@ clean_enviroment (void)
 		ret = 1;
 	}
 
-	if (umount (TMPFS_PATH) < 0) {
+	if (umount2 (TMPFS_PATH, MNT_DETACH) < 0) {
 		perror ("umount " TMPFS_PATH);
 		ret = 1;
 	}

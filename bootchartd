@@ -57,14 +57,14 @@ start()
 	# If in init start ourselves in our familiar system
 	if [ -n "$INIT_PROCESS" ]; then
 #		echo "bootchartd started in init" >> kmsg
-		/lib/bootchart/bootchart-collector $SAMPLE_HZ
+		$COLLECTOR_BIN $SAMPLE_HZ
 
 	# Otherwise, manually launched to profile something
 	else
 		# bail out, if already running
 		pidof bootchart-collector && exit 0
 #		echo "bootchartd started manually" >> kmsg
-		/lib/bootchart/bootchart-collector -r $SAMPLE_HZ &
+		$COLLECTOR_BIN -r $SAMPLE_HZ &
 
 		if [ "$#" -gt 0 ]; then
 			# If a command was passed, run it
@@ -110,7 +110,7 @@ stop()
 		exit 1
 	fi
 
-	if ! /lib/bootchart/bootchart-collector --dump $tmpdir; then
+	if ! $COLLECTOR_BIN --dump $tmpdir; then
 		echo "Can't extract boot chart from collector"
 		exit 1
 	fi

@@ -100,6 +100,8 @@ def _get_filename(paths, options):
 			fname = os.path.split(path)[-1]
 		elif os.path.splitext(path)[1] in [".tar", ".tgz", ".tar.gz"]:
 			fname = os.path.splitext(path)[0]
+			# strip directory
+			fname = os.path.split(fname)[-1]
 	return os.path.join (dname, fname + "." + options.format)
 
 def main(argv=None):

@@ -32,7 +32,7 @@ def _mk_options_parser():
 	parser = optparse.OptionParser(usage, version=version)
 	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
 			  help="start in active mode")
-	parser.add_option("-f", "--format", dest="format", default = None,
+	parser.add_option("-f", "--format", dest="format", default = "png",
 			  help="image format (...); default format ...")
 	parser.add_option("-o", "--output", dest="output", metavar="PATH", default="bootchart.png",
 			  help="output path (file or directory) where charts are stored")

@@ -54,7 +54,7 @@ class Trace:
         # Crop the chart to the end of the first idle period after the given
         # process
         if options.crop_after:
-            idle = crop(writer, options.crop_after, state)
+            idle = self.crop (writer, options.crop_after)
         else:
             idle = None
 
@@ -63,7 +63,7 @@ class Trace:
         if options.annotate:
             for procnames in options.annotate:
                 names = [x[:15] for x in procnames.split(",")]
-                for proc in state.ps_stats.process_list:
+                for proc in self.ps_stats.process_map.values():
                     if proc.cmd in names:
                         times.append(proc.start_time)
                         break
@@ -131,6 +131,84 @@ class Trace:
         # count on fingers variously
         for process in self.ps_stats.process_map.values():
             process.calc_stats (self.ps_stats.sample_period)
+
+    def crop(self, writer, crop_after):
+
+        def is_idle_at(util, start, j):
+            k = j + 1
+            while k < len(util) and util[k][0] < start + 300:
+                k += 1
+            k = min(k, len(util)-1)
+
+            if util[j][1] >= 0.25:
+                return False
+
+            avgload = sum(u[1] for u in util[j:k+1]) / (k-j+1)
+            if avgload < 0.25:
+                return True
+            else:
+                return False
+        def is_idle(util, start):
+            for j in range(0, len(util)):
+                if util[j][0] < start:
+                    continue
+                return is_idle_at(util, start, j)
+            else:
+                return False
+
+        names = [x[:15] for x in crop_after.split(",")]
+        for proc in self.ps_stats.process_map.values():
+            if proc.cmd in names or proc.exe in names:
+                writer.info("selected proc '%s' from list (start %d)"
+                            % (proc.cmd, proc.start_time))
+                break
+        if proc is None:
+            writer.warn("no selected crop proc '%s' in list" % crop_after)
+
+
+        cpu_util = [(sample.time, sample.user + sample.sys + sample.io) for sample in self.cpu_stats]
+        disk_util = [(sample.time, sample.util) for sample in self.disk_stats]
+
+        idle = None
+        for i in range(0, len(cpu_util)):
+            if cpu_util[i][0] < proc.start_time:
+                continue
+            if is_idle_at(cpu_util, cpu_util[i][0], i) \
+               and is_idle(disk_util, cpu_util[i][0]):
+                idle = cpu_util[i][0]
+                break
+
+        if idle is None:
+            writer.warn ("not idle after proc '%s'" % crop_after)
+            return None
+
+        crop_at = idle + 300
+        writer.info ("cropping at time %d" % crop_at)
+        while len (self.cpu_stats) \
+                    and self.cpu_stats[-1].time > crop_at:
+            self.cpu_stats.pop()
+        while len (self.disk_stats) \
+                    and self.disk_stats[-1].time > crop_at:
+            self.disk_stats.pop()
+
+        self.ps_stats.end_time = crop_at
+
+        cropped_map = None;
+        for key, value in self.ps_stats.process_map:
+            if (value.start_time <= crop_at):
+                cropped_map[key] = value
+
+        for proc in cropped_map.values():
+            proc.duration = min (proc.duration, crop_at - proc.start_time)
+            while len (proc.samples) \
+                        and proc.samples[-1].time > crop_at:
+                proc.samples.pop()
+
+        self.ps_stats.process_map = cropped_map
+
+        return idle
+
+
 
 class ParseError(Exception):
     """Represents errors during parse of the bootchart."""
@@ -595,71 +673,3 @@ def parse_paths(writer, state, paths):
         else:
             state = parse_file(writer, state, path)
     return state
-
-def crop(writer, crop_after, state):
-    names = [x[:15] for x in crop_after.split(",")]
-    for proc in state.ps_stats.process_list:
-        if proc.cmd in names:
-            writer.info("selected proc '%s' from list (start %d)"
-                        % (proc.cmd, proc.start_time))
-            break
-    else:
-        writer.info("no selected proc in list")
-        return
-
-    def is_idle_at(util, start, j):
-        k = j + 1
-        while k < len(util) and util[k][0] < start + 300:
-            k += 1
-        k = min(k, len(util)-1)
-
-        if util[j][1] >= 0.25:
-            return False
-
-        avgload = sum(u[1] for u in util[j:k+1]) / (k-j+1)
-        if avgload < 0.25:
-            return True
-        else:
-            return False
-    def is_idle(util, start):
-        for j in range(0, len(util)):
-            if util[j][0] < start:
-                continue
-            return is_idle_at(util, start, j)
-        else:
-            return False
-
-    cpu_util = [(sample.time, sample.user + sample.sys + sample.io) for sample in state.cpu_stats]
-    disk_util = [(sample.time, sample.util) for sample in state.disk_stats]
-
-    for i in range(0, len(cpu_util)):
-        if cpu_util[i][0] < proc.start_time:
-            continue
-        if is_idle_at(cpu_util, cpu_util[i][0], i) \
-           and is_idle(disk_util, cpu_util[i][0]):
-            idle = cpu_util[i][0]
-            break
-    else:
-        writer.info("selected proc not found in tree")
-        return
-
-    crop_at = idle + 300
-    writer.info ("cropping at time %d" % crop_at)
-    while len (state.cpu_stats) \
-                and state.cpu_stats[-1].time > crop_at:
-        state.cpu_stats.pop()
-    while len (state.disk_stats) \
-                and state.disk_stats[-1].time > crop_at:
-        state.disk_stats.pop()
-
-    state.ps_stats.end_time = crop_at
-    while len (state.ps_stats.process_list) \
-                and state.ps_stats.process_list[-1].start_time > crop_at:
-        state.ps_stats.process_list.pop()
-    for proc in state.ps_stats.process_list:
-        proc.duration = min (proc.duration, crop_at - proc.start_time)
-        while len (proc.samples) \
-                    and proc.samples[-1].time > crop_at:
-            proc.samples.pop()
-
-    return idle

@@ -132,6 +132,11 @@ stop()
 		cd $AUTO_RENDER_DIR
 		/usr/bin/pybootchartgui -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
 	fi
+
+	# execute custom post-collect (and possibly post-render) command (which could get params from the conf file by itself if needed)
+	if [ -x "$CUSTOM_POST_CMD" ]; then
+		"$CUSTOM_POST_CMD"
+	fi
 }
 
 if [ $$ -eq 1 ]; then

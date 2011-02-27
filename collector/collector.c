@@ -37,6 +37,7 @@
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
+#include <signal.h>
 
 /* pid uniqifying code */
 typedef struct {
@@ -689,7 +690,7 @@ clean_enviroment (void)
 		ret = 1;
 	}
 
-	fprintf (stderr, "bootchart-collector unmounted proc / clean exit\n");
+	fprintf (stderr, "bootchart-collector pid: %d unmounted proc / clean exit\n", getpid());
 
 	if (unlink (TMPFS_PATH "/kmsg") < 0) {
 		perror ("unlinking " TMPFS_PATH "/kmsg");
@@ -702,6 +703,22 @@ clean_enviroment (void)
 	}
 
 	return ret;
+}
+
+static void
+term_handler (int sig)
+{
+	clean_enviroment();
+	fprintf (stderr, "bootchart-collector pid: %d, cleanly terminated\n", getpid());
+	exit(EXIT_FAILURE);
+}
+
+static void
+setup_sigaction(int sig)
+{
+	struct sigaction sa;
+	sa.sa_handler = term_handler;
+	sigaction(sig, &sa, NULL);
 }
 
 static void
@@ -797,6 +814,8 @@ int main (int argc, char *argv[])
 
 	if (enter_environment (args.console_debug))
 		return 1;
+
+	setup_sigaction(SIGTERM);
 
 	fprintf (stderr, "bootchart-collector started as pid %d with %d args: ",
 		 (int) getpid(), argc - 1);

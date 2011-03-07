@@ -708,9 +708,20 @@ clean_enviroment (void)
 static void
 term_handler (int sig)
 {
-	clean_enviroment();
-	fprintf (stderr, "bootchart-collector pid: %d, cleanly terminated\n", getpid());
-	exit(EXIT_FAILURE);
+	int ret = 0;
+	if (unlink (TMPFS_PATH "/kmsg") < 0)
+		ret = 1;
+	if (umount2 (PROC_PATH, MNT_DETACH) < 0)
+		ret = 1;
+	if (umount2 (TMPFS_PATH, MNT_DETACH) < 0)
+		ret = 1;
+
+	if (ret = 0) {
+		_exit(EXIT_SUCCESS);
+	} else {
+		_exit(EXIT_FAILURE);
+	}
+
 }
 
 static void

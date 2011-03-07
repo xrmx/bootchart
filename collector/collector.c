@@ -690,8 +690,6 @@ clean_enviroment (void)
 		ret = 1;
 	}
 
-	fprintf (stderr, "bootchart-collector pid: %d unmounted proc / clean exit\n", getpid());
-
 	if (unlink (TMPFS_PATH "/kmsg") < 0) {
 		perror ("unlinking " TMPFS_PATH "/kmsg");
 		ret = 1;
@@ -979,8 +977,10 @@ int main (int argc, char *argv[])
 	if (scanner)
 		ret |= pid_scanner_free (scanner);
 
-	if (clean_environment)
-		clean_enviroment();
+	if (clean_environment) {
+		if (clean_enviroment() == 0)
+			fprintf (stderr, "bootchart-collector pid: %d unmounted proc / clean exit\n", getpid());
+	}
 
 	return ret;
 }

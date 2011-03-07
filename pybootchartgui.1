@@ -1,0 +1,75 @@
+.TH PYBOOTCHARTGUI 1 "September 19, 2010"
+.SH NAME
+pybootchartgui \- viewer for boot process performance analysis results
+.SH SYNOPSIS
+.B pybootchartgui
+.RI [ options ] " files" ...
+.SH DESCRIPTION
+This manual page documents briefly the \fBpybootchartgui\fR command.
+.PP
+\fBpybootchartgui\fP is a graphical program to view the data recorded by
+\fBbootchart2\fP.
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Show summary of options.t
+.TP
+.B \-\-version
+Show version of program.
+.TP
+.B \-i, \-\-interactive
+Start in active mode
+.TP
+\fB\-f\fR \fIFORMAT\fR, \fB\-\-format=\fIFORMAT\fR
+Image format
+.TP
+\fB\-o\fR \fIPATH\fR, \fB\-\-output=\fIPATH\fR
+Output path (file or directory) where charts are stored
+.TP
+.B \-n, \-\-no\-prune
+Do not prune the process tree
+.TP
+.B \-q, \-\-quiet
+Suppress informational messages
+.TP
+.B \-t, \-\-boot\-time
+Only display the boot time of the boot in text format (stdout)
+.TP
+.B \-\-very\-quiet
+Suppress all messages except errors
+.TP
+.B \-\-verbose
+Print all messages
+.TP
+.B \-\-profile
+Profile rendering of chart (only useful when in batch mode indicated by \fB-f\fR)
+.TP
+.B \-\-show\-pid
+Show process ids in the bootchart as '\fIprocessname [pid]\fR'
+.TP
+.B \-\-show\-all
+Show all process information in the bootchart as '\fI/process/path/exe [pid] [args]\fR'
+.TP
+\fB\-\-crop\-after=\fIPROCESS\fR
+Crop chart when idle after \fIPROCESS\fR is started
+.TP
+\fB\-\-annotate=\fIPROCESS\fR
+Annotate position where \fIPROCESS\fR is started; can be specified multiple
+times. To create a single annotation when any one of a set of processes is
+started, use commas to separate the names.
+.TP
+\fB\-\-annotate\-file=\fIFILENAME\fR
+Filename to write annotation points to.
+.SH SEE ALSO
+.BR bootchart2 (1),
+.BR bootchartd (1)
+.SH AUTHOR
+\fBpybootchartgui\fR is part of the \fBbootchart2\fR suite.
+.PP
+\fBbootchart2\fR was written by Michael Meeks <michael.meeks@novell.com>,
+Anders Norgaard <anders.norgaard@gmail.com>, Scott James Remnant <scott@ubuntu.com>
+and Henning Niss <henningniss@gmail.com>.
+.PP
+This manual page was written by David Paleino <dapal@debian.org>,
+for the Debian project (and may be used by others), and is licensed
+under the same terms of \fBbootchart2\fR.

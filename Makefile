@@ -8,6 +8,7 @@ CFLAGS ?= -g -Wall -O0
 BINDIR ?= /usr/bin
 PYTHON ?= python
 DOCDIR ?= /usr/share/docs/bootchart
+MANDIR ?= /usr/share/man/man1
 LIBDIR ?= /lib
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
@@ -59,6 +60,9 @@ install-collector: all install-chroot
 install-docs:
 	install -m 644 -D README $(DESTDIR)$(DOCDIR)/README
 	install -m 644 -D README.pybootchart $(DESTDIR)$(DOCDIR)/README.pybootchart
+	gzip -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
+	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/bootchartd.1.gz
+	gzip -c pybootchartgui.1 > $(DESTDIR)$(MANDIR)/pybootchartgui.1.gz
 
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)

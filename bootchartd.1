@@ -1,0 +1,43 @@
+.TH BOOTCHARTD 1 2011-02-25
+.SH NAME
+bootchartd \- collects and analyses data from boot process
+.SH SYNOPSIS
+.B bootchartd
+[\fBstart\fR|\fBstop\fR]
+.SH DESCRIPTION
+\fBbootchartd\fR is a daemon collecting data from boot process.
+.br
+Please see \fBbootchart2 (1)\fR for more information.
+.SH OPTIONS 
+.TP
+.B start
+Start the daemon.
+.TP
+.B stop 
+Stop the daemon
+.SH FILES
+.TP
+.I /etc/bootchartd.conf
+.TP
+.I /sbin/bootchartd
+.SH SEE ALSO
+.BR bootchart2 (1),
+.BR bootchartd (1)
+.SH AUTHOR
+\fBbootchart2\fR was written by:
+.in +4n
+.nf
+
+Anders Norgaard <anders.norgaard@gmail.com>
+Michael Meeks <michael.meeks@novell.com>
+Scott James Remnant <scott@ubuntu.com>
+Henning Niss <henningniss@gmail.com>
+Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com>
+
+.fi
+.in
+.PP
+This manual page was written by Francesca Ciceri <madamezou@yahoo.it>,
+for the Debian project (and may be used by others), and is licensed
+under the GNU General Public License, version 2 or, at your choice, any
+later version.

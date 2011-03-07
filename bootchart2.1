@@ -1,0 +1,74 @@
+.TH BOOTCHART2 1 2011-03-07
+.SH NAME
+bootchart2 \- collects and analyses data from boot process
+.SH DESCRIPTION
+bootchart2 is a tool to log the boot process and make a nice
+graph out of it, to usually see where it takes longer.
+.br
+It consists of three different pieces of software:
+a shell script, a collector and a visualisation tool.
+.br
+Please also see the manual pages referred to in the \fBSEE ALSO\fR
+section.
+.SH CONFIGURATION
+After install simply add these options to your kernel command line, normally in \fI/boot/grub/menu.lst:
+.in +4n
+.nf
+
+.B "initcall_debug printk.time=y quiet init=/sbin/bootchartd ..."
+
+.fi
+.in
+Then after bootup run pybootchartgui to get an interactive
+chart rendering tool.
+If you want to chart the initrd, add
+.in +4n
+.nf
+
+.B rdinitrd=/sbin/bootchartd
+
+.fi
+.in
+to the kernel command line.
+.PP
+To make bootchart2 work best, please ensure your kernel is 
+configured with
+.I CONFIG_PROC_EVENTS=y
+and
+.I CONFIG_TASKSTATS=y
+.
+.PP
+If you want to start bootchart2 in a dracut (version >= 008)
+initramfs, you have to change
+.I init=/sbin/bootchartd
+to
+.I rdinit=/sbin/bootchartd
+and regenerate the initramfs with bootchart support with:
+.in +4n
+.nf
+
+.B "# dracut -f -a bootchart"
+
+.fi
+.in
+.SH SEE ALSO
+.BR pybootchartgui (1),
+.BR bootchartd (1)
+.SH AUTHOR
+\fBbootchart2\fR was written by:
+.in +4n
+.nf
+
+Anders Norgaard <anders.norgaard@gmail.com>
+Michael Meeks <michael.meeks@novell.com>
+Scott James Remnant <scott@ubuntu.com>
+Henning Niss <henningniss@gmail.com>
+Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com>
+
+.fi
+.in
+.PP
+This manual page was written by Francesca Ciceri <madamezou@yahoo.it>,
+for the Debian project (and may be used by others), and is licensed
+under the GNU General Public License, version 2 or, at your choice, any
+later version.

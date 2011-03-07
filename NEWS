@@ -11,6 +11,8 @@ bootchart2 CURRENT:
 		+ remove confusing, obsolete setup.py
 		+ install docs to /usr/share/
 		+ lot of fixes for easier packaging (Peter Hjalmarsson)
+		+ add bootchart2, bootchartd and pybootchartgui manpages
+		  (Francesca Ciceri, David Paleino)
 
 bootchart2 0.12.6:
 	+ bootchartd

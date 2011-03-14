@@ -200,7 +200,7 @@ case "$1" in
 		stop
 		;;
 	*)
-		echo "Usage: $0 {init|start|stop}"
+		echo "Usage: $0 {wait|start|stop}"
 		;;
 esac
 

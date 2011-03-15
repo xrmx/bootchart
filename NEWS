@@ -1,4 +1,4 @@
-bootchart2 CURRENT:
+bootchart2 0.14.0:
 	+ bootchartd
 		+ Add ability to define custom commands
 		  (Lucian Muresan, Peter Hjalmarsson)

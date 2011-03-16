@@ -123,7 +123,12 @@ stop()
 	fi
 
 	# Archive it all up into the bootchart output
-	tar -zcf "$BOOTLOG_DEST" header dmesg *.log
+	# expect dmesg log only if bootchartd was started as an init process
+	if [ -n "$INIT_PROCESS" ] ; then
+		tar -zcf "$BOOTLOG_DEST" header dmesg *.log
+	else
+		tar -zcf "$BOOTLOG_DEST" header *.log
+	fi
 
 	rm -Rf $tmpdir
 

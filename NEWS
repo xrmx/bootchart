@@ -1,3 +1,7 @@
+bootchart2 UNRELEASED:
+	+ bootchartd
+		+ Expect dmesg only if started as init (Henry Yei)
+
 bootchart2 0.14.0:
 	+ bootchartd
 		+ Add ability to define custom commands

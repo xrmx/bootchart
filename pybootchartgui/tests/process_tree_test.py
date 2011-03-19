@@ -4,8 +4,8 @@ import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import parsing
-import process_tree
+import pybootchartgui.parsing as parsing
+import pybootchartgui.process_tree as process_tree
 
 class TestProcessTree(unittest.TestCase):
 

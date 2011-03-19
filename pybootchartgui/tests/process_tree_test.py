@@ -6,14 +6,22 @@ sys.path.insert(0, os.getcwd())
 
 import pybootchartgui.parsing as parsing
 import pybootchartgui.process_tree as process_tree
+import  pybootchartgui.main as main
 
 class TestProcessTree(unittest.TestCase):
 
     def setUp(self):
-	self.name = "Process tree unittest"
-        self.rootdir = '../examples/1'
-	self.ps_stats = parsing.parse_file(parsing.ParserState(), self.mk_fname('proc_ps.log')).ps_stats
-        self.processtree = process_tree.ProcessTree(self.ps_stats, None, False, for_testing = True)
+        self.name = "Process tree unittest"
+        self.rootdir = os.path.join(os.path.dirname(sys.argv[0]), '../../examples/1/')
+
+        parser = main._mk_options_parser()
+        options, args = parser.parse_args(['--q', self.rootdir])
+        writer = main._mk_writer(options)
+        trace = parsing.Trace(writer, args, options)
+
+        self.ps_stats = parsing.parse_file(writer, trace, self.mk_fname('proc_ps.log')).ps_stats
+        self.processtree = process_tree.ProcessTree(writer, None, self.ps_stats, \
+            self.ps_stats.sample_period, None, options.prune, None, None, False, for_testing = True)
 
     def mk_fname(self,f):
         return os.path.join(self.rootdir, f)
@@ -28,7 +36,7 @@ class TestProcessTree(unittest.TestCase):
     def checkAgainstJavaExtract(self, filename, process_tree):
         for expected, actual in zip(open(filename), self.flatten(process_tree)):
             tokens = expected.split('\t')
-            self.assertEqual(int(tokens[0]), actual.pid)
+            self.assertEqual(int(tokens[0]), actual.pid / 1000)
             self.assertEqual(tokens[1], actual.cmd)
             self.assertEqual(long(tokens[2]), 10 * actual.start_time)
             self.assert_(long(tokens[3]) - 10 * actual.duration < 5, "duration")

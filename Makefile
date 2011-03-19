@@ -82,3 +82,10 @@ dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \
 		| bzip2 -f > $(PKG_TARBALL)
+
+test: pybootchartgui/tests
+	for f in pybootchartgui/tests/*.py;\
+	do \
+		echo "Testing $$f...";\
+		$(PYTHON) "$$f";\
+	done

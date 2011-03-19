@@ -41,20 +41,20 @@ class TestBCParser(unittest.TestCase):
 		trace = parsing.Trace(writer, args, options)
 		state = parsing.parse_file(writer, trace, self.mk_fname('proc_ps.log'))
 		samples = state.ps_stats
-		processes = samples.process_list
-		sorted_processes = sorted(processes, key=lambda p: p.pid )
+		processes = samples.process_map
+		sorted_processes = [processes[k] for k in sorted(processes.keys())]
 		
 		for index, line in enumerate(open(self.mk_fname('extract2.proc_ps.log'))):
 			tokens = line.split();
 			process = sorted_processes[index]
 			if debug:	
 				print(tokens[0:4])
-				print(process.pid, process.cmd, process.ppid, len(process.samples))
+				print(process.pid / 1000, process.cmd, process.ppid, len(process.samples))
 				print('-------------------')
-			
-			self.assertEqual(tokens[0], str(process.pid))
+
+			self.assertEqual(tokens[0], str(process.pid / 1000))
 			self.assertEqual(tokens[1], str(process.cmd))
-			self.assertEqual(tokens[2], str(process.ppid))
+			self.assertEqual(tokens[2], str(process.ppid / 1000))
 			self.assertEqual(tokens[3], str(len(process.samples)))
         
 

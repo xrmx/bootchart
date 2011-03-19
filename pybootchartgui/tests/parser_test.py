@@ -11,31 +11,35 @@ debug = False
 
 def floatEq(f1, f2):
 	return math.fabs(f1-f2) < 0.00001
-	
+
+bootchart_dir = os.path.join(os.path.dirname(sys.argv[0]), '../../examples/1/')
 parser = main._mk_options_parser()
-options, args = parser.parse_args(['--q', 'testfile'])
+options, args = parser.parse_args(['--q', bootchart_dir])
 writer = main._mk_writer(options)
 
 class TestBCParser(unittest.TestCase):
     
 	def setUp(self):
 		self.name = "My first unittest"
-		self.rootdir = '../examples/1'
+		self.rootdir = bootchart_dir
 
 	def mk_fname(self,f):
 		return os.path.join(self.rootdir, f)
 
 	def testParseHeader(self):
-		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('header'))
+		trace = parsing.Trace(writer, args, options)
+		state = parsing.parse_file(writer, trace, self.mk_fname('header'))
 		self.assertEqual(6, len(state.headers))
 		self.assertEqual(2, parsing.get_num_cpus(state.headers))
 
 	def test_parseTimedBlocks(self):
-		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_diskstats.log'))
+		trace = parsing.Trace(writer, args, options)
+		state = parsing.parse_file(writer, trace, self.mk_fname('proc_diskstats.log'))
 		self.assertEqual(141, len(state.disk_stats))		
 
 	def testParseProcPsLog(self):
-		state = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_ps.log'))
+		trace = parsing.Trace(writer, args, options)
+		state = parsing.parse_file(writer, trace, self.mk_fname('proc_ps.log'))
 		samples = state.ps_stats
 		processes = samples.process_list
 		sorted_processes = sorted(processes, key=lambda p: p.pid )
@@ -55,7 +59,8 @@ class TestBCParser(unittest.TestCase):
         
 
 	def testparseProcDiskStatLog(self):
-		state_with_headers = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('header'))
+		trace = parsing.Trace(writer, args, options)
+		state_with_headers = parsing.parse_file(writer, trace, self.mk_fname('header'))
 		state_with_headers.headers['system.cpu'] = 'xxx (2)'
 		samples = parsing.parse_file(writer, state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
 		self.assertEqual(141, len(samples))
@@ -74,7 +79,8 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[3]), sample.util))
 	
 	def testparseProcStatLog(self):
-		samples = parsing.parse_file(writer, parsing.ParserState(), self.mk_fname('proc_stat.log')).cpu_stats
+		trace = parsing.Trace(writer, args, options)
+		samples = parsing.parse_file(writer, trace, self.mk_fname('proc_stat.log')).cpu_stats
 		self.assertEqual(141, len(samples))
 			
 		for index, line in enumerate(open(self.mk_fname('extract.proc_stat.log'))):

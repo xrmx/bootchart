@@ -172,6 +172,7 @@ if [ $$ -eq 1 ]; then
 
 	# Optionally, an alternative init(1) process may be specified using
 	# the kernel command line (e.g. "bootchart_init=/sbin/initng")
+	[ -n "$bootchart_init" ] && init="$bootchart_init"
 	for i in $@; do
 		if [ "${i%%=*}" = "bootchart_init" ]; then
 			init="${i#*=}"

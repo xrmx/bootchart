@@ -124,7 +124,7 @@ def main(argv=None):
 			gui.show(res, options)
 		elif options.boottime:
 			import math
-			proc_tree = res[3]
+			proc_tree = res.proc_tree
 			if proc_tree.idle:
 			    duration = proc_tree.idle
 			else:

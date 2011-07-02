@@ -34,7 +34,7 @@ def _mk_options_parser():
 			  help="start in active mode")
 	parser.add_option("-f", "--format", dest="format", default = "png",
 			  help="image format (...); default format ...")
-	parser.add_option("-o", "--output", dest="output", metavar="PATH", default="bootchart.png",
+	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
 			  help="output path (file or directory) where charts are stored")
 	parser.add_option("-n", "--no-prune", action="store_false", dest="prune", default=True,
 			  help="do not prune the process tree")
@@ -90,10 +90,14 @@ def _get_filename(paths, options):
 	"""Construct a usable filename for outputs based on the paths and options given on the commandline."""
 	dname = ""
 	fname = "bootchart"
-	if options.output and not(os.path.isdir(options.output)):
+
+	if not options.output:
+		options.output = '.'.join([fname, options.format])
+
+	if not os.path.isdir(options.output):
 		return options.output
-	if options.output:
-		dname = options.output
+
+	dname = options.output
 	if len (paths) == 1:
 		path = paths[0]
 		if os.path.isdir(path):
@@ -119,7 +123,7 @@ def main(argv=None):
 
 		res = parsing.Trace(writer, args, options)
 
-		if options.interactive or options.output == None:
+		if options.interactive:
 			from . import gui
 			gui.show(res, options)
 		elif options.boottime:

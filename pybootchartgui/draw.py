@@ -175,11 +175,15 @@ def draw_label_in_box(ctx, color, label, x, y, w, maxx):
 
 def draw_sec_labels(ctx, rect, sec_w, nsecs):
 	ctx.set_font_size(AXIS_FONT_SIZE)
+	prev_x = 0
 	for i in range(0, rect[2] + 1, sec_w):
 		if ((i / sec_w) % nsecs == 0) :
 			label = "%ds" % (i / sec_w)
 			label_w = ctx.text_extents(label)[2]
-			draw_text(ctx, label, TEXT_COLOR, rect[0] + i - label_w/2, rect[1] - 2)
+			x = rect[0] + i - label_w/2
+			if x >= prev_x:
+				draw_text(ctx, label, TEXT_COLOR, x, rect[1] - 2)
+				prev_x = x + label_w
 
 def draw_box_ticks(ctx, rect, sec_w):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))

@@ -1,6 +1,12 @@
-bootchart2 UNRELEASED:
+bootchart2 0.14.1 UNRELEASED:
 	+ bootchartd
 		+ Expect dmesg only if started as init (Henry Yei)
+		+ look for bootchart_init in the environment (Henry Gebhardt)
+	+ pybootchartgui
+		+ Fixup some tests (Riccardo)
+		+ Support hp smart arrays block devices (Anders Norgaard,
+		  Brian Murray)
+		+ Fixes for -t, -o and -f options (Mladen Kuntner, Harald, Riccardo)
 
 bootchart2 0.14.0:
 	+ bootchartd

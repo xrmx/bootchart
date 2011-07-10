@@ -1,4 +1,4 @@
-bootchart2 0.14.1 UNRELEASED:
+bootchart2 0.14.1:
 	+ bootchartd
 		+ Expect dmesg only if started as init (Henry Yei)
 		+ look for bootchart_init in the environment (Henry Gebhardt)

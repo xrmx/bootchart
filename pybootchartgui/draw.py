@@ -148,7 +148,6 @@ proc_h = 16 # the height of a process
 leg_s = 10
 MIN_IMG_W = 800
 CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
-OPTIONS = None
 
 def extents(options, xscale, trace):
 	proc_tree = options.proc_tree(trace)
@@ -204,6 +203,7 @@ class Draw:
 		self.ctx = ctx
 		self.options = options
 		self.trace = trace
+		self.app_options = options.app_options
 
 	def text(self, text, color, x, y):
 		self.ctx.set_source_rgba(*color)
@@ -420,8 +420,6 @@ class Draw:
 	#
 	def render(self, xscale):
 		(w, h) = extents (self.options, xscale, self.trace)
-		global OPTIONS
-		OPTIONS = self.options.app_options
 
 		proc_tree = self.options.proc_tree (self.trace)
 
@@ -540,13 +538,13 @@ class Draw:
 		self.draw_process_activity_colors(proc, proc_tree, x, y, w, proc_h, rect, clip)
 		self.rect(PROC_BORDER_COLOR, (x, y, w, proc_h))
 		ipid = int(proc.pid)
-		if not OPTIONS.show_all:
+		if not self.app_options.show_all:
 			cmdString = proc.cmd
 		else:
 			cmdString = ''
-		if (OPTIONS.show_pid or OPTIONS.show_all) and ipid is not 0:
+		if (self.app_options.show_pid or self.app_options.show_all) and ipid is not 0:
 			cmdString = cmdString + " [" + str(ipid / 1000) + "]"
-		if OPTIONS.show_all:
+		if self.app_options.show_all:
 			if proc.args:
 				cmdString = cmdString + " '" + "' '".join(proc.args) + "'"
 			else:

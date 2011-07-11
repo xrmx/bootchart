@@ -29,6 +29,10 @@ class CPUSample:
         self.io = io
         self.swap = swap
 
+    @property
+    def cpu(self):
+        return self.user + self.sys
+
     def __str__(self):
         return str(self.time) + "\t" + str(self.user) + "\t" + \
                str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap)

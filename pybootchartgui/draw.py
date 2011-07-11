@@ -622,24 +622,18 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	total_time = 0.0
 	m_proc_list = {}
 
+	if stat_type is STAT_TYPE_CPU:
+		sample_value = 'cpu'
+	else:
+		sample_value = 'io'
 	for proc in proc_tree.process_list:
 		if elide_bootchart(proc):
 			continue
 
-		# The next "if" should ideally be above the total_time += line,
-		# as that is the only difference, between the if and else parts.
-		# However, I am not aware of python doing any runtime optimizations
-		# based on the const-ness of the stat_type parameter.
-		if stat_type is STAT_TYPE_CPU:
-			for sample in proc.samples:
-				total_time += sample.cpu_sample.user + sample.cpu_sample.sys
-				if not sample.time in time_hash:
-					time_hash[sample.time] = 1
-		else:
-			for sample in proc.samples:
-				total_time += sample.cpu_sample.io
-				if not sample.time in time_hash:
-					time_hash[sample.time] = 1
+		for sample in proc.samples:
+			total_time += getattr(sample.cpu_sample, sample_value)
+			if not sample.time in time_hash:
+				time_hash[sample.time] = 1
 
 		# merge pids with the same cmd
 		if not proc.cmd in m_proc_list:
@@ -678,15 +672,10 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 		row = {}
 		cuml = 0.0
 
-		if stat_type is STAT_TYPE_CPU:
-			# print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (cs.samples))
-			for sample in cs.samples:
-				cuml += sample.cpu_sample.user + sample.cpu_sample.sys
-				row[sample.time] = cuml
-		else:
-			for sample in cs.samples:
-				cuml += sample.cpu_sample.io
-				row[sample.time] = cuml
+		# print "pid : %s -> %g samples %d" % (proc.cmd, cuml, len (cs.samples))
+		for sample in cs.samples:
+			cuml += getattr(sample.cpu_sample, sample_value)
+			row[sample.time] = cuml
 
 		process_total_time = cuml
 

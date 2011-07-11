@@ -75,7 +75,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.paint()
         cr.scale(self.zoom_ratio, self.zoom_ratio)
         cr.translate(-self.x, -self.y)
-        draw.render(cr, self.options, self.xscale, self.trace)
+        d = draw.Draw(cr)
+        d.render(self.options, self.xscale, self.trace)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)

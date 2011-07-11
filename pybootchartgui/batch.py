@@ -40,7 +40,8 @@ def render(writer, trace, app_options, filename):
     w = max (w, draw.MIN_IMG_W)
     surface = make_surface (w, h)
     ctx = cairo.Context (surface)
-    draw.render (ctx, options, 1.0, trace)
+    d = draw.Draw(ctx)
+    d.render (options, 1.0, trace)
     write_surface (surface)
     writer.status ("bootchart written to '%s'" % filename)
 

@@ -200,8 +200,10 @@ class CumlSample:
 		return self.color
 
 class Draw:
-	def __init__(self, ctx):
+	def __init__(self, ctx, options, trace):
 		self.ctx = ctx
+		self.options = options
+		self.trace = trace
 
 	def text(self, text, color, x, y):
 		self.ctx.set_source_rgba(*color)
@@ -416,12 +418,12 @@ class Draw:
 	#
 	# Render the chart.
 	#
-	def render(self, options, xscale, trace):
-		(w, h) = extents (options, xscale, trace)
+	def render(self, xscale):
+		(w, h) = extents (self.options, xscale, self.trace)
 		global OPTIONS
-		OPTIONS = options.app_options
+		OPTIONS = self.options.app_options
 
-		proc_tree = options.proc_tree (trace)
+		proc_tree = self.options.proc_tree (self.trace)
 
 		# x, y, w, h
 		clip = self.ctx.clip_extents()
@@ -437,20 +439,20 @@ class Draw:
 		else:
 			duration = proc_tree.duration
 
-		if not options.kernel_only:
-			curr_y = self.draw_header (trace.headers, duration)
+		if not self.options.kernel_only:
+			curr_y = self.draw_header (self.trace.headers, duration)
 		else:
 			curr_y = off_y;
 
-		if options.charts:
-			curr_y = self.render_charts (options, clip, trace, curr_y, w, h, sec_w)
+		if self.options.charts:
+			curr_y = self.render_charts (self.options, clip, self.trace, curr_y, w, h, sec_w)
 
 		# draw process boxes
 		proc_height = h
-		if proc_tree.taskstats and options.cumulative:
+		if proc_tree.taskstats and self.options.cumulative:
 			proc_height -= CUML_HEIGHT
 
-		self.draw_process_bar_chart(clip, options, proc_tree, trace.times,
+		self.draw_process_bar_chart(clip, self.options, proc_tree, self.trace.times,
 					    curr_y, w, proc_height, sec_w)
 
 		curr_y = proc_height
@@ -458,13 +460,13 @@ class Draw:
 		self.text(SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
 		# draw a cumulative CPU-time-per-process graph
-		if proc_tree.taskstats and options.cumulative:
+		if proc_tree.taskstats and self.options.cumulative:
 			cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
 			if clip_visible (clip, cuml_rect):
 				self.cuml_graph(proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_CPU)
 
 		# draw a cumulative I/O-time-per-process graph
-		if proc_tree.taskstats and options.cumulative:
+		if proc_tree.taskstats and self.options.cumulative:
 			cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 			if clip_visible (clip, cuml_rect):
 				self.cuml_graph(proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)

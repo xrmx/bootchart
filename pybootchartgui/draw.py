@@ -199,11 +199,11 @@ class CumlSample:
 		return self.color
 
 class Draw:
-	def __init__(self, ctx, options, trace):
-		self.ctx = ctx
+	def __init__(self, options, trace, ctx):
 		self.options = options
 		self.trace = trace
 		self.app_options = options.app_options
+		self.ctx = ctx
 
 	def text(self, text, color, x, y):
 		self.ctx.set_source_rgba(*color)

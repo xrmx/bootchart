@@ -331,8 +331,8 @@ class Draw:
 			self.ctx.stroke()
 		self.ctx.set_line_width(1.0)
 
-	def render_charts(self, options, clip, trace, curr_y, w, h, sec_w):
-		proc_tree = options.proc_tree(trace)
+	def render_charts(self, clip, curr_y, w, h, sec_w):
+		proc_tree = self.options.proc_tree(self.trace)
 
 		# render bar legend
 		self.ctx.set_font_size(LEGEND_FONT_SIZE)
@@ -344,13 +344,13 @@ class Draw:
 		chart_rect = (off_x, curr_y+30, w, bar_h)
 		if clip_visible(clip, chart_rect):
 			self.box_ticks(chart_rect, sec_w)
-			self.annotations(proc_tree, trace.times, chart_rect)
+			self.annotations(proc_tree, self.trace.times, chart_rect)
 			self.chart(IO_COLOR, True, chart_rect, \
-				   [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
+				   [(sample.time, sample.user + sample.sys + sample.io) for sample in self.trace.cpu_stats], \
 				   proc_tree, None)
 			# render CPU load
 			self.chart(CPU_COLOR, True, chart_rect, \
-				   [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
+				   [(sample.time, sample.user + sample.sys) for sample in self.trace.cpu_stats], \
 				   proc_tree, None)
 
 		curr_y = curr_y + 30 + bar_h
@@ -363,16 +363,16 @@ class Draw:
 		chart_rect = (off_x, curr_y+30, w, bar_h)
 		if clip_visible (clip, chart_rect):
 			self.box_ticks (chart_rect, sec_w)
-			self.annotations (proc_tree, trace.times, chart_rect)
+			self.annotations (proc_tree, self.trace.times, chart_rect)
 			self.chart (IO_COLOR, True, chart_rect, \
-				    [(sample.time, sample.util) for sample in trace.disk_stats], \
+				    [(sample.time, sample.util) for sample in self.trace.disk_stats], \
 				    proc_tree, None)
 
 		# render disk throughput
-		max_sample = max (trace.disk_stats, key = lambda s: s.tput)
+		max_sample = max (self.trace.disk_stats, key = lambda s: s.tput)
 		if clip_visible (clip, chart_rect):
 			self.chart (DISK_TPUT_COLOR, False, chart_rect, \
-				    [(sample.time, sample.tput) for sample in trace.disk_stats], \
+				    [(sample.time, sample.tput) for sample in self.trace.disk_stats], \
 				    proc_tree, None)
 
 		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
@@ -388,7 +388,7 @@ class Draw:
 
 		# render mem usage
 		chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)
-		mem_stats = trace.mem_stats
+		mem_stats = self.trace.mem_stats
 		if mem_stats and clip_visible (clip, chart_rect):
 			mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
 			self.legend_box("Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
@@ -397,9 +397,9 @@ class Draw:
 			self.legend_line("Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
 					 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
 			self.box_ticks(chart_rect, sec_w)
-			self.annotations(proc_tree, trace.times, chart_rect)
+			self.annotations(proc_tree, self.trace.times, chart_rect)
 			self.chart(MEM_BUFFERS_COLOR, True, chart_rect, \
-				   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
+				   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in self.trace.mem_stats], \
 				   proc_tree, [0, mem_scale])
 			self.chart(MEM_USED_COLOR, True, chart_rect, \
 				   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
@@ -438,19 +438,19 @@ class Draw:
 			duration = proc_tree.duration
 
 		if not self.options.kernel_only:
-			curr_y = self.draw_header (self.trace.headers, duration)
+			curr_y = self.draw_header (duration)
 		else:
 			curr_y = off_y;
 
 		if self.options.charts:
-			curr_y = self.render_charts (self.options, clip, self.trace, curr_y, w, h, sec_w)
+			curr_y = self.render_charts (clip, curr_y, w, h, sec_w)
 
 		# draw process boxes
 		proc_height = h
 		if proc_tree.taskstats and self.options.cumulative:
 			proc_height -= CUML_HEIGHT
 
-		self.draw_process_bar_chart(clip, self.options, proc_tree, self.trace.times,
+		self.draw_process_bar_chart(clip, proc_tree, self.trace.times,
 					    curr_y, w, proc_height, sec_w)
 
 		curr_y = proc_height
@@ -469,9 +469,9 @@ class Draw:
 			if clip_visible (clip, cuml_rect):
 				self.cuml_graph(proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)
 
-	def draw_process_bar_chart(self, clip, options, proc_tree, times, curr_y, w, h, sec_w):
+	def draw_process_bar_chart(self, clip, proc_tree, times, curr_y, w, h, sec_w):
 		header_size = 0
-		if not options.kernel_only:
+		if not self.options.kernel_only:
 			self.legend_box ("Running (%cpu)",
 					 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
 			self.legend_box ("Unint.sleep (I/O)",
@@ -499,13 +499,14 @@ class Draw:
 			self.draw_processes_recursively(root, proc_tree, y, proc_h, chart_rect, clip)
 			y = y + proc_h * proc_tree.num_nodes([root])
 
-	def draw_header (self, headers, duration):
+	def draw_header (self, duration):
 		toshow = [
 			('system.uname', 'uname', lambda s: s),
 			('system.release', 'release', lambda s: s),
 			('system.cpu', 'CPU', lambda s: re.sub('model name\s*:\s*', '', s, 1)),
 			('system.kernel.options', 'kernel options', lambda s: s),
 		]
+		headers = self.trace.headers
 
 		header_y = self.ctx.font_extents()[2] + 10
 		self.ctx.set_font_size(TITLE_FONT_SIZE)

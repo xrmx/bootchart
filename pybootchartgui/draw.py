@@ -205,6 +205,9 @@ class Draw:
 		self.app_options = options.app_options
 		self.ctx = ctx
 
+	def update_ctx(self, ctx):
+		self.ctx = ctx
+
 	def text(self, text, color, x, y):
 		self.ctx.set_source_rgba(*color)
 		self.ctx.move_to(x, y)

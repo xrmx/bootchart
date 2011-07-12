@@ -58,6 +58,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.hadj_changed_signal_id = None
         self.vadj_changed_signal_id = None
 
+        self.chart = draw.Draw(self.options, self.trace, None)
+
     def do_expose_event(self, event):
         cr = self.window.cairo_create()
 
@@ -75,8 +77,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.paint()
         cr.scale(self.zoom_ratio, self.zoom_ratio)
         cr.translate(-self.x, -self.y)
-        d = draw.Draw(self.options, self.trace, cr)
-        d.render(self.xscale)
+        self.chart.update_ctx(cr)
+        self.chart.render(self.xscale)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)

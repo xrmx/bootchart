@@ -133,6 +133,7 @@ STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, \
 # CumulativeStats Types
 STAT_TYPE_CPU = 0
 STAT_TYPE_IO = 1
+STAT_TYPE_N = 2
 
 # Convert ps process state to an int
 def get_proc_state(flag):
@@ -170,6 +171,12 @@ def clip_visible(clip, rect):
 def elide_bootchart(proc):
 	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
 
+class CumlGraph:
+	def __init__(self):
+		self.times = {}
+		self.total_time = 0.0
+		self.m_proc_list = {}
+
 class CumlSample:
 	def __init__(self, proc):
 		self.cmd = proc.cmd
@@ -204,6 +211,7 @@ class Draw:
 		self.trace = trace
 		self.app_options = options.app_options
 		self.ctx = ctx
+		self.cumulative_graph = [None] * STAT_TYPE_N
 
 	def update_ctx(self, ctx):
 		self.ctx = ctx
@@ -625,46 +633,48 @@ class Draw:
 		global palette_idx
 		palette_idx = 0
 
-		time_hash = {}
-		total_time = 0.0
-		m_proc_list = {}
-
 		if stat_type is STAT_TYPE_CPU:
 			sample_value = 'cpu'
 		else:
 			sample_value = 'io'
-		for proc in proc_tree.process_list:
-			if elide_bootchart(proc):
-				continue
 
-			for sample in proc.samples:
-				total_time += getattr(sample.cpu_sample, sample_value)
-				if not sample.time in time_hash:
-					time_hash[sample.time] = 1
+		graph = self.cumulative_graph[stat_type]
+		# we don't need to recompute all this stuff each time
+		if not graph:
+			graph = CumlGraph()
+			time_hash = {}
+			for proc in proc_tree.process_list:
+				if elide_bootchart(proc):
+					continue
 
-			# merge pids with the same cmd
-			if not proc.cmd in m_proc_list:
-				m_proc_list[proc.cmd] = CumlSample (proc)
-				continue
-			s = m_proc_list[proc.cmd]
-			s.merge_samples (proc)
+				for sample in proc.samples:
+					graph.total_time += getattr(sample.cpu_sample, sample_value)
+					if not sample.time in time_hash:
+						time_hash[sample.time] = 1
 
-		# all the sample times
-		times = time_hash.keys()
-		times.sort()
-		if len (times) < 2:
-			print("degenerate boot chart")
-			return
+				# merge pids with the same cmd
+				if not proc.cmd in graph.m_proc_list:
+					graph.m_proc_list[proc.cmd] = CumlSample (proc)
+					continue
+				s = graph.m_proc_list[proc.cmd]
+				s.merge_samples (proc)
 
-		pix_per_ns = chart_bounds[3] / total_time
-		#print "total time: %g pix-per-ns %g" % (total_time, pix_per_ns)
+			# all the sample times
+			graph.times = time_hash.keys()
+			graph.times.sort()
+			if len (graph.times) < 2:
+				print("degenerate boot chart")
+				return
+
+			# Render bottom up, left to right
+			graph.below = {}
+			for time in graph.times:
+				graph.below[time] = chart_bounds[1] + chart_bounds[3]
+
+		pix_per_ns = chart_bounds[3] / graph.total_time
+		#print "total time: %g pix-per-ns %g" % (graph.total_time, pix_per_ns)
 
 		# FIXME: we have duplicates in the process list too [!] - why !?
-
-		# Render bottom up, left to right
-		below = {}
-		for time in times:
-			below[time] = chart_bounds[1] + chart_bounds[3]
 
 		# same colors each time we render
 		random.seed (0)
@@ -675,7 +685,7 @@ class Draw:
 		labels = []
 
 		# render each pid in order
-		for cs in m_proc_list.values():
+		for cs in graph.m_proc_list.values():
 			row = {}
 			cuml = 0.0
 
@@ -690,12 +700,12 @@ class Draw:
 			if cuml * pix_per_ns <= 2:
 				continue
 
-			last_time = times[0]
+			last_time = graph.times[0]
 			y = last_below = below[last_time]
 			last_cuml = cuml = 0.0
 
 			self.ctx.set_source_rgba(*cs.get_color())
-			for time in times:
+			for time in graph.times:
 				render_seg = False
 
 				# did the underlying trend increase ?
@@ -766,7 +776,7 @@ class Draw:
 		LEGENDS_TOTAL = 45
 		self.ctx.set_font_size (TITLE_FONT_SIZE)
 		dur_secs = duration / 100
-		cpu_secs = total_time / 1000000000
+		cpu_secs = graph.total_time / 1000000000
 
 		# misleading - with multiple CPUs ...
 		#	idle = ((dur_secs - cpu_secs) / dur_secs) * 100.0
@@ -788,7 +798,7 @@ class Draw:
 			time = t[1]
 			x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
 			y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
-			str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
+			str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/graph.total_time) * 100.0)
 			self.legend_box(str, cs.color, x, y, leg_s)
 			i = i + 1
 			if i >= LEGENDS_TOTAL:

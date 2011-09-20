@@ -380,9 +380,9 @@ def _parse_proc_stat_log(file):
     samples = []
     ltimes = None
     for time, lines in _parse_timed_blocks(file):
-	# skip emtpy lines
-	if not lines:
-	    continue
+        # skip emtpy lines
+        if not lines:
+            continue
         # CPU times {user, nice, system, idle, io_wait, irq, softirq}
         tokens = lines[0].split()
         times = [ int(token) for token in tokens[1:] ]

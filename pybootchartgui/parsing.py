@@ -443,6 +443,7 @@ def _parse_proc_meminfo_log(file):
     Parse file for global memory statistics.
     The format of relevant lines should be: ^key: value( unit)?
     """
+    used_values = ('MemTotal', 'MemFree', 'Buffers', 'Cached', 'SwapTotal', 'SwapFree',)
 
     mem_stats = []
     meminfo_re = re.compile(r'([^ \t:]+):\s*(\d+).*')
@@ -452,10 +453,10 @@ def _parse_proc_meminfo_log(file):
 
         for line in lines:
             match = meminfo_re.match(line)
-            if match:
-                sample.add_value(match.group(1), int(match.group(2)))
-            else:
+            if not match:
                 raise ParseError("Invalid meminfo line \"%s\"" % match.groups(0))
+            if match.group(1) in used_values:
+                sample.add_value(match.group(1), int(match.group(2)))
 
         mem_stats.append(sample)
 

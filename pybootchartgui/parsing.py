@@ -445,12 +445,13 @@ def _parse_proc_meminfo_log(file):
     """
 
     mem_stats = []
+    meminfo_re = re.compile(r'([^ \t:]+):\s*(\d+).*')
 
     for time, lines in _parse_timed_blocks(file):
         sample = MemSample(time)
 
         for line in lines:
-            match = re.match('([^ \t:]+):\s*(\d+).*', line)
+            match = meminfo_re.match(line)
             if match:
                 sample.add_value(match.group(1), int(match.group(2)))
             else:

@@ -260,6 +260,8 @@ def _parse_proc_ps_log(writer, file):
         for line in lines:
             if line is '': continue
             tokens = line.split(' ')
+            if len(tokens) < 21:
+                continue
 
             offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]
             pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
@@ -276,7 +278,7 @@ def _parse_proc_ps_log(writer, file):
                 processMap[pid] = process
 
             if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
-                userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, time - ltime)
+                userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
                 cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
                 process.samples.append(ProcessSample(time, state, cpuSample))
 
@@ -428,7 +430,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 
     disk_stats = []
     for sample1, sample2 in zip(disk_stat_samples[:-1], disk_stat_samples[1:]):
-        interval = sample1.time - sample2.time
+        interval = max(1, sample1.time - sample2.time)
         sums = [ a - b for a, b in zip(sample1.diskdata, sample2.diskdata) ]
         readTput = sums[0] / 2.0 * 100.0 / interval
         writeTput = sums[1] / 2.0 * 100.0 / interval

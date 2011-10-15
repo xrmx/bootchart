@@ -429,6 +429,9 @@ def _parse_proc_disk_stat_log(file, numCpu):
     disk_stats = []
     for sample1, sample2 in zip(disk_stat_samples[:-1], disk_stat_samples[1:]):
         interval = sample1.time - sample2.time
+        if (interval == 0 ):
+            interval=1
+
         sums = [ a - b for a, b in zip(sample1.diskdata, sample2.diskdata) ]
         readTput = sums[0] / 2.0 * 100.0 / interval
         writeTput = sums[1] / 2.0 * 100.0 / interval

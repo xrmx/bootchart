@@ -111,6 +111,8 @@ class Process:
         self.active = (activeCount>2)
 
     def calc_load(self, userCpu, sysCpu, interval):
+        if (interval == 0 ):
+            interval=1
         userCpuLoad = float(userCpu - self.last_user_cpu_time) / interval
         sysCpuLoad = float(sysCpu - self.last_sys_cpu_time) / interval
         cpuLoad = userCpuLoad + sysCpuLoad

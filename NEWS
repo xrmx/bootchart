@@ -1,3 +1,9 @@
+bootchart2 0.14.2:
+	* pybootchartgui
+		+ Fix some crashes in parsing.py (Jakub Czaplicki, Riccardo)
+		+ speedup a bit meminfo parsing (Riccardo)
+		+ Fix indentation for python3.2 (Riccardo)
+
 bootchart2 0.14.1:
 	+ bootchartd
 		+ Expect dmesg only if started as init (Henry Yei)

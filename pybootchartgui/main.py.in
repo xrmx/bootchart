@@ -118,8 +118,8 @@ def main(argv=None):
 		writer = _mk_writer(options)
 
 		if len(args) == 0:
-			print("No path given, trying /var/log/bootchart.tgz")
-			args = [ "/var/log/bootchart.tgz" ]
+			print("No path given, trying /var/log/bootchart.tgz and /var/log/bootchart/")
+			args = [ "/var/log/bootchart.tgz", "/var/log/bootchart/" ]
 
 		res = parsing.Trace(writer, args, options)
 

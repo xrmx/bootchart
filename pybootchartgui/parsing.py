@@ -65,10 +65,10 @@ class Trace:
                 names = [x[:15] for x in procnames.split(",")]
                 for proc in self.ps_stats.process_map.values():
                     if proc.cmd in names:
-                        times.append(proc.start_time)
+                        self.times.append(proc.start_time)
                         break
                     else:
-                        times.append(None)
+                        self.times.append(None)
 
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
                                      self.ps_stats.sample_period,

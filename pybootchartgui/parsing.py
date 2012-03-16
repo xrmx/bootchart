@@ -193,8 +193,8 @@ class Trace:
 
         self.ps_stats.end_time = crop_at
 
-        cropped_map = None;
-        for key, value in self.ps_stats.process_map:
+        cropped_map = {}
+        for key, value in self.ps_stats.process_map.items():
             if (value.start_time <= crop_at):
                 cropped_map[key] = value
 

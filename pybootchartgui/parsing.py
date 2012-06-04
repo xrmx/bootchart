@@ -97,12 +97,12 @@ class Trace:
                 # that we have no samples, or process info for them
                 # so climb the parent hierarcy to find one
                 if int (ppid * 1000) not in self.ps_stats.process_map:
-#                               print "Pid '%d' short lived with no process" % ppid
+#                    print "Pid '%d' short lived with no process" % ppid
                     ppid = find_parent_id_for (ppid)
-#                       else:
-#                               print "Pid '%d' has an entry" % ppid
+#                else:
+#                    print "Pid '%d' has an entry" % ppid
             else:
-#                       print "Pid '%d' missing from pid map" % pid
+#                print "Pid '%d' missing from pid map" % pid
                 return 0
             return ppid
 
@@ -114,8 +114,8 @@ class Trace:
                     cmd = self.cmdline[rpid]
                     proc.exe = cmd['exe']
                     proc.args = cmd['args']
-#                       else:
-#                               print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
+#                else:
+#                    print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
 
         # re-parent any stray orphans if we can
         if self.parent_map is not None:

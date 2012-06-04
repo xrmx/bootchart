@@ -1,5 +1,14 @@
+bootchart2 0.14.3:
+	+ bootchartd
+		+ Add relevant EXIT_PROC for GNOME3, XFCE4, openbox
+		  (Justin Lecher, Ben Eills)
+	+ pybootchartgui (Riccardo)
+		+ Fix some issues in --crop-after and --annotate
+		+ Fix pybootchartgui process_tree tests
+		+ More python3 fixes
+
 bootchart2 0.14.2:
-	* pybootchartgui
+	+ pybootchartgui
 		+ Fix some crashes in parsing.py (Jakub Czaplicki, Riccardo)
 		+ speedup a bit meminfo parsing (Riccardo)
 		+ Fix indentation for python3.2 (Riccardo)

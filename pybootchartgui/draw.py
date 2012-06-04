@@ -19,6 +19,7 @@ import math
 import re
 import random
 import colorsys
+from operator import itemgetter
 
 class RenderOptions:
 
@@ -643,8 +644,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 		s.merge_samples (proc)
 
 	# all the sample times
-	times = time_hash.keys()
-	times.sort()
+	times = sorted(time_hash)
 	if len (times) < 2:
 		print("degenerate boot chart")
 		return
@@ -774,7 +774,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 		  chart_bounds[1] + font_height)
 
 	i = 0
-	legends.sort(lambda a, b: cmp (b[1], a[1]))
+	legends = sorted(legends, key=itemgetter(1), reverse=True)
 	ctx.set_font_size(TEXT_FONT_SIZE)
 	for t in legends:
 		cs = t[0]

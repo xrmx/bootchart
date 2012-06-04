@@ -228,7 +228,7 @@ def _parse_headers(file):
             value = line.strip()
         headers[last] += value
         return headers, last
-    return reduce(parse, file.read().split('\n'), (defaultdict(str),''))[0]
+    return reduce(parse, file.read().decode().split('\n'), (defaultdict(str),''))[0]
 
 def _parse_timed_blocks(file):
     """Parses (ie., splits) a file into so-called timed-blocks. A
@@ -242,7 +242,7 @@ def _parse_timed_blocks(file):
             return (int(lines[0]), lines[1:])
         except ValueError:
             raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-    blocks = file.read().split('\n\n')
+    blocks = file.read().decode().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
 def _parse_proc_ps_log(writer, file):
@@ -317,7 +317,10 @@ def _parse_taskstats_log(writer, file):
             tokens = line.split(' ')
 
             opid, ppid, cmd = int(tokens[0]), int(tokens[1]), tokens[2]
-            cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
+            try:
+                cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
+            except NameError:
+                cpu_ns, blkio_delay_ns, swapin_delay_ns = int(tokens[-3]), int(tokens[-2]), int(tokens[-1]),
 
             # make space for trees of pids
             opid *= 1000
@@ -488,7 +491,7 @@ def _parse_dmesg(writer, file):
     processMap['k-boot'] = kernel
     base_ts = False
     max_ts = 0
-    for line in file.read().split('\n'):
+    for line in file.read().decode().split('\n'):
         t = timestamp_re.match (line)
         if t is None:
 #                       print "duff timestamp " + line
@@ -576,7 +579,7 @@ def _parse_pacct(writer, file):
 def _parse_paternity_log(writer, file):
     parent_map = {}
     parent_map[0] = 0
-    for line in file.read().split('\n'):
+    for line in file.read().decode().split('\n'):
         elems = line.split(' ') # <Child> <Parent>
         if len (elems) >= 2:
 #                       print "paternity of %d is %d" % (int(elems[0]), int(elems[1]))
@@ -587,7 +590,7 @@ def _parse_paternity_log(writer, file):
 
 def _parse_cmdline_log(writer, file):
     cmdLines = {}
-    for block in file.read().split('\n\n'):
+    for block in file.read().decode().split('\n\n'):
         lines = block.split('\n')
         if len (lines) >= 3:
 #                       print "Lines '%s'" % (lines[0])

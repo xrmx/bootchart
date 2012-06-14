@@ -6,7 +6,10 @@ sys.path.insert(0, os.getcwd())
 
 import pybootchartgui.parsing as parsing
 import pybootchartgui.process_tree as process_tree
-import  pybootchartgui.main as main
+import pybootchartgui.main as main
+
+if sys.version_info >= (3, 0):
+    long = int
 
 class TestProcessTree(unittest.TestCase):
 
@@ -35,7 +38,8 @@ class TestProcessTree(unittest.TestCase):
         return flattened
 
     def checkAgainstJavaExtract(self, filename, process_tree):
-        for expected, actual in zip(open(filename), self.flatten(process_tree)):
+        test_data = open(filename)
+        for expected, actual in zip(test_data, self.flatten(process_tree)):
             tokens = expected.split('\t')
             self.assertEqual(int(tokens[0]), actual.pid / 1000)
             self.assertEqual(tokens[1], actual.cmd)
@@ -43,6 +47,7 @@ class TestProcessTree(unittest.TestCase):
             self.assert_(long(tokens[3]) - 10 * actual.duration < 5, "duration")
             self.assertEqual(int(tokens[4]), len(actual.child_list))
             self.assertEqual(int(tokens[5]), len(actual.samples))
+        test_data.close()
 
     def testBuild(self):
         process_tree = self.processtree.process_tree

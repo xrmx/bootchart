@@ -43,20 +43,21 @@ class TestBCParser(unittest.TestCase):
 		samples = state.ps_stats
 		processes = samples.process_map
 		sorted_processes = [processes[k] for k in sorted(processes.keys())]
-		
-		for index, line in enumerate(open(self.mk_fname('extract2.proc_ps.log'))):
+
+		ps_data = open(self.mk_fname('extract2.proc_ps.log'))
+		for index, line in enumerate(ps_data):
 			tokens = line.split();
 			process = sorted_processes[index]
-			if debug:	
+			if debug:
 				print(tokens[0:4])
 				print(process.pid / 1000, process.cmd, process.ppid, len(process.samples))
 				print('-------------------')
 
-			self.assertEqual(tokens[0], str(process.pid / 1000))
+			self.assertEqual(tokens[0], str(process.pid // 1000))
 			self.assertEqual(tokens[1], str(process.cmd))
-			self.assertEqual(tokens[2], str(process.ppid / 1000))
+			self.assertEqual(tokens[2], str(process.ppid // 1000))
 			self.assertEqual(tokens[3], str(len(process.samples)))
-        
+		ps_data.close()
 
 	def testparseProcDiskStatLog(self):
 		trace = parsing.Trace(writer, args, options)
@@ -64,8 +65,9 @@ class TestBCParser(unittest.TestCase):
 		state_with_headers.headers['system.cpu'] = 'xxx (2)'
 		samples = parsing.parse_file(writer, state_with_headers, self.mk_fname('proc_diskstats.log')).disk_stats
 		self.assertEqual(141, len(samples))
-	
-		for index, line in enumerate(open(self.mk_fname('extract.proc_diskstats.log'))):
+
+		diskstats_data = open(self.mk_fname('extract.proc_diskstats.log'))
+		for index, line in enumerate(diskstats_data):
 			tokens = line.split('\t')
 			sample = samples[index]
 			if debug:		
@@ -77,13 +79,15 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[1]), sample.read))
 			self.assert_(floatEq(float(tokens[2]), sample.write))
 			self.assert_(floatEq(float(tokens[3]), sample.util))
+		diskstats_data.close()
 	
 	def testparseProcStatLog(self):
 		trace = parsing.Trace(writer, args, options)
 		samples = parsing.parse_file(writer, trace, self.mk_fname('proc_stat.log')).cpu_stats
 		self.assertEqual(141, len(samples))
-			
-		for index, line in enumerate(open(self.mk_fname('extract.proc_stat.log'))):
+
+		stat_data = open(self.mk_fname('extract.proc_stat.log'))
+		for index, line in enumerate(stat_data):
 			tokens = line.split('\t')
 			sample = samples[index]
 			if debug:
@@ -94,6 +98,7 @@ class TestBCParser(unittest.TestCase):
 			self.assert_(floatEq(float(tokens[1]), sample.user))
 			self.assert_(floatEq(float(tokens[2]), sample.sys))
 			self.assert_(floatEq(float(tokens[3]), sample.io))
+		stat_data.close()
 
 if __name__ == '__main__':
     unittest.main()

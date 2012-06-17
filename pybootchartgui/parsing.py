@@ -319,6 +319,8 @@ def _parse_taskstats_log(writer, file):
         for line in lines:
             if line is '': continue
             tokens = line.split(' ')
+            if len(tokens) != 6:
+                continue
 
             opid, ppid, cmd = int(tokens[0]), int(tokens[1]), tokens[2]
             cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),

@@ -139,13 +139,13 @@ class ProcessTree:
         rcendpid = -1
         rcproc = None
         for p in process_list:
-            if p.cmd == "rc" and p.ppid / 1000 == 1:
+            if p.cmd == "rc" and p.ppid // 1000 == 1:
                 rcproc = p
                 rcstartpid = p.pid
                 rcendpid = self.get_max_pid(p.child_list)
         if rcstartpid != -1 and rcendpid != -1:
             for p in process_list:
-                if p.pid > rcstartpid and p.pid < rcendpid and p.ppid / 1000 == 1:
+                if p.pid > rcstartpid and p.pid < rcendpid and p.ppid // 1000 == 1:
                     p.ppid = rcstartpid
                     p.parent = rcproc
             for p in process_list:

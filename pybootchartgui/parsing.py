@@ -113,7 +113,7 @@ class Trace:
         # merge in the cmdline data
         if self.cmdline is not None:
             for proc in self.ps_stats.process_map.values():
-                rpid = int (proc.pid / 1000)
+                rpid = int (proc.pid // 1000)
                 if rpid in self.cmdline:
                     cmd = self.cmdline[rpid]
                     proc.exe = cmd['exe']
@@ -124,7 +124,7 @@ class Trace:
         # re-parent any stray orphans if we can
         if self.parent_map is not None:
             for process in self.ps_stats.process_map.values():
-                ppid = find_parent_id_for (int(process.pid / 1000))
+                ppid = find_parent_id_for (int(process.pid // 1000))
                 if ppid:
                     process.ppid = ppid * 1000
 
@@ -533,7 +533,7 @@ def _parse_dmesg(writer, file):
             ppid = kernel.pid
             p = re.match ("\@ (\d+)", rest)
             if p is not None:
-                ppid = float (p.group(1)) / 1000
+                ppid = float (p.group(1)) // 1000
 #                               print "match: '%s' ('%g') at '%s'" % (func, ppid, time_ms)
             name = func.split ('+', 1) [0]
             idx += inc

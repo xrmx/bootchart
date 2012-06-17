@@ -41,7 +41,7 @@ class TestProcessTree(unittest.TestCase):
         test_data = open(filename)
         for expected, actual in zip(test_data, self.flatten(process_tree)):
             tokens = expected.split('\t')
-            self.assertEqual(int(tokens[0]), actual.pid / 1000)
+            self.assertEqual(int(tokens[0]), actual.pid // 1000)
             self.assertEqual(tokens[1], actual.cmd)
             self.assertEqual(long(tokens[2]), 10 * actual.start_time)
             self.assert_(long(tokens[3]) - 10 * actual.duration < 5, "duration")

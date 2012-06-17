@@ -262,7 +262,7 @@ def _parse_proc_ps_log(writer, file):
     timed_blocks = _parse_timed_blocks(file)
     for time, lines in timed_blocks:
         for line in lines:
-            if line is '': continue
+            if not line: continue
             tokens = line.split(' ')
             if len(tokens) < 21:
                 continue
@@ -317,7 +317,7 @@ def _parse_taskstats_log(writer, file):
             ltime = time
 #                       continue
         for line in lines:
-            if line is '': continue
+            if not line: continue
             tokens = line.split(' ')
             if len(tokens) != 6:
                 continue
@@ -583,11 +583,13 @@ def _parse_paternity_log(writer, file):
     parent_map = {}
     parent_map[0] = 0
     for line in file.read().decode('utf-8').split('\n'):
+        if not line:
+            continue
         elems = line.split(' ') # <Child> <Parent>
         if len (elems) >= 2:
 #                       print "paternity of %d is %d" % (int(elems[0]), int(elems[1]))
             parent_map[int(elems[0])] = int(elems[1])
-        elif line is not '':
+        else:
             print("Odd paternity line '%s'" % (line))
     return parent_map
 

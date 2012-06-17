@@ -3,6 +3,7 @@ bootchart2 UNRELEASED:
 		+ Fix tests with python3
 		+ Fix parsing of files with non-ascii bytes
 		+ Robustness fixes to taskstats and meminfo parsing
+		+ More python3 fixes
 
 bootchart2 0.14.4:
 	+ bootchartd

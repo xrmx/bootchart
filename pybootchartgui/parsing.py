@@ -19,6 +19,7 @@ from __future__ import with_statement
 import os
 import string
 import re
+import sys
 import tarfile
 from time import clock
 from collections import defaultdict
@@ -26,6 +27,9 @@ from functools import reduce
 
 from .samples import *
 from .process_tree import ProcessTree
+
+if sys.version_info >= (3, 0):
+    long = int
 
 # Parsing produces as its end result a 'Trace'
 
@@ -317,10 +321,7 @@ def _parse_taskstats_log(writer, file):
             tokens = line.split(' ')
 
             opid, ppid, cmd = int(tokens[0]), int(tokens[1]), tokens[2]
-            try:
-                cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
-            except NameError:
-                cpu_ns, blkio_delay_ns, swapin_delay_ns = int(tokens[-3]), int(tokens[-2]), int(tokens[-1]),
+            cpu_ns, blkio_delay_ns, swapin_delay_ns = long(tokens[-3]), long(tokens[-2]), long(tokens[-1]),
 
             # make space for trees of pids
             opid *= 1000

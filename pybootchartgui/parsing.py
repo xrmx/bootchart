@@ -465,10 +465,10 @@ def _parse_proc_meminfo_log(file):
             match = meminfo_re.match(line)
             if not match:
                 raise ParseError("Invalid meminfo line \"%s\"" % match.groups(0))
-            if match.group(1) in used_values:
-                sample.add_value(match.group(1), int(match.group(2)))
+            sample.add_value(match.group(1), int(match.group(2)))
 
-        mem_stats.append(sample)
+        if sample.valid():
+            mem_stats.append(sample)
 
     return mem_stats
 

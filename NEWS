@@ -1,4 +1,4 @@
-bootchart2 UNRELEASED:
+bootchart2 0.14.5:
 	+ pybootchartgui (Riccardo)
 		+ Fix tests with python3
 		+ Fix parsing of files with non-ascii bytes

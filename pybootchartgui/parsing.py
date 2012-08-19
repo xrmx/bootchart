@@ -454,7 +454,7 @@ def _parse_proc_meminfo_log(file):
     The format of relevant lines should be: ^key: value( unit)?
     """
     mem_stats = []
-    meminfo_re = re.compile(r'([^ \t:]+):\s*(\d+).*')
+    meminfo_re = re.compile(r'(MemTotal|MemFree|Buffers|Cached|SwapTotal|SwapFree):\s*(\d+).*')
 
     for time, lines in _parse_timed_blocks(file):
         sample = MemSample(time)

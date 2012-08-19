@@ -45,8 +45,7 @@ class MemSample:
         self.records = {}
 
     def add_value(self, name, value):
-        if name in MemSample.used_values:
-            self.records[name] = value
+        self.records[name] = value
 
     def valid(self):
         keys = self.records.keys()

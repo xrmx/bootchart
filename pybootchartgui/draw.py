@@ -26,8 +26,9 @@ class RenderOptions:
 	def __init__(self, app_options):
 		# should we render a cumulative CPU time chart
 		self.cumulative = True
-		self.charts = True
+		self.charts = not app_options.poky
 		self.kernel_only = False
+
 		self.app_options = app_options
 
 	def proc_tree (self, trace):
@@ -135,6 +136,16 @@ STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, \
 STAT_TYPE_CPU = 0
 STAT_TYPE_IO = 1
 
+# Poky build colors
+POKY_COLORS = {
+	'do_configure': (1.0, 1.0, 0.00, 1.0),
+	'do_compile': (0.0, 1.00, 0.00, 1.0),
+	'do_install': (1.0, 0.00, 1.00, 1.0),
+	'do_package': (0.0, 1.00, 1.00, 1.0),
+	'do_populate_sysroot': (0.0, 0.00, 1.00, 1.0),
+	'do_package_write_rpm': (1.0, 0.00, 0.00, 1.0),
+}
+
 # Convert ps process state to an int
 def get_proc_state(flag):
 	return "RSDTZXW".find(flag) + 1
@@ -186,13 +197,13 @@ def draw_sec_labels(ctx, rect, sec_w, nsecs):
 				draw_text(ctx, label, TEXT_COLOR, x, rect[1] - 2)
 				prev_x = x + label_w
 
-def draw_box_ticks(ctx, rect, sec_w):
+def draw_box_ticks(ctx, rect, sec_w, nsecs=5):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))
 
 	ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
 
 	for i in range(sec_w, rect[2] + 1, sec_w):
-		if ((i / sec_w) % 5 == 0) :
+		if ((i / sec_w) % nsecs == 0) :
 			ctx.set_source_rgba(*TICK_COLOR_BOLD)
 		else :
 			ctx.set_source_rgba(*TICK_COLOR)
@@ -283,6 +294,9 @@ def extents(options, xscale, trace):
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += header_h
+	# reserve space for the heading
+	if options.app_options.poky:
+		h += 45 + 15
 	if proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)
@@ -402,7 +416,7 @@ def render(ctx, options, xscale, trace):
 	else:
 		duration = proc_tree.duration
 
-	if not options.kernel_only:
+	if not options.app_options.poky and not options.kernel_only:
 		curr_y = draw_header (ctx, trace.headers, duration)
 	else:
 		curr_y = off_y;
@@ -436,7 +450,17 @@ def render(ctx, options, xscale, trace):
 
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
 	header_size = 0
-	if not options.kernel_only:
+	if options.app_options.poky:
+		ctx.set_font_size(LEGEND_FONT_SIZE)
+
+		draw_legend_box(ctx, "Configure",       POKY_COLORS['do_configure'], off_x    , curr_y + 45, leg_s)
+		draw_legend_box(ctx, "Compile",         POKY_COLORS['do_compile'], off_x+120, curr_y + 45, leg_s)
+		draw_legend_box(ctx, "Install",         POKY_COLORS['do_install'], off_x+240, curr_y + 45, leg_s)
+		draw_legend_box(ctx, "Package",         POKY_COLORS['do_package'], off_x+360, curr_y + 45, leg_s)
+		draw_legend_box(ctx, "Populate Sysroot",        POKY_COLORS['do_populate_sysroot'], off_x+480, curr_y + 45, leg_s)
+		header_size = 45
+
+	elif not options.kernel_only:
 		draw_legend_box (ctx, "Running (%cpu)",
 				 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Unint.sleep (I/O)",
@@ -451,18 +475,45 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
 
-	draw_box_ticks (ctx, chart_rect, sec_w)
-	if sec_w > 100:
+	if options.app_options.poky:
+		sec_w = 1
+		nsec = 30
+	elif sec_w > 100:
 		nsec = 1
 	else:
 		nsec = 5
+
+	draw_box_ticks (ctx, chart_rect, sec_w, nsec)
 	draw_sec_labels (ctx, chart_rect, sec_w, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
 	y = curr_y + 60
-	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
-		y = y + proc_h * proc_tree.num_nodes([root])
+	if options.app_options.poky:
+		offset = proc_tree.start_time
+		for t in sorted(proc_tree.start.keys()):
+                        p = proc_tree.start[t]
+			start, end = float(t), float(proc_tree.process_tree[p][1])
+			x = chart_rect[0] + ((start - offset) * chart_rect[2] / proc_tree.duration)
+			w = (end - start) * chart_rect[2] / proc_tree.duration * 2
+
+			#print "proc at offset:%s start:%s x:%s y:%s w:%s proc:%s" % (offset, start, x, y, w, p)
+
+			draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+
+			task = p.split(":")[1]
+			col = POKY_COLORS.get(task, None)
+			if not col:
+				print "no color for task %s" % (task)
+			else:
+				draw_fill_rect(ctx, col, (x, y, w, proc_h))
+
+			draw_label_in_box(ctx, PROC_TEXT_COLOR, p, x, y + proc_h - 4, w, chart_rect[0] + chart_rect[2])
+			y = y + proc_h
+
+	else:
+		for root in proc_tree.process_tree:
+			draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
+			y = y + proc_h * proc_tree.num_nodes([root])
 
 
 def draw_header (ctx, headers, duration):

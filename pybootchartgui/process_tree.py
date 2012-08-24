@@ -290,3 +290,36 @@ class ProcessTree:
         p1.start_time = min(p1time, p2time)
         pendtime = max(p1time + p1.duration, p2time + p2.duration)
         p1.duration = pendtime - p1.start_time
+
+class SatoProcessTree:
+    def __init__(self, writer, sato):
+        self.writer = writer
+        self.process_tree = sato
+        self.start = {}
+        self.end = {}
+
+        # needed in draw.py
+        self.taskstats = None
+        self.idle = None
+
+        self.dict_by_time()
+        self.start_time = self.get_start_time()
+        self.end_time = self.get_end_time()
+        self.duration = self.end_time - self.start_time
+
+        self.num_proc = len(self.process_tree.keys())
+
+    def get_start_time(self):
+        return float(min(self.start.keys()))
+
+    def get_end_time(self):
+        return float(max(self.end.keys()))
+
+    def dict_by_time(self):
+        """From process_tree fill one dictionary with start times as key and
+           one with end times as keys.
+        """
+        for k,v in self.process_tree.iteritems():
+            start, end = v
+            self.start[start] = k
+            self.end[end] = k

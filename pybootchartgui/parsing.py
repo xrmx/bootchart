@@ -27,6 +27,7 @@ from functools import reduce
 
 from .samples import *
 from .process_tree import ProcessTree
+from .process_tree import SatoProcessTree
 
 if sys.version_info >= (3, 0):
     long = int
@@ -46,6 +47,7 @@ class Trace:
         self.filename = None
         self.parent_map = None
         self.mem_stats = None
+        self.sato = None
 
         parse_paths (writer, self, paths)
         if not self.valid():
@@ -53,7 +55,8 @@ class Trace:
 
         # Turn that parsed information into something more useful
         # link processes into a tree of pointers, calculate statistics
-        self.compile(writer)
+        if not self.sato:
+            self.compile(writer)
 
         # Crop the chart to the end of the first idle period after the given
         # process
@@ -74,11 +77,14 @@ class Trace:
                     else:
                         self.times.append(None)
 
-        self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
-                                     self.ps_stats.sample_period,
-                                     self.headers.get("profile.process"),
-                                     options.prune, idle, self.taskstats,
-                                     self.parent_map is not None)
+        if self.sato:
+            self.proc_tree = SatoProcessTree(writer, self.sato)
+        else:
+            self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
+                                         self.ps_stats.sample_period,
+                                         self.headers.get("profile.process"),
+                                         options.prune, idle, self.taskstats,
+                                         self.parent_map is not None)
 
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
@@ -86,8 +92,8 @@ class Trace:
                                            False, None, None, True)
 
     def valid(self):
-        return self.headers != None and self.disk_stats != None and \
-               self.ps_stats != None and self.cpu_stats != None
+        return (self.headers != None and self.disk_stats != None and \
+               self.ps_stats != None and self.cpu_stats != None) or self.sato
 
 
     def compile(self, writer):
@@ -621,6 +627,19 @@ def get_num_cpus(headers):
         return 1
     return max (int(mat.group(1)), 1)
 
+def _parse_sato(writer, file):
+    sato_proc = {}
+    for line in file:
+        l = line.strip().split('\t')
+        start = l[0]
+        end = l[1]
+        pn = l[3]
+        task = l[2]
+        step = ':'.join([pn, task])
+        sato_proc[step] = [start, end]
+ 
+    return sato_proc
+
 def _do_parse(writer, state, name, file):
     writer.status("parsing '%s'" % name)
     t1 = clock()
@@ -645,6 +664,8 @@ def _do_parse(writer, state, name, file):
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(writer, file)
+    elif name == "sato.log":
+        state.sato = _parse_sato(writer, file)
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state

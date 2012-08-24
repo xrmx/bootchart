@@ -59,6 +59,8 @@ def _mk_options_parser():
 			       "To create a single annotation when any one of a set of processes is started, use commas to separate the names")
 	parser.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
 			  help="filename to write annotation points to")
+	parser.add_option("--poky", action="store_true", dest="poky", default=False,
+			  help="Render poky build process")
 	return parser
 
 class Writer:

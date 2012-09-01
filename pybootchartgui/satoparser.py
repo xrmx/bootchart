@@ -31,8 +31,7 @@ def parse_paths(state, paths):
             print "path %s does not exists"
             continue
         if os.path.isdir(path):
-            files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] ]
-            files.sort()
+            files = sorted([os.path.join(path, f) for f in os.listdir(path)])
             state = parse_paths(state, files)
         else:
             state = _do_parse_poky(state, path)

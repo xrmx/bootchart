@@ -137,16 +137,13 @@ def main(argv=None):
 			print('%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60)))
 		else:
 			if options.annotate_file:
-				f = open (options.annotate_file, "w")
-				try:
-					for time in res[4]:
+				with open (options.annotate_file, "w") as f:
+					for time in res.times:
 						if time is not None:
 							# output as ms
 							print(time * 10, file=f)
 						else:
 							print(file=f)
-				finally:
-					f.close()
 			filename = _get_filename(args, options)
 			def render():
 				batch.render(writer, res, options, filename)

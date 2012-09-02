@@ -121,14 +121,14 @@ def main(argv=None):
 			print("No path given, trying /var/log/bootchart.tgz")
 			args = [ "/var/log/bootchart.tgz" ]
 
-		res = parsing.Trace(writer, args, options)
+		trace = parsing.Trace(writer, args, options)
 
 		if options.interactive:
 			from . import gui
-			gui.show(res, options)
+			gui.show(trace, options)
 		elif options.boottime:
 			import math
-			proc_tree = res.proc_tree
+			proc_tree = trace.proc_tree
 			if proc_tree.idle:
 			    duration = proc_tree.idle
 			else:
@@ -138,7 +138,7 @@ def main(argv=None):
 		else:
 			if options.annotate_file:
 				with open (options.annotate_file, "w") as f:
-					for time in res.times:
+					for time in trace.times:
 						if time is not None:
 							# output as ms
 							print(time * 10, file=f)
@@ -146,7 +146,7 @@ def main(argv=None):
 							print(file=f)
 			filename = _get_filename(args, options)
 			def render():
-				batch.render(writer, res, options, filename)
+				batch.render(writer, trace, options, filename)
 			if options.profile:
 				import cProfile
 				import pstats

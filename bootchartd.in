@@ -40,7 +40,7 @@ AUTO_RENDER_DIR="/var/log"
 AUTO_RENDER_FORMAT="png"
 
 # The processes we have to wait for
-EXIT_PROC="kdm_greet xterm konsole gnome-terminal metacity mutter gnome-shell compiz ldm icewm-session enlightenment xfwm4 openbox"
+EXIT_PROC="kdm_greet xterm konsole gnome-terminal metacity mutter gnome-shell compiz ldm icewm-session enlightenment xfwm4 openbox lightdm-gtk-greeter"
 
 # Read configuration.
 CONF="/etc/bootchartd.conf"

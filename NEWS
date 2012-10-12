@@ -1,4 +1,6 @@
 bootchart2 UNRELEASED:
+	+ bootchartd
+		+ Add lightdm-gtk-greeter to EXIT_PROC (Paul Menzel)
 	+ pybootchartgui (Riccardo)
 		+ Fix --annotate-file
 		+ More robust meminfo parsing

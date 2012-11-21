@@ -218,6 +218,11 @@ def time_in_hz_to_ideal_coord(t_hz):
 def user_to_time(x):
 	return (x - off_x) * HZ / SEC_W + time_origin_drawn
 
+def ctx_save__time_in_hz_to_x(ctx):
+	ctx.save()
+	ctx.scale(float(SEC_W) / HZ, 1.0)
+	ctx.translate(-time_origin_drawn, 0.0)
+
 def draw_sec_labels(ctx, rect, nsecs):
 	ctx.set_font_size(AXIS_FONT_SIZE)
 	prev_x = 0
@@ -697,14 +702,14 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 	#          XX  should look up time of previous sample, not assume 'proc_tree.sample_period'
 	#    2. proc start after sampling
 	last_time = max(proc.start_time, proc.samples[0].time - proc_tree.sample_period)
-	last_tx = time_in_hz_to_ideal_coord(last_time)
+	ctx_save__time_in_hz_to_x(ctx)
 	for sample in proc.samples[1:] :
-		tx = time_in_hz_to_ideal_coord(sample.time)
 		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
  		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 		# XXX  correct color for non-uniform sample intervals
-		draw_fill_rect(ctx, cpu_color, (last_tx, y, tx - last_tx, proc_h))
-		last_tx = tx
+		draw_fill_rect(ctx, cpu_color, (last_time, y, sample.time - last_time, proc_h))
+		last_time = sample.time
+	ctx.restore()
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)

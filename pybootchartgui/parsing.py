@@ -124,7 +124,8 @@ class Trace:
                 if ppid:
                     process.ppid = ppid * 1000
 
-        # stitch the tree together with pointers
+        # Init the upward "parent" pointers.
+        # Downward child pointers stored in a list -- remains empty until the ProcessTree is inited.
         for process in self.ps_stats.process_map.values():
             process.set_parent (self.ps_stats.process_map)
 

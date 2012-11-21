@@ -183,24 +183,14 @@ class ProcessTree:
                self.num_nodes(p.child_list) == 0
 
     def prune(self, process_subtree, parent, pruning_test):
-        """Prunes the process tree by removing idle processes and processes
-           that only live for the duration of a single top sample.  Sibling
-           processes with the same command line (i.e. threads) are merged
-           together. This filters out sleepy background processes, short-lived
-           processes and bootcharts' analysis tools.
-        """
         n_pruned = 0
         idx = 0
         while idx < len(process_subtree):
             p = process_subtree[idx]
-            if parent != None or len(p.child_list) == 0:
-                if pruning_test(p):
-                    p.draw = False
-                    n_pruned += 1 + self.prune(p.child_list, p, lambda p: True)
-                else:
-                    n_pruned += self.prune(p.child_list, p, pruning_test)
-            else:
-                n_pruned += self.prune(p.child_list, p, pruning_test)
+            if pruning_test(p):
+                p.draw = False
+                n_pruned += 1
+            n_pruned += self.prune(p.child_list, p, pruning_test)
             idx += 1
 
         return n_pruned

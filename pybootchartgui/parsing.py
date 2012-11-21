@@ -282,11 +282,11 @@ def _handle_sample(processMap, writer, ltime, time,
 
         process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
         processMap[tid] = process
-        process.user_cpu_time[0] = userCpu
-        process.sys_cpu_time[0] = sysCpu
+        process.user_cpu_time[0] = process.user_cpu_time[1] = userCpu
+        process.sys_cpu_time [0] = process.sys_cpu_time [1] = sysCpu
 
     if ltime == None:           # collector startup, not usually coinciding with thread startup
-        userCpuLoad, sysCpuLoad, c_userCpuLoad, c_sysCpuLoad = 0, 0, 0, 0
+        userCpuLoad, sysCpuLoad = 0, 0
     else:
         userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
 
@@ -295,8 +295,6 @@ def _handle_sample(processMap, writer, ltime, time,
 
     process.user_cpu_time[-1] = userCpu
     process.sys_cpu_time[-1] = sysCpu
-    process.c_user_cpu_time[-1] = c_userCpu
-    process.c_sys_cpu_time[-1] = c_sysCpu
     return processMap
 
 def _parse_proc_ps_log(options, writer, file):

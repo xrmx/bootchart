@@ -107,16 +107,13 @@ class Process:
         self.ppid = ppid
         self.start_time = start_time
         self.duration = 0
-        self.samples = []
+        self.samples = []        # list of ProcessCPUSample
         self.events = []         # time-ordered list of EventSample
         self.parent = None
         self.child_list = []
 
-
-        self.user_cpu_time = [-1, -1]
-        self.sys_cpu_time = [-1, -1]
-        self.c_user_cpu_time = [-1, -1]
-        self.c_sys_cpu_time = [-1, -1]
+        self.user_cpu_time = [None, None]    # [first, last]
+        self.sys_cpu_time = [None, None]
 
         self.last_cpu_ns = 0
         self.last_blkio_delay_ns = 0
@@ -125,14 +122,11 @@ class Process:
         self.draw = True       # dynamic, view-dependent per-process state boolean
 
     def CPUCount(self):
+        ''' total CPU clock ticks reported for this process during the profiling run'''
         return self.user_cpu_time[-1] + self.sys_cpu_time[-1] \
                         - (self.user_cpu_time[0] + self.sys_cpu_time[0])
 
-    def c_CPUCount(self):
-        return self.c_user_cpu_time[-1] + self.c_sys_cpu_time[-1] \
-                        - (self.c_user_cpu_time[0] + self.c_sys_cpu_time[0])
-
-        # split this process' run - triggered by a name change
+    # split this process' run - triggered by a name change
     #  XX  called only if taskstats.log is provided (bootchart2 daemon)
     def split(self, writer, pid, cmd, ppid, start_time):
         split = Process (writer, pid, cmd, ppid, start_time)
@@ -158,6 +152,7 @@ class Process:
         self.activeCount = sum( [1 for sample in self.samples if sample.state != 'S'])
 
     def calc_load(self, userCpu, sysCpu, interval):
+        # all args in units of clock ticks
         userCpuLoad = float(userCpu - self.user_cpu_time[-1]) / interval
         sysCpuLoad = float(sysCpu - self.sys_cpu_time[-1]) / interval
         return (userCpuLoad, sysCpuLoad)

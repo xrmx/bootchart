@@ -226,7 +226,10 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_dash([])
 
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = True):
-	ctx.set_line_width(1.0)
+	if square and not fill:
+		ctx.set_line_width(2.0)
+	else:
+		ctx.set_line_width(1.0)
 	x_shift = proc_tree.start_time
 
 	def transform_point_coords(point, x_base, y_base, \
@@ -259,13 +262,24 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, squa
 	ctx.set_source_rgba(*color)
 	ctx.move_to(*first)
 	prev_y = first[1]
+	prev_point = data[0]
 	for point in data:
 		x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
 					       chart_bounds[0], chart_bounds[1])
 		if square:
-			ctx.line_to(x, prev_y)
+			if fill:
+				ctx.line_to(x, prev_y)  # rightward
+				ctx.line_to(x, y)       # upward or downward
+			else:
+				# draw horizontals only, and then only if non-zero -- result cannot be "filled"
+				if prev_point[1] > 0:
+					ctx.line_to(x, prev_y)  # rightward
+				ctx.move_to(x, y)       # upward or downward, maybe rightward
+				prev_point = point
 			prev_y = y
-		ctx.line_to(x, y)
+		else:
+			ctx.line_to(x, y)
+
 	if fill:
 		ctx.set_line_width(0.0)
 		ctx.stroke_preserve()

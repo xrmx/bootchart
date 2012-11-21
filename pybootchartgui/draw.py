@@ -84,7 +84,7 @@ MEM_SWAP_COLOR = DISK_TPUT_COLOR
 # Process border color.
 PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
-PROC_COLOR_D = (0.76, 0.45, 0.35, 1.0)
+PROC_COLOR_D = PROCS_BLOCKED_COLOR   # (0.76, 0.45, 0.35, 1.0)
 # Running process color.
 PROC_COLOR_R = CPU_COLOR   # (0.40, 0.50, 0.80, 1.0)  # should look similar to CPU_COLOR
 # Sleeping process color.
@@ -129,7 +129,7 @@ HSV_STEP = 7
 STATE_UNDEFINED = 0
 STATE_RUNNING   = 1
 STATE_SLEEPING  = 2
-STATE_WAITING   = 3
+STATE_WAITING   = 3  # sole useful state info?
 STATE_STOPPED   = 4
 STATE_ZOMBIE    = 5
 
@@ -613,14 +613,6 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
-def get_sample_width(proc_tree, rect, tx, last_tx):
-	tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration()))
-	if last_tx != -1 and abs(last_tx - tx) <= tw:
-		tw -= last_tx - tx
-		tx = last_tx
-	tw = max (tw, 1) # nice to see at least something    XX
-	return tw, tx + tw
-
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	x = time_in_hz_to_ideal_coord(proc.start_time)
 	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x
@@ -673,7 +665,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
  		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 		# XXX  correct color for non-uniform sample intervals
-		draw_fill_rect(ctx, cpu_color, (last_tx, y, tx - last_tx, proc_h * 7 / 8))
+		draw_fill_rect(ctx, cpu_color, (last_tx, y, tx - last_tx, proc_h))
 		last_tx = tx
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
@@ -700,8 +692,8 @@ def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 		state = get_proc_state( sample.state )
 		if state == STATE_WAITING:
 			color = STATE_COLORS[state]
-			tw, last_tx = get_sample_width(proc_tree, rect, tx, last_tx)
-			draw_fill_rect(ctx, color, (tx, y + proc_h * 7 / 8, tw, proc_h / 8))
+			ctx.set_source_rgba(*color)
+			draw_diamond(ctx, tx, y + proc_h/2, 2.5, proc_h)
 
 def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.set_source_rgba(*DEP_COLOR)

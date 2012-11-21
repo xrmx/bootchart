@@ -237,6 +237,7 @@ def draw_sec_labels(ctx, rect, nsecs):
 
 def draw_box_ticks(ctx, rect):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))
+	return
 
 	ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
 
@@ -369,7 +370,7 @@ def extents(options, xscale, trace):
 	else:
 		time_origin_drawn = trace.ps_stats.start_time - proc_tree.sample_period
 	global SEC_W
-	SEC_W = int (xscale * sec_w_base)
+	SEC_W = xscale * sec_w_base
 
 	w = int (csec_to_xscaled(proc_tree.end_time)) + proc_tree.sample_period + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
@@ -724,7 +725,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ctx.set_source_rgba(*EVENT_COLOR)
 	last_x_touched = 0
 	last_label_str = None
-	precision = min(6, SEC_W/100)
+	precision = int( min(6, SEC_W/100))
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue

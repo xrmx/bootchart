@@ -270,6 +270,13 @@ def _parse_timed_blocks(file):
     blocks = file.read().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
+# Cases to handle:
+#   1. run starting   (ltime==None)
+#   1.1  thread started in preceding sample_period
+#   1.2  thread started earlier
+#   2. run continuing
+#   2.1  thread continues    (tid in processMap)
+#   2.2  thread starts
 def _handle_sample(processMap, writer, ltime, time,
                    pid, tid, cmd, state, ppid, userCpu, sysCpu, c_user, c_sys, starttime):
     assert(type(c_user) is IntType)
@@ -285,14 +292,17 @@ def _handle_sample(processMap, writer, ltime, time,
                           (time, starttime, time-starttime, tid/1000))
 
         process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
+        if ltime:      # process is starting during profiling run
+            process.user_cpu_ticks[0] = 0
+            process.sys_cpu_ticks [0] = 0
+            ltime = starttime
+        else:
+            process.user_cpu_ticks[0] = userCpu
+            process.sys_cpu_ticks [0] = sysCpu
+            ltime = -100000   #  XX  hacky way of forcing reported load toward zero
         processMap[tid] = process      # insert new process into the dict
-        process.user_cpu_ticks[0] = process.user_cpu_ticks[1] = userCpu
-        process.sys_cpu_ticks [0] = process.sys_cpu_ticks [1] = sysCpu
 
-    if ltime == None:           # collector startup, not usually coinciding with thread startup
-        userCpuLoad, sysCpuLoad = 0, 0
-    else:
-        userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
+    userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
 
     cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, c_user, c_sys, 0.0, 0.0)
     process.samples.append(ProcessSample(time, state, cpuSample))

@@ -122,8 +122,8 @@ class Process:
         self.parent = None
         self.child_list = []
 
-        self.user_cpu_ticks = [None, None]    # [first, last]
-        self.sys_cpu_ticks = [None, None]
+        self.user_cpu_ticks = [None, 0]    # [first, last]
+        self.sys_cpu_ticks = [None, 0]
 
         # For transient use as an accumulator during early parsing -- when
         # concurrent samples of all threads can be accessed O(1).

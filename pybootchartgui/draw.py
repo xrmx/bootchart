@@ -736,7 +736,11 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 	ctx.cr.set_line_width(1.0)
 	ctx.cr.move_to(x+w, y)
 	ctx.cr.rel_line_to(-w, 0)
-	ctx.cr.rel_line_to(0, C.proc_h)
+	if proc.start_time < ctx.time_origin_drawn:
+		ctx.cr.stroke()
+		ctx.cr.move_to(x, y+C.proc_h)
+	else:
+		ctx.cr.rel_line_to(0, C.proc_h)
 	ctx.cr.rel_line_to(w, 0)
 	ctx.cr.stroke()
 
@@ -806,7 +810,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
 		if proc.draw and child.draw:
 			# XX  draws lines on top of the process name label
-			draw_process_connecting_lines(ctx, x, y, child_x, child_y)
+			pass # draw_process_connecting_lines(ctx, x, y, child_x, child_y)
 		next_y += C.proc_h * proc_tree.num_nodes_drawn([child])  # XX why a second recursion?
 
 	return x, y

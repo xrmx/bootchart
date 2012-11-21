@@ -508,15 +508,15 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 
 	return curr_y
 
-ISOTEMPORAL_CSEC = None
-ISOTEMPORAL_render_serial = None
+SWEEP_CSEC = None
+SWEEP_render_serial = None
 
 #
 # Render the chart.
 #
 # "ctx" is the Cairo drawing context.  ctx transform already has panning translation
 # and "zoom" scaling applied, but not the asymmetrical xscale arg.
-def render(ctx, options, xscale, trace, isotemporal_csec = None):
+def render(ctx, options, xscale, trace, sweep_csec = None):
 	#traceback.print_stack()
 	(w, h) = extents (options, xscale, trace)
 
@@ -525,11 +525,11 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
 
 	global render_serial
-	if isotemporal_csec:
-		global ISOTEMPORAL_CSEC
-		ISOTEMPORAL_CSEC = isotemporal_csec
-		global ISOTEMPORAL_render_serial
-		ISOTEMPORAL_render_serial = render_serial
+	if sweep_csec:
+		global SWEEP_CSEC
+		SWEEP_CSEC = sweep_csec
+		global SWEEP_render_serial
+		SWEEP_render_serial = render_serial
 
 	ctx.save()
 	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
@@ -576,8 +576,8 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 		cuml_rect = (0, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
-	if isotemporal_csec:
-		draw_isotemporal(ctx, isotemporal_csec)
+	if sweep_csec:
+		draw_sweep(ctx, sweep_csec)
 
 	render_serial += 1
 
@@ -585,13 +585,13 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 
 render_serial = 0
 
-def draw_isotemporal(ctx, isotemporal_csec):
+def draw_sweep(ctx, sweep_csec):
 	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
 	ctx.set_line_width(0.8)
 	ctx.set_dash([4, 2])
-	isotemporal_x = csec_to_xscaled(isotemporal_csec)
-	ctx.move_to(isotemporal_x, 0)
-	ctx.line_to(isotemporal_x, CUML_HEIGHT)
+	sweep_x = csec_to_xscaled(sweep_csec)
+	ctx.move_to(sweep_x, 0)
+	ctx.line_to(sweep_x, CUML_HEIGHT)
 	ctx.stroke()
 
 def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
@@ -748,8 +748,8 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 
 	# draw time labels
 	# XX  Add support for "absolute" boot-time origin case?
-	if ISOTEMPORAL_CSEC:
-		time_origin_relative = ISOTEMPORAL_CSEC
+	if SWEEP_CSEC:
+		time_origin_relative = SWEEP_CSEC
 	else:
 		# align to time of first sample
 		time_origin_relative = time_origin_drawn + proc_tree.sample_period
@@ -761,8 +761,8 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 			continue
 
 		delta = float(ev.time_usec)/1000/10 - time_origin_relative
-		if ISOTEMPORAL_CSEC:
-			if ev.raw_log_line and ISOTEMPORAL_render_serial == render_serial and \
+		if SWEEP_CSEC:
+			if ev.raw_log_line and SWEEP_render_serial == render_serial and \
 			       abs(delta*SEC_W) < 1*sec_w_base:
 				print(ev.raw_log_line)
 			if abs(delta) < CSEC:

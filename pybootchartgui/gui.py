@@ -58,7 +58,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.hadj_changed_signal_id = None
         self.vadj_changed_signal_id = None
 
-        self.isotemporal_csec = None
+        self.sweep_csec = None
 
     def do_expose_event(self, event):    # XX called on mouse entering or leaving window -- can these be disabled?
         cr = self.window.cairo_create()
@@ -73,7 +73,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)
-        draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_csec)
+        draw.render(cr, self.options, self.xscale, self.trace, self.sweep_csec)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
@@ -179,10 +179,10 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousex = event.x
             self.prevmousey = event.y
         if event.button == 2:
-            self.isotemporal_csec, uy = self.device_to_csec_user_y(event.x, 0)
+            self.sweep_csec, uy = self.device_to_csec_user_y(event.x, 0)
             self.queue_draw()
         if event.button == 3:
-            self.isotemporal_csec = None
+            self.sweep_csec = None
             self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False

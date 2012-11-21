@@ -75,6 +75,10 @@ def _mk_options_parser():
 	parser.add_option("-j", "--justify", dest="justify", default="left", choices=["left", "center"],
 			  help="relocate the text within process bars (left, center)")
 
+	# event plotting
+	parser.add_option("-e", "--events", dest="event_regex", metavar="REGEX", default=".*",
+			  help="plot only events matching REGEX")
+
 	pg_Bootchart2 = optparse.OptionGroup(parser,"Bootchart2-specific",
 			    "Options effective only for logs coming from the Bootchart2 binary-format collector")
 	pg_Bootchart2.add_option("--show-all", action="store_true", dest="show_all", default=False,

@@ -615,9 +615,12 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 #		print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
 		draw_fill_rect(ctx, cpu_color, (tx, y, tw, proc_h * 7 / 8))
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
+	ev_regex = re.compile(OPTIONS.event_regex)
 	y += proc_h   # move to bottom of process bar
 	ctx.set_source_rgba(*EVENT_COLOR)
 	for ev in proc.events:
+		if not ev_regex.match(ev.match):
+			continue
 		tx = rect[0] + round(((ev.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
 		ctx.move_to(tx-1, y)
 		ctx.line_to(tx,   y-5)

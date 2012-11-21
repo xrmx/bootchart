@@ -267,7 +267,6 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 
 bar_h = 55
 meminfo_bar_h = 2 * bar_h
-header_h = 110 + 2 * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
 # offsets
 off_x, off_y = 10, 10
 sec_w_base = 50 # the width of a second
@@ -282,7 +281,7 @@ def extents(options, xscale, trace):
 	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
-		h += header_h
+		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
 	if proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)
@@ -326,8 +325,9 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
         # render I/O utilization
 	for partition in trace.disk_stats:
-		draw_text(ctx, partition.name, TEXT_COLOR, off_x, curr_y+35)
-		chart_rect = (off_x, curr_y+30+10, w, bar_h)
+		draw_text(ctx, partition.name, TEXT_COLOR, off_x, curr_y+30)
+
+		chart_rect = (off_x, curr_y+30+5, w, bar_h)
 		if clip_visible (clip, chart_rect):
 			draw_box_ticks (ctx, chart_rect, sec_w)
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
@@ -342,16 +342,16 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 					    [(sample.time, sample.tput) for sample in partition.samples], \
 					    proc_tree, None)
 
-	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
+		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
-	shift_x, shift_y = -20, 20
-	if (pos_x < off_x + 245):
-		shift_x, shift_y = 5, 40
+		shift_x, shift_y = -20, 20
+		if (pos_x < off_x + 245):
+			shift_x, shift_y = 5, 40
 
-	label = "%dMB/s" % round ((max_sample.tput) / 1024.0)
-	draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
+		label = "%dMB/s" % round ((max_sample.tput) / 1024.0)
+		draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
-	curr_y = curr_y + 30 + bar_h
+		curr_y = curr_y + 30 + bar_h
 
 	# render mem usage
 	chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)

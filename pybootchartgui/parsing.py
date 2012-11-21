@@ -616,7 +616,7 @@ def _parse_events_log(writer, file):
     Extracting {timestamp_microseconds_from_boot, tid, pid, group_string, raw_line} from
     the target-specific system logs is the responsibility of a target-specific script.
     '''
-    split_re = re.compile ("^(\S+) (\S+) (\S+) (\S+) (\S+) (\S+)$")
+    split_re = re.compile ("^(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+)$")
     timed_blocks = _parse_timed_blocks(file)
     samples = []
     for time, lines in timed_blocks:

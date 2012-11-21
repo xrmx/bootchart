@@ -162,11 +162,6 @@ class Process:
     def calc_load(self, userCpu, sysCpu, interval):
         userCpuLoad = float(userCpu - self.user_cpu_time[-1]) / interval
         sysCpuLoad = float(sysCpu - self.sys_cpu_time[-1]) / interval
-        cpuLoad = userCpuLoad + sysCpuLoad
-        # normalize
-        if cpuLoad > 1.0:
-            userCpuLoad = userCpuLoad / cpuLoad
-            sysCpuLoad = sysCpuLoad / cpuLoad
         return (userCpuLoad, sysCpuLoad)
 
     def set_parent(self, processMap):

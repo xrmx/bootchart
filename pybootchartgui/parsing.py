@@ -36,6 +36,7 @@ class Trace:
         self.ps_stats = None
         self.taskstats = None
         self.cpu_stats = None
+        self.events = None
         self.cmdline = None
         self.kernel = None
         self.kernel_tree = None
@@ -50,7 +51,7 @@ class Trace:
 
         # Turn that parsed information into something more useful
         # link processes into a tree of pointers, calculate statistics
-        self.compile(writer)
+        self.adorn_process_map(writer)
 
         # Crop the chart to the end of the first idle period after the given
         # process
@@ -86,8 +87,7 @@ class Trace:
         return self.headers != None and self.disk_stats != None and \
                self.ps_stats != None and self.cpu_stats != None
 
-
-    def compile(self, writer):
+    def adorn_process_map(self, writer):
 
         def find_parent_id_for(pid):
             if pid is 0:
@@ -117,6 +117,17 @@ class Trace:
                     proc.args = cmd['args']
 #                else:
 #                    print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
+
+        # merge in events
+        if self.events is not None:
+            for ev in self.events:
+                key = int(ev.pid) * 1000
+                if key in self.ps_stats.process_map:
+                    proc = self.ps_stats.process_map[key]
+                    if len(proc.samples) < 1 or ev.time < proc.samples[-1].time:
+                        proc.events.append(ev)
+                else:
+                    writer.warn("event for proc '%s' lost " % ev.pid)
 
         # re-parent any stray orphans if we can
         if self.parent_map is not None:

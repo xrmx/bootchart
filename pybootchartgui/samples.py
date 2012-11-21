@@ -61,7 +61,7 @@ class ProcessSample:
     def __init__(self, time, state, cpu_sample):
         self.time = time
         self.state = state
-        self.cpu_sample = cpu_sample
+        self.cpu_sample = cpu_sample  # tuple
 
     def __str__(self):
         return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample)
@@ -87,6 +87,7 @@ class Process:
         self.start_time = start_time
         self.duration = 0
         self.samples = []
+        self.events = []         # time-ordered list of EventSample
         self.parent = None
         self.child_list = []
 

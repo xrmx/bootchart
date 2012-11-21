@@ -398,16 +398,19 @@ def _parse_proc_stat_log(file):
             idle = float(times[3] - ltimes[3])
             iowait = float(times[4] - ltimes[4])
             aSum = max(user + system + idle + iowait, 1)
-            procs_running = 0
-            procs_blocked = 0
 
-            for line in lines:
-                tokens = line.split()
-                if tokens[0] == 'procs_running':
-                    procs_running = int(tokens[1])
-                if tokens[0] == 'procs_blocked':
-                    procs_blocked = int(tokens[1])
+        procs_running = 0
+        procs_blocked = 0
+        for line in lines:
+            tokens = line.split()
+            if tokens[0] == 'procs_running':
+                procs_running = int(tokens[1])
+            if tokens[0] == 'procs_blocked':
+                procs_blocked = int(tokens[1])
+        if ltimes:
             samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum, 0.0, procs_running, procs_blocked) )
+        else:
+            samples.append( CPUSample(time, 0.0, 0.0, 0.0, 0.0, procs_running, procs_blocked) )
         ltimes = times
     return samples
 

@@ -23,6 +23,7 @@ import tarfile
 from time import clock
 from collections import defaultdict
 from functools import reduce
+from types import *
 
 from .samples import *
 from .process_tree import ProcessTree
@@ -141,7 +142,7 @@ class Trace:
                                 (ev.pid, ev.tid, ev.raw_log_line()))
 
         # re-parent any stray orphans if we can
-        if self.parent_map is not None:
+        if self.parent_map is not None:   # requires either "kernel_pacct" or "paternity.log"
             for process in self.ps_stats.process_map.values():
                 ppid = find_parent_id_for (int(process.pid / 1000))
                 if ppid:
@@ -270,7 +271,10 @@ def _parse_timed_blocks(file):
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
 def _handle_sample(processMap, writer, ltime, time,
-                   pid, tid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime):
+                   pid, tid, cmd, state, ppid, userCpu, sysCpu, c_user, c_sys, starttime):
+    assert(type(c_user) is IntType)
+    assert(type(c_sys) is IntType)
+
     if tid in processMap:
         process = processMap[tid]
         process.cmd = cmd.strip('()') # XX  loses name changes prior to the final sample
@@ -281,21 +285,96 @@ def _handle_sample(processMap, writer, ltime, time,
                           (time, starttime, time-starttime, tid/1000))
 
         process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
-        processMap[tid] = process
-        process.user_cpu_time[0] = process.user_cpu_time[1] = userCpu
-        process.sys_cpu_time [0] = process.sys_cpu_time [1] = sysCpu
+        processMap[tid] = process      # insert new process into the dict
+        process.user_cpu_ticks[0] = process.user_cpu_ticks[1] = userCpu
+        process.sys_cpu_ticks [0] = process.sys_cpu_ticks [1] = sysCpu
 
     if ltime == None:           # collector startup, not usually coinciding with thread startup
         userCpuLoad, sysCpuLoad = 0, 0
     else:
         userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
 
-    cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+    cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, c_user, c_sys, 0.0, 0.0)
     process.samples.append(ProcessSample(time, state, cpuSample))
 
-    process.user_cpu_time[-1] = userCpu
-    process.sys_cpu_time[-1] = sysCpu
+    # per-tid store for use by a later phase of parsing of samples gathered at this 'time'
+    process.user_cpu_ticks[-1] = userCpu
+    process.sys_cpu_ticks[-1] = sysCpu
     return processMap
+
+# Consider this case: a process P and three waited-for children C1, C2, C3.
+# The collector daemon bootchartd takes samples at times t-2 and t-1.
+#
+#                             t-2   t-2+e   t-1-e     t-1    -->
+#                               .       .       .       .
+#    bootchartd            sample       .       .  sample
+#                               .       .       .       .
+#    P                          R       R       R       R
+#    C1 -- long-lived           R       R       R       R
+#    C2 -- exited               R    exit       -       -
+#    C3 -- phantom              -    fork    exit       -
+#
+# C1's CPU usage will be reported at both sample times t-2 and t-1 in the
+# {utime,stime} field of /proc/PID/stat, in units of clock ticks.
+# C2's usage will be reported at t-2.  Any whole clock ticks thereafter will be
+# accumulated by the kernel, and reported to bootchartd at t-1 in the
+# {cutime,cstime} fields of its parent P, along with the rest of the clock ticks
+# charged to C2 during its entire lifetime.
+# C3's clock ticks will never be seen directly in any sample taken by
+# bootchartd, rather only in increments to P's {cutime,cstime} fields as
+# reported at t-1.
+#
+# We wish to graph on P's process bar at time t-1 all clock ticks consumed by
+# any of its children between t-2 and t-1 that cannot be reported on the
+# children's process bars -- C2's process bar ends at t-2 and C3 has none at
+# all.  We'll call it "lost child time".  The lost clock ticks may be counted
+# so:
+#
+#     P{cutime,cstime}(t-1) - P{cutime,cstime}(t-2) - C2{utime,stime}(t-2)
+
+def accumulate_missing_child_ltime(processMap, ltime):
+    """ For only whole-process children found to have gone missing between 'ltime' and 'time' i.e. now,
+    accumulate clock ticks of each child's lifetime total to a counter
+    in the parent's Process"""
+    for p_p in processMap.itervalues():
+        p_p.missing_child_ticks = 0
+
+    for c_p in processMap.itervalues():
+        if c_p.ppid != 0 and \
+               c_p.tid == c_p.pid and \
+               c_p.samples[-1].time == ltime:     # must have exited at 'time'
+            p_p = processMap[c_p.ppid]
+            p_p.missing_child_ticks += c_p.user_cpu_ticks[1] + c_p.sys_cpu_ticks[1]
+            continue
+            print "gone_missing,_last_seen_at", ltime, \
+                  c_p.ppid/1000, ":", c_p.pid/1000, ":", c_p.tid/1000, p_p.missing_child_ticks
+
+def compute_lost_child_times(processMap, ltime, time):
+    """ For each parent process live at 'time', find clock ticks reported by
+    children exiting between 'ltime' and 'time'.
+    calculate CPU consumption during
+    the sample period of newly-lost children.
+    Insert time-weighted value into current sample."""
+    interval = time - ltime
+    for p_p in processMap.itervalues():
+        if p_p.pid != p_p.tid or \
+               p_p.samples[-1].time != time or \
+               len(p_p.samples) < 2:
+            continue
+        def total_c_ticks(sample):
+            return sample.cpu_sample.c_user + sample.cpu_sample.c_sys
+        parent_c_tick_delta = total_c_ticks(p_p.samples[-1]) \
+                              - total_c_ticks(p_p.samples[-2])
+        # See this line in the diagram and comment above.
+        #     P{cutime,cstime}(t-1) - P{cutime,cstime}(t-2) - C2{utime,stime}(t-2)
+        # XX  Aggregating user and sys at this phase, before stuffing result into a per-sample
+        # object.  Some other time might be better.
+        lost_child_ticks = parent_c_tick_delta - p_p.missing_child_ticks
+
+        p_p.samples[-1].lost_child = float(lost_child_ticks)/interval
+        if (parent_c_tick_delta != 0 or p_p.missing_child_ticks != 0):
+            print "compute_lost_child_times()", time, p_p.pid/1000, \
+                  parent_c_tick_delta, p_p.missing_child_ticks, lost_child_ticks, interval #, p_p.samples[-1].lost_child
 
 def _parse_proc_ps_log(options, writer, file):
     """
@@ -318,14 +397,18 @@ def _parse_proc_ps_log(options, writer, file):
             offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]
             pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
             userCpu, sysCpu = int(tokens[13+offset]), int(tokens[14+offset]),
-            c_userCpu, c_sysCpu = int(tokens[15+offset]), int(tokens[16+offset])
+            c_user, c_sys = int(tokens[15+offset]), int(tokens[16+offset])
             starttime = int(tokens[21+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
             ppid *= 1000
             processMap = _handle_sample(processMap, writer, ltime, time,
-                                        pid, pid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime)
+                                        pid, pid, cmd, state, ppid,
+                                        userCpu, sysCpu, c_user, c_sys, starttime)
+        if ltime:
+            accumulate_missing_child_ltime(processMap, ltime)
+            compute_lost_child_times(processMap, ltime, time)
         ltime = time
 
     if len (timed_blocks) < 2:
@@ -371,7 +454,9 @@ def _parse_proc_ps_threads_log(options, writer, file):
             offset = [index for index, token in enumerate(tokens[2:]) if (len(token) > 0 and token[-1] == ')')][0]
             pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
             userCpu, sysCpu = int(tokens[7+offset]), int(tokens[8+offset])
-            c_userCpu, c_sysCpu = int(tokens[9+offset]), int(tokens[10+offset])
+            c_user, c_sys = int(tokens[9+offset]), int(tokens[10+offset])
+            assert(type(c_user) is IntType)
+            assert(type(c_sys) is IntType)
             starttime = int(tokens[13+offset])
 
             # magic fixed point-ness ...
@@ -380,7 +465,8 @@ def _parse_proc_ps_threads_log(options, writer, file):
             ppid *= 1000
 
             processMap = _handle_sample(processMap, writer, ltime, time,
-                                        pid, tid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime)
+                                        pid, tid, cmd, state, ppid,
+                                        userCpu, sysCpu, c_user, c_sys, starttime)
         ltime = time
 
     if len (timed_blocks) < 2:
@@ -458,6 +544,7 @@ def _parse_taskstats_log(writer, file):
             if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
 #                               print "proc %s cpu_ns %g delta_cpu %g" % (cmd, cpu_ns, delta_cpu_ns)
                 cpuSample = ProcessCPUSample('null', delta_cpu_ns, 0.0,
+                                      0, 0,
                                       delta_blkio_delay_ns,
                                       delta_swapin_delay_ns)
                 process.samples.append(ProcessSample(time, state, cpuSample))

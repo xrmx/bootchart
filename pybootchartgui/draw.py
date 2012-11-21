@@ -71,6 +71,7 @@ CPU_COLOR = (0.60, 0.65, 0.75, 1.0)
 CPU_SYS_COLOR = (0.70, 0.65, 0.40, 1.0)
 # IO wait chart color.
 IO_COLOR = (0.76, 0.48, 0.48, 0.5)
+
 PROCS_RUNNING_COLOR = (0.0, 1.0, 0.0, 1.0)
 PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
 
@@ -88,6 +89,8 @@ MEM_BUFFERS_COLOR = (0.4, 0.4, 0.4, 0.3)
 # Swap color
 MEM_SWAP_COLOR = DISK_TPUT_COLOR
 
+# Process CPU load of children -- including those waited for by the parent, but not captured by any collector sample
+CPU_CHILD_COLOR = (1.00, 0.70, 0.00, 1.0)
 # Process border color.
 PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
@@ -725,6 +728,8 @@ def draw_process_bar_chart_legends(ctx, curr_y):
 			 PROC_COLOR_R, 10+100+curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
 			 CPU_SYS_COLOR, 10+100+curr_x, curr_y, C.leg_s)
+        curr_x += 20 + draw_legend_box (ctx.cr, "Child CPU time lost, charged to parent",
+                         CPU_CHILD_COLOR, 10+100+curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
 			 PROC_COLOR_S, 10+100+curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
@@ -902,34 +907,43 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	last_time = max(proc.start_time,
 			proc.samples[0].time - proc_tree.sample_period)
 	for sample in proc.samples:
-		normalized = sample.cpu_sample.user + sample.cpu_sample.sys
-		if normalized > 0:
-			width = sample.time - last_time
-			height = normalized * C.proc_h
-			draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
+            cpu_self = sample.cpu_sample.user + sample.cpu_sample.sys
+	    cpu_exited_child = 0   # XXXX   sample.exited_child_user + sample.exited_child_sys
+	    width = sample.time - last_time
 
-			# in unlikely event of no sys time at all, skip setting of color to CPU_SYS_COLOR
-			if sample.cpu_sample.sys > 0:
-				height = sample.cpu_sample.sys * C.proc_h
-				draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h, width, -height))
-				if sample.cpu_sample.sys < normalized:
-					# draw a separator between the bar segments, to aid the eye in
-					# resolving the boundary
-					ctx.cr.save()
-					ctx.cr.move_to(last_time, y+C.proc_h-height)
-					ctx.cr.rel_line_to(width,0)
-					ctx.cr.set_source_rgba(*PROC_COLOR_S)
-					ctx.cr.set_line_width(DEP_STROKE/2)
-					ctx.cr.stroke()
-					ctx.cr.restore()
+	    if cpu_exited_child > 0:
+		height = (cpu_exited_child + cpu_self) * C.proc_h
+		draw_fill_rect(ctx.cr, CPU_CHILD_COLOR, (last_time, y+C.proc_h, width, -height))
 
-			# If thread ran at all, draw a "speed bump", in case rect was too short to resolve.
-			tick_height = C.proc_h/5
-			ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h, tick_height, math.pi, 0.0)
-			ctx.cr.close_path()
-			ctx.cr.fill()
+	    if cpu_exited_child != 0:
+		    print "cpu_exited_child == " + str(cpu_exited_child)
 
-		last_time = sample.time
+	    if cpu_self > 0:
+	        height = cpu_self * C.proc_h
+	        draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
+
+	        # in unlikely event of no sys time at all, skip setting of color to CPU_SYS_COLOR
+	        if sample.cpu_sample.sys > 0:
+	        	height = sample.cpu_sample.sys * C.proc_h
+	        	draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h, width, -height))
+	        	if sample.cpu_sample.sys < cpu_self:
+	    		# draw a separator between the bar segments, to aid the eye in
+	        		# resolving the boundary
+	        		ctx.cr.save()
+	        		ctx.cr.move_to(last_time, y+C.proc_h-height)
+	        		ctx.cr.rel_line_to(width,0)
+	        		ctx.cr.set_source_rgba(*PROC_COLOR_S)
+	        		ctx.cr.set_line_width(DEP_STROKE/2)
+	        		ctx.cr.stroke()
+	        		ctx.cr.restore()
+
+	        # If thread ran at all, draw a "speed bump", in case rect was too short to resolve.
+	        tick_height = C.proc_h/5
+	        ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h, tick_height, math.pi, 0.0)
+	        ctx.cr.close_path()
+	        ctx.cr.fill()
+
+	    last_time = sample.time
 	ctx.cr.restore()
 
 def usec_to_csec(usec):

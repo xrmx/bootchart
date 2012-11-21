@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
+from types import *
 
 class EventSample:
     def __init__(self, time, time_usec, pid, tid, comm, match, raw_log_file, raw_log_seek):
@@ -53,12 +54,17 @@ class SystemCPUSample:
         self.procs_blocked = procs_blocked
 
 class ProcessCPUSample:
-    def __init__(self, time, user, sys, io, swap):
+    def __init__(self, time, user, sys, c_user, c_sys, io, swap):
         self.time = time
         self.user = user
         self.sys = sys
+        self.c_user = c_user  # directly from /proc: accumulates upon exit of waited-for child
+        self.c_sys = c_sys
         self.io = io        # taskstats-specific
         self.swap = swap    # taskstats-specific
+
+        assert(type(self.c_user) is IntType)
+        assert(type(self.c_sys) is IntType)
 
     @property
     def cpu(self):
@@ -68,6 +74,18 @@ class ProcessCPUSample:
         return str(self.time) + "\t" + str(self.user) + "\t" + \
                str(self.sys) + "\t" + str(self.io) + "\t" + str (self.swap)
 
+class ProcessSample:
+    def __init__(self, time, state, cpu_sample):
+        self.time = time
+        self.state = state
+        self.cpu_sample = cpu_sample  # ProcessCPUSample
+
+        # delta per sample interval. Computed later in parsing.
+        self.lost_child = None
+
+    def __str__(self):
+        return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample)
+
 class MemSample:
     def __init__(self, time):
         self.time = time
@@ -76,14 +94,6 @@ class MemSample:
     def add_value(self, name, value):
         self.records[name] = value
 
-class ProcessSample:
-    def __init__(self, time, state, cpu_sample):
-        self.time = time
-        self.state = state
-        self.cpu_sample = cpu_sample  # tuple
-
-    def __str__(self):
-        return str(self.time) + "\t" + str(self.state) + "\t" + str(self.cpu_sample)
 
 class ProcessStats:
     """stats over the collection of all processes, all samples"""
@@ -112,19 +122,24 @@ class Process:
         self.parent = None
         self.child_list = []
 
-        self.user_cpu_time = [None, None]    # [first, last]
-        self.sys_cpu_time = [None, None]
+        self.user_cpu_ticks = [None, None]    # [first, last]
+        self.sys_cpu_ticks = [None, None]
+
+        # For transient use as an accumulator during early parsing -- when
+        # concurrent samples of all threads can be accessed O(1).
+        self.missing_child_ticks = None
 
         self.last_cpu_ns = 0
         self.last_blkio_delay_ns = 0
         self.last_swapin_delay_ns = 0
 
-        self.draw = True       # dynamic, view-dependent per-process state boolean
+        # dynamic, view-dependent per-process state boolean
+        self.draw = True
 
-    def CPUCount(self):
+    def cpu_tick_count_during_run(self):
         ''' total CPU clock ticks reported for this process during the profiling run'''
-        return self.user_cpu_time[-1] + self.sys_cpu_time[-1] \
-                        - (self.user_cpu_time[0] + self.sys_cpu_time[0])
+        return self.user_cpu_ticks[-1] + self.sys_cpu_ticks[-1] \
+                        - (self.user_cpu_ticks[0] + self.sys_cpu_ticks[0])
 
     # split this process' run - triggered by a name change
     #  XX  called only if taskstats.log is provided (bootchart2 daemon)
@@ -153,8 +168,8 @@ class Process:
 
     def calc_load(self, userCpu, sysCpu, interval):
         # all args in units of clock ticks
-        userCpuLoad = float(userCpu - self.user_cpu_time[-1]) / interval
-        sysCpuLoad = float(sysCpu - self.sys_cpu_time[-1]) / interval
+        userCpuLoad = float(userCpu - self.user_cpu_ticks[-1]) / interval
+        sysCpuLoad = float(sysCpu - self.sys_cpu_ticks[-1]) / interval
         return (userCpuLoad, sysCpuLoad)
 
     def set_parent(self, processMap):

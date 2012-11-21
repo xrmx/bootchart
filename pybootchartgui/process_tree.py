@@ -61,6 +61,8 @@ class ProcessTree:
         if not accurate_parentage:
             self.update_ppids_for_daemons(self.process_list)
 
+        self.init_lost_child_times()  # time delta
+
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
         self.options = options
@@ -103,6 +105,18 @@ class ProcessTree:
                 self.process_tree.append(proc)
             else:
                 proc.parent.child_list.append(proc)
+
+    def init_lost_child_times(self):
+        for c in self.process_list:
+            p = c.parent
+        return
+        for p in self.process_list:
+            for s in p.samples:
+                child_user_ticks = 0
+                child_sys_ticks = 0
+                for c in proc.child_list:
+                    child_user_ticks += c.samples[s.time].user
+                    child_sys_ticks += c.samples[s.time].sys
 
     def sort(self, process_subtree):
         """Sort process tree."""
@@ -175,7 +189,7 @@ class ProcessTree:
             self.build()
 
     def is_inactive_process(self, p):
-        return p.CPUCount() < self.options.show_high_CPU and \
+        return p.cpu_tick_count_during_run() < self.options.show_high_CPU and \
             (p.activeCount < 1 and len(p.events) == 0)
 
     def is_inactive_process_without_children(self, p):

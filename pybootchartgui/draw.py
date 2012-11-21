@@ -615,12 +615,10 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 		state = get_proc_state( sample.state )
 
 		color = STATE_COLORS[state]
-		if state == STATE_RUNNING:
+		if state == STATE_RUNNING or state == STATE_SLEEPING:
 			alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
 			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 #			print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
-		elif state == STATE_SLEEPING:
-			continue
 
 		draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
 

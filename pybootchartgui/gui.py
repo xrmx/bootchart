@@ -314,18 +314,23 @@ class PyBootchartShell(gtk.VBox):
         toolbar = uimanager.get_widget('/ToolBar')
         hbox.pack_start(toolbar, True, True)
 
+        def gtk_CheckButton(name):
+            button = gtk.CheckButton(name)
+            button.set_focus_on_click(False)
+            return button
+
         if not options.kernel_only:
             # Misc. options
-            button = gtk.CheckButton("thread details")
+            button = gtk_CheckButton("thread details")
             button.connect ('toggled', self.widget.show_thread_details)
             hbox.pack_start (button, False)
 
-        button = gtk.CheckButton("Events")
+        button = gtk_CheckButton("Events")
         button.connect ('toggled', self.widget.hide_events)
         button.set_active (True)
         hbox.pack_start (button, False)
 
-        button = gtk.CheckButton("event Time Labels")
+        button = gtk_CheckButton("event Time Labels")
         button.connect ('toggled', self.widget.print_event_times)
         button.set_active (options.app_options.print_event_times)
         hbox.pack_start (button, False)

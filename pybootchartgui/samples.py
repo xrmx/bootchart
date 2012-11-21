@@ -151,9 +151,8 @@ class Process:
             firstSample = self.samples[0]
             lastSample = self.samples[-1]
             self.start_time = min(firstSample.time, self.start_time)
-            # self.duration is a heuristic: process may be expected to continue running at least
-            # one-half of a sample period beyond the instant at which lastSample was taken.
-            self.duration = lastSample.time - self.start_time + samplePeriod / 2
+            # self.duration is the _minimum_ known duration of the thread
+            self.duration = lastSample.time - self.start_time
 
         self.activeCount = sum( [1 for sample in self.samples if \
                             (sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0) \

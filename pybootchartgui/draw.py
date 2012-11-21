@@ -776,7 +776,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 	xmin = ctx.cr.device_to_user(0, 0)[0]   # work around numeric overflow at high xscale factors
 	xmin = max(xmin, 0)
 	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
-	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
+	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x
 
 	if ctx.hide_process_y:
 		if ctx.hide_process_y < y - C.proc_h/4:
@@ -830,8 +830,15 @@ def draw_hidden_process_separator(ctx, y):
 	ctx.cr.restore()
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
-	#
 	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))
+
+	ctx_save__csec_to_xscaled(ctx)
+	# draw visual reminder of unknowability of thread end time
+	ctx.cr.move_to(proc.samples[-1].time + proc_tree.sample_period, y+C.proc_h/2)
+	ctx.cr.line_to(proc.samples[-1].time, y+C.proc_h)
+	ctx.cr.line_to(proc.samples[-1].time, y)
+	ctx.cr.close_path()
+	ctx.cr.fill()
 
 	# cases:
 	#    1. proc started before sampling did
@@ -839,7 +846,6 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	#    2. proc start after sampling
 	last_time = max(proc.start_time,
 			proc.samples[0].time - proc_tree.sample_period)
-	ctx_save__csec_to_xscaled(ctx)
 	for sample in proc.samples:
 		normalized = sample.cpu_sample.user + sample.cpu_sample.sys
 		if normalized > 0:

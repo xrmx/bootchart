@@ -404,6 +404,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot
 	else:
 		ctx.cr.stroke()
 	ctx.cr.set_line_width(1.0)
+	return max_y
 
 def in_chart_X_margin(proc_tree):
 	return proc_tree.sample_period
@@ -452,15 +453,21 @@ def render_charts(ctx, trace, curr_y, w, h):
 	# render I/O wait -- a backwards delta
 	draw_chart (ctx, IO_COLOR, True, chart_rect, \
 		    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
-		    proc_tree, None, plot_square)
+		    proc_tree,
+		    [0, 1],
+		    plot_square)
 	# render CPU load -- a backwards delta
 	draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 		    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
-		    proc_tree, None, plot_square)
-	# render CPU load -- a backwards delta
+		    proc_tree,
+		    [0, 1],
+		    plot_square)
+	# superimpose "sys time", the fraction of CPU load spent in kernel -- a backwards delta
 	draw_chart (ctx, CPU_SYS_COLOR, True, chart_rect, \
 		    [(sample.time, sample.sys) for sample in trace.cpu_stats], \
-		    proc_tree, None, plot_square)
+		    proc_tree,
+		    [0, 1],
+		    plot_square)
 
 	# instantaneous sample
 	draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,

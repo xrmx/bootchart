@@ -225,7 +225,7 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = False):
 	ctx.set_line_width(1.0)
 	x_shift = proc_tree.start_time
 
@@ -258,9 +258,13 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 
 	ctx.set_source_rgba(*color)
 	ctx.move_to(*first)
+	prev_y = first[1]
 	for point in data:
 		x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
 					       chart_bounds[0], chart_bounds[1])
+		if square:
+			ctx.line_to(x, prev_y)
+			prev_y = y
 		ctx.line_to(x, y)
 	if fill:
 		ctx.set_line_width(0.0)
@@ -329,11 +333,11 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
 		draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9])
+			    proc_tree, [0, 9], True)
 
 		draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9])
+			    proc_tree, [0, 9], True)
 
 	curr_y = curr_y + 30 + bar_h
 

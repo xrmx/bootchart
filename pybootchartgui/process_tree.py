@@ -58,7 +58,6 @@ class ProcessTree:
 
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
-        self.duration = self.end_time - self.start_time
         self.idle = idle
 
         if for_testing:
@@ -86,9 +85,11 @@ class ProcessTree:
 
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
-        self.duration = self.end_time - self.start_time
 
         self.num_proc = self.num_nodes(self.process_tree)
+
+    def duration(self):
+        return self.end_time - self.start_time
 
     def build(self):
         """Build the process tree from the list of top samples."""

@@ -230,7 +230,7 @@ def draw_annotations(ctx, proc_tree, times, rect):
 
     for time in times:
         if time is not None:
-            x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration)
+            x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration())
 
             ctx.move_to(rect[0] + x, rect[1] + 1)
             ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
@@ -339,7 +339,7 @@ def extents(options, xscale, trace):
 	SEC_W = int (xscale * sec_w_base)
 
 	proc_tree = options.proc_tree(trace)
-	w = int ((proc_tree.duration-time_origin_drawn) * SEC_W / HZ) + 2*off_x
+	w = int ((proc_tree.duration()-time_origin_drawn) * SEC_W / HZ) + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
@@ -434,7 +434,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 					    [(sample.time, sample.write) for sample in partition.samples], \
 					    proc_tree, [0, max_sample.tput])
 
-		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
+		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
 
 		shift_x, shift_y = -20, 20
 		if (pos_x < off_x + 245):
@@ -496,7 +496,7 @@ def render(ctx, options, xscale, trace):
 	if proc_tree.idle:
 		duration = proc_tree.idle
 	else:
-		duration = proc_tree.duration
+		duration = proc_tree.duration()
 
 	if not options.kernel_only:
 		curr_y = draw_header (ctx, trace.headers, duration)
@@ -599,7 +599,7 @@ def draw_header (ctx, headers, duration):
     return header_y
 
 def get_sample_width(proc_tree, rect, tx, last_tx):
-	tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
+	tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration()))
 	if last_tx != -1 and abs(last_tx - tx) <= tw:
 		tw -= last_tx - tx
 		tx = last_tx
@@ -607,9 +607,7 @@ def get_sample_width(proc_tree, rect, tx, last_tx):
 	return tw, tx + tw
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
-	#x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	x = time_in_hz_to_ideal_coord(proc.start_time)
-	#w = ((proc.duration) * rect[2] / proc_tree.duration)
 	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
@@ -826,8 +824,8 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 			# draw the trailing rectangle from the last time to
 			# before now, at the height of the last segment.
 			if render_seg:
-				w = math.ceil ((time - last_time) * chart_bounds[2] / proc_tree.duration) + 1
-				x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
+				w = math.ceil ((time - last_time) * chart_bounds[2] / proc_tree.duration()) + 1
+				x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration())
 				ctx.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
 				ctx.fill()
 #				ctx.stroke()
@@ -837,7 +835,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 			row[time] = y
 
 		# render the last segment
-		x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration)
+		x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration())
 		y = below[last_time] - cuml
 		ctx.rectangle (x, y, chart_bounds[2] - x, cuml)
 		ctx.fill()

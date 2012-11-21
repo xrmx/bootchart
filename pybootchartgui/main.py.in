@@ -191,7 +191,7 @@ def main(argv=None):
 			if proc_tree.idle:
 			    duration = proc_tree.idle
 			else:
-			    duration = proc_tree.duration
+			    duration = proc_tree.duration()
 			dur = duration / 100.0
 			print('%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60)))
 		else:

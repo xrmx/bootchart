@@ -50,8 +50,8 @@ def _mk_options_parser():
 				       description="PATH must point to a bootchart*.tgz",
 				       epilog=None,
                                        option_class=ExtendOption)
-	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
-			  help="start in active mode")
+	parser.add_option("--batch", action="store_false", dest="interactive", default=True,
+			  help="print a bootchart image, rather than starting the interactive GUI")
 	parser.add_option("--merge", dest="merge", default=False,
 			  help="Prune the process tree of all activity from dull children: " +
                           "stats are added to parent, child process is lost in drawing of chart.")
@@ -86,16 +86,18 @@ def _mk_options_parser():
                           "  (file:///usr/share/doc/python2.6/html/library/re.htm)")
 	parser.add_option("--hide-events", action="store_true", dest="hide_events", default=False,
 			  help="hide event ticks (small black triangles)")
-	parser.add_option("--print-event-times", action="store_true", dest="print_event_times", default=False,
-			  help="print time of each event, inside the box of the reporting process")
-	parser.add_option("--absolute-uptime-event-times", action="store_true", dest="absolute_uptime_event_times", default=False,
-			  help="print time of each event, inside the box of the reporting process")
+	parser.add_option("--no-print-event-times", action="store_false", default=True, dest="print_event_times",
+			  help="suppress printing time of each event, inside the box of the reporting process")
+	parser.add_option("--absolute-uptime-event-times", action="store_true", default=False,
+                          dest="absolute_uptime_event_times",
+			  help="event times shown are relative to system boot, rather than beginning of sampling")
 
 	parser.add_option("--dump-raw-event-context", action="store_true", dest="dump_raw_event_context", default=False,
 			  help="in addition to log lines for selected events, dump log lines as well," +
                           " retaining original log sort order, which may not be temporally correct.")
 
-	parser.add_option("--synthesize-sample-start-events", action="store_true", dest="synthesize_sample_start_events",
+	parser.add_option("--no-synthesize-sample-start-events", action="store_false", default=True,
+                          dest="synthesize_sample_start_events",
 			  help="synthesize an event marking each boundary between sample periods -- " +
                           "helpful in analyzing collector timing issues")
 

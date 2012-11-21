@@ -408,7 +408,7 @@ def _parse_proc_ps_log(options, writer, file):
                                         userCpu, sysCpu, c_user, c_sys, starttime)
         if ltime:
             accumulate_missing_child_ltime(processMap, ltime)
-            compute_lost_child_times(processMap, ltime, time)
+            # compute_lost_child_times(processMap, ltime, time)
         ltime = time
 
     if len (timed_blocks) < 2:

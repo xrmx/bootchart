@@ -28,28 +28,13 @@ from optparse import Option, OptionValueError
 from . import parsing
 from . import batch
 
-class ExtendOption(Option):
-    ACTIONS = Option.ACTIONS + ("extend",)
-    STORE_ACTIONS = Option.STORE_ACTIONS + ("extend",)
-    TYPED_ACTIONS = Option.TYPED_ACTIONS + ("extend",)
-    ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + ("extend",)
-
-    def take_action(self, action, dest, opt, value, values, parser):
-        if action == "extend":
-            lvalue = value.split(",")
-            values.ensure_value(dest, []).extend(lvalue)
-        else:
-            Option.take_action(
-                self, action, dest, opt, value, values, parser)
-
 def _mk_options_parser():
 	"""Make an options parser."""
 	usage = "%prog [options] PATH"
 	version = "%prog v@VER@"
 	parser = optparse.OptionParser(usage=usage, version=version,
 				       description="PATH must point to a bootchart*.tgz",
-				       epilog=None,
-                                       option_class=ExtendOption)
+				       epilog=None)
 	parser.add_option("--batch", action="store_false", dest="interactive", default=True,
 			  help="print a bootchart image, rather than starting the interactive GUI")
 	parser.add_option("--merge", dest="merge", default=False,
@@ -66,10 +51,11 @@ def _mk_options_parser():
 			  help="show legend lines with keys to chart symbols")
 
         # disk stats
-	parser.add_option("-p", "--show-partitions", action="extend", dest="partitions", type="string", default=[],
-			  help="draw a disk stat chart for any block device partitions in this comma-separated list")
-	parser.add_option("-P", "--relabel-partitions", action="extend", dest="partition_labels", default=[],
-			  help="list of per-partition strings, to be drawn instead of the raw per-partition device names")
+	parser.add_option("--partition", action="append", dest="partitions", type="string", default=[],
+			  help="draw a disk stat chart for any block device partition whose basename matches PARTITION")
+	parser.add_option("--relabel-partition", action="append", dest="partition_labels", default=[],
+			  help="list of per-partition strings, each replacing the raw per-partition device name" +
+                          "in the corresponding position")
 	parser.add_option("--show-ops-not-bytes", action="store_true", dest="show_ops_not_bytes", default=False,
 			  help="chart number of I/O operations handed to driver, rather than bytes transferred per sample")
 
@@ -79,7 +65,7 @@ def _mk_options_parser():
 			  help="relocate the text within process bars (left, center)")
 
 	# event plotting
-	parser.add_option("-e", "--events", dest="event_regex", metavar="REGEX", default="^$",
+	parser.add_option("-e", "--events", action="append", dest="event_regex", metavar="REGEX", default=["^$"],
 			  help="Highlight events matching REGEX." +
                           "  Syntax is similar to grep 'extended' REs." +
                           "  To match FOO or BAR anywhere on the log line, use 'FOO|BAR'." +

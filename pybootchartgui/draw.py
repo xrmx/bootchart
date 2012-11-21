@@ -230,6 +230,7 @@ class DrawContext:
 		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
 		self.SEC_W = None
 		self.time_origin_relative = None  # currently used only to locate events
+		self.highlight_event__match_RE = []
 
 		# intra-rendering state
 		self.hide_process_y = None
@@ -240,7 +241,10 @@ class DrawContext:
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
-		self.highlight_event__match_RE = re.compile(self.app_options.event_regex)
+
+		self.highlight_event__match_RE = []
+		for ev_regex in self.app_options.event_regex:
+			self.highlight_event__match_RE.append( re.compile(ev_regex))
 
 		self.SWEEP_CSEC = sweep_csec
 		if self.SWEEP_CSEC:
@@ -935,7 +939,10 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
-		m = re.search(ctx.highlight_event__match_RE, ev.match)
+		for ev_re in ctx.highlight_event__match_RE:
+			m = re.search(ev_re, ev.match)
+			if m:
+				break;
 		if m:
 			ctx.cr.set_source_rgb(*HIGHLIGHT_EVENT_COLOR)
 			W,H = 2,8

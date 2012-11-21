@@ -66,6 +66,8 @@ def _mk_options_parser():
 			  help="draw a disk stat chart for any block device partitions in this list")
 	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
 			  help="show process ids in the bootchart as 'processname [pid]'")
+	parser.add_option("-j", "--justify", dest="justify", default="left", choices=["left", "center"],
+			  help="relocate the text within process bars (left, center)")
 
 	pg_Bootchart2 = optparse.OptionGroup(parser,"Bootchart2-specific",
 			    "Options effective only for logs coming from the Bootchart2 binary-format collector")

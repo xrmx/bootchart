@@ -130,6 +130,8 @@ STATE_ZOMBIE    = 5
 STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, \
 		PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
+JUSTIFY_LEFT = "left"
+
 # CumulativeStats Types
 STAT_TYPE_CPU = 0
 STAT_TYPE_IO = 1
@@ -166,7 +168,10 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 
 def draw_label_in_box(ctx, color, label, x, y, w, maxx):
 	label_w = ctx.text_extents(label)[2]
-	label_x = x + w / 2 - label_w / 2
+	if OPTIONS.justify == JUSTIFY_LEFT:
+		label_x = x
+	else:
+		label_x = x + w / 2 - label_w / 2   # CENTER
 	if label_w + 10 > w:
 		label_x = x + w + 5
 	if label_x + label_w > maxx:

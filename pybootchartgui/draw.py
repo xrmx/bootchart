@@ -62,7 +62,7 @@ AXIS_FONT_SIZE = 11
 LEGEND_FONT_SIZE = 12
 
 # CPU load chart color.
-CPU_COLOR = (0.40, 0.55, 0.70, 1.0)
+CPU_COLOR = (0.60, 0.65, 0.75, 1.0)
 # IO wait chart color.
 IO_COLOR = (0.76, 0.48, 0.48, 0.5)
 PROCS_RUNNING_COLOR = (0.0, 1.0, 0.0, 1.0)
@@ -72,8 +72,6 @@ PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
 DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
 # Disk throughput color.
 DISK_WRITE_COLOR = (0.7, 0.0, 0.7, 1.0)
-# CPU load chart color.
-FILE_OPEN_COLOR = (0.20, 0.71, 0.71, 1.0)
 # Mem cached color
 MEM_CACHED_COLOR = CPU_COLOR
 # Mem used color
@@ -88,7 +86,7 @@ PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
 PROC_COLOR_D = (0.76, 0.48, 0.48, 0.5)
 # Running process color.
-PROC_COLOR_R = CPU_COLOR
+PROC_COLOR_R = (0.20, 0.50, 0.70, 1.0)
 # Sleeping process color.
 PROC_COLOR_S = (0.94, 0.94, 0.94, 1.0)
 # Stopped process color.
@@ -355,15 +353,15 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
 			    proc_tree, [0, 9], True)
 
-	curr_y = curr_y + 30 + bar_h
+	curr_y = curr_y + 50 + bar_h
 
 	# render second chart
 	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
 			IO_COLOR, off_x, curr_y+20, leg_s)
 	draw_legend_line(ctx, "Disk writes -- bytes per sample",
-			 DISK_WRITE_COLOR, off_x + 500, curr_y+20, leg_s)
+			 DISK_WRITE_COLOR, off_x+470, curr_y+20, leg_s)
 	draw_legend_line(ctx, "Disk reads+writes -- bytes per sample",
-			 DISK_TPUT_COLOR, off_x + 500 + 120 * 2, curr_y+20, leg_s)
+			 DISK_TPUT_COLOR, off_x+470+120*2, curr_y+20, leg_s)
 
 	curr_y += 5
 

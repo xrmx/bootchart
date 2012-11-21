@@ -39,6 +39,7 @@ meminfo_bar_h = 2 * C.bar_h
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
 
 WHITE = (1.0, 1.0, 1.0, 1.0)
+BLACK = (0.0, 0.0, 0.0, 1.0)
 NOTEPAD_YELLLOW = (0.95, 0.95, 0.8, 1.0)
 PURPLE = (0.6, 0.1, 0.6, 1.0)
 
@@ -241,6 +242,8 @@ class DrawContext:
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
+		self.n_WIDTH = cr.text_extents("n")[2]
+		self.M_HEIGHT = cr.text_extents("M")[3]
 
 		self.highlight_event__match_RE = []
 		for ev_regex in self.app_options.event_regex:
@@ -583,7 +586,7 @@ def late_init_transform(cr):
 	cr.translate(C.off_x, 0)  # current window-coord clip shrinks with loss of the C.off_x-wide strip on left
 
 #
-# Render the chart.  Central method of this module.
+# Render the chart.  Main entry point of this module.
 #
 def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
         '''
@@ -629,6 +632,9 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	if proc_tree.taskstats and ctx.cumulative:
 		proc_height -= C.CUML_HEIGHT
 
+	curr_y += ctx.M_HEIGHT
+	sweep_text_box_y = []  # [curr_y+ctx.M_HEIGHT]
+
 	# curr_y points to the *top* of the first per-process line
 	if hide_process_y and hide_process_y[0] > (curr_y - C.proc_h/4):
 		hide_mod_proc_h = (hide_process_y[0] - curr_y) % C.proc_h
@@ -641,23 +647,21 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 			ctx.hide_process_y = None
 			ctx.unhide_process_y = hide_process_y[0]
 
-	draw_process_bar_chart(ctx, proc_tree, trace.times,
-			       curr_y, w, proc_height)
+	curr_y = draw_process_bar_chart(ctx, proc_tree, trace.times,
+					curr_y, w, proc_height)
 
-	curr_y = proc_height
-
-	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and ctx.cumulative:
-		cuml_rect = (0, curr_y + C.off_y, w, C.CUML_HEIGHT/2 - C.off_y * 2)
+		# draw a cumulative CPU-time-per-process graph
+		cuml_rect = (0, proc_height + C.off_y, w, C.CUML_HEIGHT/2 - C.off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
 
-	# draw a cumulative I/O-time-per-process graph
-	if proc_tree.taskstats and ctx.cumulative:
-		cuml_rect = (0, curr_y + C.off_y * 100, w, C.CUML_HEIGHT/2 - C.off_y * 2)
+		# draw a cumulative I/O-time-per-process graph
+		cuml_rect = (0, proc_height + C.off_y * 100, w, C.CUML_HEIGHT/2 - C.off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if ctx.SWEEP_CSEC:
-		draw_sweep(ctx)
+		sweep_text_box_y.append(curr_y+ctx.M_HEIGHT)
+		draw_sweep(ctx, sweep_text_box_y)
 
 	ctx.cr.restore()
 
@@ -683,28 +687,32 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 
 	ctx.event_dump_list = None
 
-def draw_sweep(ctx):
+def draw_sweep(ctx, sweep_text_box_y):
 	def draw_shading(cr, rect):
 		# alpha value of the rgba strikes a compromise between appearance on screen, and in printed screenshot
 		cr.set_source_rgba(0.0, 0.0, 0.0, 0.08)
 		cr.set_line_width(0.0)
 		cr.rectangle(rect)
 		cr.fill()
-	def draw_vertical(cr, x):
+	def draw_vertical(ctx, time, x, sweep_text_box_y):
+		cr = ctx.cr
 		cr.set_dash([1, 3])
 		cr.set_source_rgba(0.0, 0.0, 0.0, 1.0)
 		cr.set_line_width(1.0)
 		cr.move_to(x, 0)
 		cr.line_to(x, height)
 		cr.stroke()
+		for y in sweep_text_box_y:
+			draw_label_in_box_at_time(ctx.cr, BLACK,
+				format_label_time(ctx, time - ctx.time_origin_relative),
+				y+ctx.M_HEIGHT,	x+ctx.n_WIDTH/2)
 
 	height = int(ctx.cr.device_to_user(0,2000)[1])
-	x = csec_to_xscaled(ctx, ctx.SWEEP_CSEC[0])
-	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[0]-x),height))
-	draw_vertical(ctx.cr, x)
-	x = csec_to_xscaled(ctx, ctx.SWEEP_CSEC[1])
-	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),height))
-	draw_vertical(ctx.cr, x)
+	for i_time in [0,1]:
+		time = ctx.SWEEP_CSEC[i_time]
+		x = csec_to_xscaled(ctx, time)
+		draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[i_time*2]-x),height))
+		draw_vertical(ctx, time, x, sweep_text_box_y)
 
 def draw_process_bar_chart_legends(ctx, curr_y):
 	curr_y += 30
@@ -741,6 +749,7 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	if ctx.proc_above_was_hidden:
 		draw_hidden_process_separator(ctx, curr_y)
 		ctx.proc_above_was_hidden = False
+	return curr_y
 
 def draw_header (ctx, headers, duration):
     toshow = [
@@ -930,6 +939,20 @@ def usec_to_csec(usec):
 def draw_event_label(ctx, label, tx, y):
 	draw_label_in_box_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
 
+def format_label_time(ctx, delta):
+	if ctx.SWEEP_CSEC:
+		if abs(delta) < C.CSEC:
+			# less than a second, so format as whole milliseconds
+			return '{0:d}'.format(int(delta*10))
+		else:
+			# format as seconds, plus a variable number of digits after the decimal point
+			return '{0:.{prec}f}'.format(float(delta)/C.CSEC,
+						     prec=min(3, max(1, abs(int(3*C.CSEC/delta)))))
+	else:
+		# formatting is independent of delta value
+		return '{0:.{prec}f}'.format(float(delta)/C.CSEC,
+					     prec=min(3, max(0, int(ctx.SEC_W/100))))
+
 def draw_process_events(ctx, proc, proc_tree, x, y):
 	n_highlighted_events = 0
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
@@ -982,21 +1005,13 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		if tx < last_x_touched + spacing:
 			continue
 		delta= float(ev.time_usec)/1000/10 - ctx.time_origin_relative
-		if ctx.SWEEP_CSEC:
-			if abs(delta) < C.CSEC:
-				label_str = '{0:3d}'.format(int(delta*10))
-			else:
-				label_str = '{0:.{prec}f}'.format(float(delta)/C.CSEC,
-								  prec=min(3, max(1, abs(int(3*C.CSEC/delta)))))
-		else:
-			# format independent of delta
-			label_str = '{0:.{prec}f}'.format(float(delta)/C.CSEC,
-							  prec=min(3, max(0, int(ctx.SEC_W/100))))
+
+		label_str = format_label_time(ctx, delta)
 		if label_str != last_label_str:
 			last_x_touched = tx + draw_label_in_box_at_time(
 				ctx.cr, PROC_TEXT_COLOR,
 				label_str,
-				y + C.proc_h - 4, tx)
+				y + C.proc_h - 4, tx + ctx.n_WIDTH/2)
 			last_label_str = label_str
 	return n_highlighted_events
 

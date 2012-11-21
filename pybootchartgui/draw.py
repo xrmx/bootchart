@@ -832,10 +832,9 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	last_time = max(proc.start_time, proc.samples[0].time - proc_tree.sample_period)
 	ctx_save__csec_to_xscaled(ctx)
 	for sample in proc.samples[1:] :
-		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
- 		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
-		# XXX  correct color for non-uniform sample intervals
-		draw_fill_rect(ctx.cr, cpu_color, (last_time, y, sample.time - last_time, C.proc_h))
+		normalized = sample.cpu_sample.user + sample.cpu_sample.sys
+		draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h,
+						      sample.time - last_time, -normalized * C.proc_h))
 		last_time = sample.time
 	ctx.cr.restore()
 

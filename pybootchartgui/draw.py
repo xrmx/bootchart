@@ -42,6 +42,7 @@ WHITE = (1.0, 1.0, 1.0, 1.0)
 BLACK = (0.0, 0.0, 0.0, 1.0)
 NOTEPAD_YELLLOW = (0.95, 0.95, 0.8, 1.0)
 PURPLE = (0.6, 0.1, 0.6, 1.0)
+RED = (1.0, 0.0, 0.0)
 
 # Process tree border color.
 BORDER_COLOR = (0.63, 0.63, 0.63, 1.0)
@@ -918,6 +919,11 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	    if cpu_exited_child != 0:
 		    print "cpu_exited_child == " + str(cpu_exited_child)
 
+	    if cpu_self > 1.0:
+		print "process CPU time overflow: ", proc.tid, sample.time, width, cpu_self
+		OVERFLOW_BAR_HEIGHT=2
+		draw_fill_rect(ctx.cr, PURPLE, (last_time, y, width, OVERFLOW_BAR_HEIGHT))
+		cpu_self = 1.0 - float(OVERFLOW_BAR_HEIGHT)/C.proc_h
 	    if cpu_self > 0:
 	        height = cpu_self * C.proc_h
 	        draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))

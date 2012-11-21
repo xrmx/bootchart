@@ -60,7 +60,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
         self.isotemporal_csec = None
 
-    def do_expose_event(self, event):
+    def do_expose_event(self, event):    # XX called on mouse entering or leaving window -- can these be disabled?
         cr = self.window.cairo_create()
 
         # set a clip region for the expose event
@@ -69,7 +69,7 @@ class PyBootchartWidget(gtk.DrawingArea):
                 event.area.width, event.area.height
         )
         cr.clip()
-        self.draw(cr, self.get_allocation())
+        self.draw(cr, self.get_allocation())   # XX  get_allocation()  can yield a sub-rectangle of  cr.clip_extents()
         return False
 
     def cr_set_up_transform(self, cr):
@@ -77,22 +77,39 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.translate(-self.x, -self.y)
 
     def draw(self, cr, rect):
-        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
-        cr.paint()
+        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)   # XX  redundant
+        cr.paint()                               # XX  effect?
         self.cr_set_up_transform(cr)
         draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_csec)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
 
-    ZOOM_INCREMENT = 1.25
+    # back-transform center of window to user coords -- c.f. cr_set_up_transform()
+    def current_center (self):
+        return (self.x + (self.hadj.page_size / self.zoom_ratio / 2), self.y + (self.vadj.page_size / self.zoom_ratio / 2))
 
+    # assuming a new zoom_ratio, set top-left corner displayed in user space so that
+    # (x, y) will be at window center
+    def set_center (self, x, y):
+        # back-transform window (w, h)
+        user_w = self.hadj.page_size / self.zoom_ratio
+        user_h = self.vadj.page_size / self.zoom_ratio
+
+        self.x = x - user_w/2
+        self.y = y - user_h/2
+
+    ZOOM_INCREMENT = 1.25
+    # Zoom maintaining the content at window's current center untranslated.
+    # "Center" is irrespective of any occlusion.
     def zoom_image (self, zoom_ratio):
+        old_x, old_y = self.current_center ()
         self.zoom_ratio = zoom_ratio
+        self.set_center(old_x, old_y)
         self._set_scroll_adjustments (self.hadj, self.vadj)
         self.queue_draw()
 
-    def zoom_to_rect (self, rect):
+    def zoom_to_rect (self, rect):       #  rename "zoom_to_window_width"?
         zoom_ratio = float(rect.width)/float(self.chart_width)
         self.zoom_image(zoom_ratio)
         self.x = 0
@@ -121,7 +138,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.zoom_to_rect(self.get_allocation())
 
     def on_zoom_100(self, action):
-        self.zoom_image(1.0)
+        self.zoom_image(1.0)  # XX  replace with:   self.zoom_ratio = 1.0  \  self.x = 0  \  self.y = 0
         self.set_xscale(1.0)
 
     def show_thread_details(self, button):
@@ -253,7 +270,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         if hadj != None:
             self.hadj = hadj
             self._set_adj_upper (self.hadj, self.zoom_ratio * self.chart_width)
-            self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed)
+            self.hadj_changed_signal_id = self.hadj.connect('value-changed', self.on_adjustments_changed) # XX  leaky?
 
         if vadj != None:
             self.vadj = vadj

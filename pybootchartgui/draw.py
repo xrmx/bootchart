@@ -110,7 +110,7 @@ PROC_TEXT_FONT_SIZE = 12
 # Event tick color.
 DIM_EVENT_COLOR =       (0.3, 0.3, 0.3)
 EVENT_COLOR =           (0.1, 0.1, 0.1)
-HIGHLIGHT_EVENT_COLOR = (2.0, 0.0, 4.0)
+HIGHLIGHT_EVENT_COLOR = (0.6, 0.0, 0.6)
 
 # Signature color.
 SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
@@ -700,8 +700,7 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 
 	curr_y += 15
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, curr_y)
-		curr_y += C.proc_h * proc_tree.num_nodes_drawn([root])
+		curr_y = draw_processes_recursively(ctx, root, proc_tree, curr_y)[1]
 	if ctx.proc_above_was_hidden:
 		draw_hidden_process_separator(ctx, curr_y)
 		ctx.proc_above_was_hidden = False
@@ -811,11 +810,11 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 		ctx.proc_above_was_hidden = True
 		child_y = y
 	else:
-		draw_process(ctx, proc, proc_tree, x, y, w)
+		n_highlighted_events = draw_process(ctx, proc, proc_tree, x, y, w)
 		if ctx.proc_above_was_hidden:
 			draw_hidden_process_separator(ctx, y)
 			ctx.proc_above_was_hidden = False
-		child_y = y + C.proc_h
+		child_y = y + C.proc_h*(1 if n_highlighted_events <= 0 else 2)
 
 	elder_sibling_y = None
 	for child in proc.child_list:
@@ -883,6 +882,9 @@ def usec_to_csec(usec):
 	'''would drop precision without the float() cast'''
 	return float(usec) / 1000 / 10
 
+def draw_event_label(ctx, label, tx, y):
+	draw_label_in_box_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
+
 def draw_process_events(ctx, proc, proc_tree, x, y):
 	n_highlighted_events = 0
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
@@ -892,21 +894,32 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
-		if re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line):
-			ctx.cr.set_source_rgba(*HIGHLIGHT_EVENT_COLOR)
+		m = re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line)
+		if m:
+			ctx.cr.set_source_rgb(*HIGHLIGHT_EVENT_COLOR)
 			W,H = 2,8
+			if m.lastindex:
+				groups_concat = ""
+				for g in m.groups():
+					groups_concat += str(g)
+			else:
+				groups_concat = m.group(0)
+			draw_event_label(ctx,
+					 groups_concat,
+					 tx, y+2*C.proc_h-4)
 			n_highlighted_events += 1
 		else:
-			ctx.cr.set_source_rgba(*EVENT_COLOR)
+			ctx.cr.set_source_rgb(*EVENT_COLOR)
 			W,H = 1,5
 		# don't dump synthetic events
 		if ctx.event_dump_list != None and ctx.SWEEP_CSEC and ev.raw_log_seek:
 			ev_time_csec = float(ev.time_usec)/1000/10
 			if ev_time_csec >= ctx.SWEEP_CSEC[0] and ev_time_csec < ctx.SWEEP_CSEC[1]:
 				ctx.event_dump_list.append(ev)
-		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
-		ctx.cr.rel_line_to(W,-H)       # top
-		ctx.cr.rel_line_to(W, H)       # bottom-right
+		ctx.cr.move_to(tx, y+C.proc_h-6) # top
+
+		ctx.cr.rel_line_to(-W,H)         # bottom-left
+		ctx.cr.rel_line_to(2*W,0)        # bottom-right
 		ctx.cr.close_path()
 		ctx.cr.fill()
 

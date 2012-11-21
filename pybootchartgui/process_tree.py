@@ -13,6 +13,11 @@
 #  You should have received a copy of the GNU General Public License
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
+MAX_PID=100000
+
+def sort_func(proc):
+    return long(proc.pid) / 1000 * MAX_PID + proc.tid / 1000
+
 class ProcessTree:
     """ProcessTree encapsulates a process tree.  The tree is built from log files
        retrieved during the boot process.  When building the process tree, it is
@@ -49,7 +54,7 @@ class ProcessTree:
             process_list = psstats.process_map.values()
         else:
             process_list = kernel + psstats.process_map.values()
-        self.process_list = sorted(process_list, key = lambda p: p.pid)
+        self.process_list = sorted(process_list, key = sort_func)
         self.sample_period = sample_period
 
         self.build()
@@ -104,7 +109,7 @@ class ProcessTree:
     def sort(self, process_subtree):
         """Sort process tree."""
         for p in process_subtree:
-            p.child_list.sort(key = lambda p: p.pid)
+            p.child_list.sort(key = sort_func)
             self.sort(p.child_list)
 
     def num_nodes(self, process_list):

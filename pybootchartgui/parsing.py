@@ -131,13 +131,14 @@ class Trace:
         # merge in events
         if self.events is not None:
             for ev in self.events:
-                key = int(ev.pid) * 1000
+                if ev.time > self.ps_stats.end_time:
+                    continue
+                key = int(ev.tid) * 1000
                 if key in self.ps_stats.process_map:
-                    proc = self.ps_stats.process_map[key]
-                    if ev.time < self.ps_stats.end_time:
-                        proc.events.append(ev)
+                    self.ps_stats.process_map[key].events.append(ev)
                 else:
-                    writer.warn("event for [%d:%d] lost at time %d" % (ev.pid, ev.tid, ev.time))
+                    writer.warn("no samples of /proc/%d/task/%d/proc found -- event lost:\n\t%s" %
+                                (ev.pid, ev.tid, ev.raw_log_line))
 
         # re-parent any stray orphans if we can
         if self.parent_map is not None:
@@ -302,7 +303,7 @@ def _parse_proc_ps_log(options, writer, file):
                     writer.status("time (%d) < starttime (%d), diff %d -- PID %d" %
                                   (time, starttime, time-starttime, pid/1000))
 
-                process = Process(writer, pid, cmd.strip('()'), ppid, starttime)
+                process = Process(writer, pid, pid, cmd.strip('()'), ppid, starttime)
                 processMap[pid] = process
 
             if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
@@ -374,8 +375,8 @@ def _parse_proc_ps_threads_log(options, writer, file):
                     writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                                   (time, starttime, time-starttime, tid/1000))
 
-                process = Process(writer, tid, cmd.strip('()'), ppid, starttime)
-                processMap[pid] = process
+                process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
+                processMap[tid] = process
 
             if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
                 if ltime is None:

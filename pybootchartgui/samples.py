@@ -85,9 +85,10 @@ class ProcessStats:
         writer.info ("process list size: %d" % len (self.process_map.values()))
 
 class Process:
-    def __init__(self, writer, pid, cmd, ppid, start_time):
+    def __init__(self, writer, pid, tid, cmd, ppid, start_time):
         self.writer = writer
         self.pid = pid
+        self.tid = tid
         self.cmd = cmd
         self.exe = cmd
         self.args = []

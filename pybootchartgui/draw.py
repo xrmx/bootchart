@@ -172,14 +172,18 @@ def draw_diamond(ctx, x, y, w, h):
 	ctx.fill()
 	ctx.restore()
 
+def draw_legend_diamond(ctx, label, fill_color, x, y, w, h):
+	ctx.set_source_rgba(*fill_color)
+	draw_diamond(ctx, x, y-h/2, w, h)
+	draw_text(ctx, label, TEXT_COLOR, x + w + 5, y)
+
 def draw_legend_box(ctx, label, fill_color, x, y, s):
 	draw_fill_rect(ctx, fill_color, (x, y - s, s, s))
-	draw_rect(ctx, PROC_BORDER_COLOR, (x, y - s, s, s))
+	#draw_rect(ctx, PROC_BORDER_COLOR, (x, y - s, s, s))
 	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
 def draw_legend_line(ctx, label, fill_color, x, y, s):
 	draw_fill_rect(ctx, fill_color, (x, y - s/2, s + 1, 3))
-	ctx.arc(x + (s + 1)/2.0, y - (s - 3)/2.0, 2.5, 0, 2.0 * math.pi)
 	ctx.fill()
 	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
@@ -328,7 +332,7 @@ meminfo_bar_h = 2 * bar_h
 off_x, off_y = 10, 10
 sec_w_base = 50 # the width of a second
 proc_h = 16 # the height of a process
-leg_s = 10
+leg_s = 11
 MIN_IMG_W = 800
 CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
@@ -376,10 +380,10 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 
 	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, curr_y+20, leg_s)
 	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, curr_y+20, leg_s)
-	draw_legend_box(ctx, "Runnable threads", PROCS_RUNNING_COLOR,
-			off_x +120 +80, curr_y+20, leg_s)
-	draw_legend_box(ctx, "Blocked threads -- uninterruptible sleep (I/O)", PROCS_BLOCKED_COLOR,
-			off_x +120 +80 +140, curr_y+20, leg_s)
+	draw_legend_diamond(ctx, "Runnable threads", PROCS_RUNNING_COLOR,
+			off_x +120 +90, curr_y+20, leg_s, leg_s)
+	draw_legend_diamond(ctx, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
+			off_x +120 +90 +140, curr_y+20, leg_s, leg_s)
 
 	# render I/O wait
 	chart_rect = (off_x, curr_y+30, w, bar_h)
@@ -548,17 +552,17 @@ def render(ctx, options, xscale, trace):
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
 	if not options.kernel_only:
+		draw_legend_diamond (ctx, "Uninterruptible Syscall",
+				 PROC_COLOR_D, off_x+10, curr_y + 45, leg_s*3/4, proc_h)
 		draw_legend_box (ctx, "Running (%cpu)",
-				 PROC_COLOR_R, off_x    , curr_y + 45, leg_s)
-		draw_legend_box (ctx, "Unint.sleep (I/O)",
-				 PROC_COLOR_D, off_x+120, curr_y + 45, leg_s)
+				 PROC_COLOR_R, off_x+10+180, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Sleeping",
-				 PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
+				 PROC_COLOR_S, off_x+10+180+130, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Zombie",
-				 PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
+				 PROC_COLOR_Z, off_x+10+180+130+90, curr_y + 45, leg_s)
 		header_size = 45
 
-	chart_rect = [off_x, curr_y + header_size + 15,
+	chart_rect = [off_x, curr_y + header_size + 30,
 		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
 

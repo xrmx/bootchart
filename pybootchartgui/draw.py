@@ -187,7 +187,6 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 	ctx.fill()
 	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
-# XX  Needs to know about the transform, to make sure process name is visible
 def draw_label_in_box(ctx, color, label, x, y, w, minx, maxx):
 	label_w = ctx.text_extents(label)[2]
 	if OPTIONS.justify == JUSTIFY_LEFT:
@@ -672,7 +671,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 			cmdString = cmdString
 
 	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w,
-			  0, rect[0] + rect[2])
+			  ctx.clip_extents()[0], ctx.clip_extents()[2])
 
 	next_y = y + proc_h
 	for child in proc.child_list:

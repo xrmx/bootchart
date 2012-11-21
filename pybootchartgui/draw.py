@@ -634,13 +634,13 @@ def draw_header (ctx, headers, duration):
         txt = headertitle + ': ' + mangle(value)
         draw_text(ctx, txt, TEXT_COLOR, 0, header_y)
 
-    dur = duration / 100.0
-    txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
-    if headers.get('system.maxpid') is not None:
-        txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
-
-    header_y += ctx.font_extents()[2]
-    draw_text (ctx, txt, TEXT_COLOR, 0, header_y)
+#     dur = duration / 100.0
+#     txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
+#     if headers.get('system.maxpid') is not None:
+#         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
+#
+#    header_y += ctx.font_extents()[2]
+#    draw_text (ctx, txt, TEXT_COLOR, 0, header_y)
 
     return header_y
 

@@ -272,14 +272,16 @@ def plot_line(ctx, point, x, y):
 	ctx.set_line_width(1.0)
 	ctx.line_to(x, y)       # rightward, and upward or downward
 
+# backward-looking
 def plot_square(ctx, point, x, y):
 	ctx.set_line_width(1.0)
-	ctx.line_to(x, ctx.get_current_point()[1])  # rightward
-	ctx.line_to(x, y)       # upward or downward
+        ctx.line_to(ctx.get_current_point()[0], y)  # upward or downward
+        ctx.line_to(x, y)  # rightward
 
+# backward-looking
 def plot_segment_positive(ctx, point, x, y):
 	ctx.move_to(ctx.get_current_point()[0], y)       # upward or downward
-	if point[1] <= 0:
+	if point[1] <= 0:           # zero-Y samples draw nothing
 		ctx.move_to(x, y)
 		return
 	ctx.set_line_width(1.5)
@@ -292,18 +294,14 @@ def plot_scatter_positive(ctx, point, x, y):
 
 # All charts assumed to be full-width
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
-	def transform_point_coords(point, y_base, \
-				   xscale, yscale, x_trans, y_trans):
+	def transform_point_coords(point, y_base, yscale, y_trans):
 		x = csec_to_xscaled(point[0])
 		y = (point[1] - y_base) * -yscale + y_trans + chart_bounds[3]
 		return x, y
 
-	max_x = proc_tree.end_time    # units of CSEC
 	max_y = max (y for (x, y) in data)
-	# avoid divide by zero
-	if max_y == 0:
+	if max_y <= 0:		# avoid divide by zero
 		max_y = 1.0
-	xscale = float (chart_bounds[2]) / max_x
 	# If data_range is given, scale the chart so that the value range in
 	# data_range matches the chart bounds exactly.
 	# Otherwise, scale so that the actual data matches the chart bounds.
@@ -314,23 +312,23 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot
 		yscale = float(chart_bounds[3]) / max_y
 		ybase = 0
 
-	last =  transform_point_coords (data[-1], ybase, xscale, yscale, \
-				        chart_bounds[0], chart_bounds[1])
-	first = transform_point_coords (data[0], ybase, xscale, yscale, \
-				        chart_bounds[0], chart_bounds[1])
-
 	ctx.set_source_rgba(*color)
-	ctx.move_to(*first)
+
+	# move to the x of the missing first sample point
+	first = transform_point_coords ([time_origin_drawn + in_chart_X_margin(proc_tree), -9999],
+					ybase, yscale, chart_bounds[1])
+	ctx.move_to(first[0], first[1])
 
 	for point in data:
-		x, y = transform_point_coords (point, ybase, xscale, yscale, \
-					       chart_bounds[0], chart_bounds[1])
+		x, y = transform_point_coords (point, ybase, yscale, chart_bounds[1])
 		plot_point_func(ctx, point, x, y)
+
+	final = transform_point_coords (data[-1], ybase, yscale, chart_bounds[1])
 
 	if fill:
 		ctx.set_line_width(0.0)
 		ctx.stroke_preserve()
-		ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
+		ctx.line_to(final[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], first[1])
 		ctx.fill()
@@ -357,6 +355,9 @@ time_origin_drawn = None  # time of leftmost plotted data
 
 # window coords
 
+def in_chart_X_margin(proc_tree):
+	return proc_tree.sample_period
+
 # Called from gui.py and batch.py, before first call to render(),
 # and every time xscale changes.
 # Returns size of a window capable of holding the whole scene?
@@ -368,11 +369,11 @@ def extents(options, xscale, trace):
 	if OPTIONS.prehistory:
 		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
 	else:
-		time_origin_drawn = trace.cpu_stats[0].time - proc_tree.sample_period
+		time_origin_drawn = trace.cpu_stats[0].time - in_chart_X_margin(proc_tree)
 	global SEC_W
 	SEC_W = xscale * sec_w_base
 
-	w = int (csec_to_xscaled(trace.cpu_stats[-1].time + proc_tree.sample_period) + 2*off_x)
+	w = int (csec_to_xscaled(trace.cpu_stats[-1].time + in_chart_X_margin(proc_tree)) + 2*off_x)
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
@@ -396,23 +397,25 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 	draw_legend_diamond(ctx, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
 			120 +90 +140, curr_y+20, leg_s, leg_s)
 
-	# render I/O wait
 	chart_rect = (0, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
 		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+		# render I/O wait -- a backwards delta
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
 			    proc_tree, None, plot_square)
-		# render CPU load
+		# render CPU load -- a backwards delta
 		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
 			    proc_tree, None, plot_square)
 
+		# instantaneous sample
 		draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
 			    proc_tree, [0, 9], plot_scatter_positive)
 
+		# instantaneous sample
 		draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
 			    proc_tree, [0, 9], plot_scatter_positive)
@@ -445,8 +448,9 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 		if clip_visible (clip, chart_rect):
 			draw_box_ticks (ctx, chart_rect)
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
-			draw_chart (ctx, IO_COLOR, True, chart_rect, \
-					    [(sample.time, sample.util) for sample in partition.samples], \
+			# a backwards delta
+			draw_chart (ctx, IO_COLOR, True, chart_rect,
+					    [(sample.time, sample.util) for sample in partition.samples],
 					    proc_tree, [0, 1], plot_square)
 
 		# render disk throughput
@@ -455,13 +459,15 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 			#  XXX correction for non-constant sample.time?
 			max_sample = max (partition.samples, key = lambda s: s.tput)
 		if clip_visible (clip, chart_rect):
+			# a backwards delta
 			draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
-					    [(sample.time, sample.tput) for sample in partition.samples], \
+					    [(sample.time, sample.tput) for sample in partition.samples],
 					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
 			# overlay write throughput
+			# a backwards delta
 			draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
-					    [(sample.time, sample.write) for sample in partition.samples], \
+					    [(sample.time, sample.write) for sample in partition.samples],
 					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
 		# pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())

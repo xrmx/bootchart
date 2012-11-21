@@ -649,7 +649,16 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
-	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+
+	# Do not draw right-hand vertical border -- process exit never exactly known
+	ctx.set_source_rgba(*PROC_BORDER_COLOR)
+	ctx.set_line_width(1.0)
+	ctx.move_to(x+w, y)
+	ctx.rel_line_to(-w, 0)
+	ctx.rel_line_to(0, proc_h)
+	ctx.rel_line_to(w, 0)
+	ctx.stroke()
+
 	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 
 	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);

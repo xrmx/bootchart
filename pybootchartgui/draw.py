@@ -370,7 +370,7 @@ CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
 
 SEC_W = None
-time_origin_drawn = None  # time of leftmost plotted data
+time_origin_drawn = None  # time of leftmost plotted data, as integer csecs
 
 SWEEP_CSEC = None
 SWEEP_render_serial = None
@@ -600,20 +600,40 @@ def render(ctx, options, xscale, trace, sweep_csec = None):
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if sweep_csec:
-		draw_sweep(ctx, sweep_csec)
+		width_sec = sweep_window_width_sec(ctx)
+		draw_sweep(ctx, sweep_csec, width_sec * CSEC)
+		#dump_pseudo_event(ctx, "start of event window, width " + int(width*1000) + "msec")
 
 	render_serial += 1
 
 	ctx.restore()
 
-def draw_sweep(ctx, sweep_csec):
-	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
-	ctx.set_line_width(0.8)
-	ctx.set_dash([4, 2])
-	sweep_x = csec_to_xscaled(sweep_csec)
-	ctx.move_to(sweep_x, 0)
-	ctx.line_to(sweep_x, CUML_HEIGHT)
-	ctx.stroke()
+def sweep_window_width_sec(ctx):
+	'''about half the width of the visible part of the per-process bars'''
+	user_width = ctx.device_to_user_distance(500,0)[0]
+	return float(user_width) / SEC_W
+
+def draw_sweep(ctx, sweep_csec, width_csec):
+	def draw_shading(ctx, rect):
+		ctx.set_source_rgba(0.0, 0.0, 0.0, 0.1)
+		ctx.set_line_width(0.0)
+		ctx.rectangle(rect)
+		ctx.fill()
+	def draw_vertical(ctx, x):
+		ctx.set_dash([1, 3])
+		ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
+		ctx.set_line_width(1.0)
+		ctx.move_to(x, 0)
+		ctx.line_to(x, CUML_HEIGHT)
+		ctx.stroke()
+
+	x = csec_to_xscaled(sweep_csec)
+	draw_shading(ctx, (int(x),0,int(ctx.clip_extents()[0]-x),CUML_HEIGHT))
+	draw_vertical(ctx, x)
+
+	x = csec_to_xscaled(sweep_csec + width_csec)
+	draw_shading(ctx, (int(x),0,int(ctx.clip_extents()[2]-x),CUML_HEIGHT))
+	draw_vertical(ctx, x)
 
 def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
@@ -768,18 +788,18 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h):
 		# align to time of first sample
 		time_origin_relative = time_origin_drawn + proc_tree.sample_period
 
+	width_csec = sweep_window_width_sec(ctx) * CSEC
 	# draw ticks, maybe dump log line
 	for (ev, tx) in ev_list:
-		delta = ev.time_usec/1000/10 - time_origin_relative
-		if ev.raw_log_line and \
-		       abs(ctx.user_to_device_distance(delta * SEC_W / CSEC, 0)[0]) < 10:
-			if SWEEP_CSEC and SWEEP_render_serial == render_serial:
-				print ev.raw_log_line,
-			ctx.set_source_rgba(*MAGENTA)
-			W,H = 2,8
-		else:
-			ctx.set_source_rgba(*EVENT_COLOR)
-			W,H = 1,5
+		ctx.set_source_rgba(*EVENT_COLOR)
+		W,H = 1,5
+		if SWEEP_CSEC and ev.raw_log_line:
+			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
+			if delta_csec >= 0 and delta_csec < width_csec:
+				# ctx.set_source_rgba(*MAGENTA)
+				# W,H = 2,8
+				if SWEEP_render_serial == render_serial:
+					print ev.raw_log_line,
 		ctx.move_to(tx-W, y+proc_h) # bottom-left
 		ctx.rel_line_to(W,-H)       # top
 		ctx.rel_line_to(W, H)       # bottom-right
@@ -796,7 +816,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h):
 	for (ev, tx) in ev_list:
 		if tx < last_x_touched + spacing:
 			continue
-		delta = ev.time_usec/1000/10 - time_origin_relative
+		delta = float(ev.time_usec)/1000/10 - time_origin_relative
 		if SWEEP_CSEC:
 			if abs(delta) < CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))

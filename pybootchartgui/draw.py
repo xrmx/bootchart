@@ -459,12 +459,12 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 					    [(sample.time, sample.write) for sample in partition.samples], \
 					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
-		pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
-
-		shift_x, shift_y = -20, 20
-		if (pos_x < 245):
-			shift_x, shift_y = 5, 40
-
+		# pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
+		#
+		# shift_x, shift_y = -20, 20
+		# if (pos_x < 245):
+		# 	shift_x, shift_y = 5, 40
+		#
 		# DISK_BLOCK_SIZE = 1024
 		# label = "%.1fMB/s" % round ((max_sample.tput) / DISK_BLOCK_SIZE)
 		# draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)

@@ -797,6 +797,7 @@ def draw_header (ctx, headers, duration):
       ('system.cpu', 'CPU', lambda s: re.sub('model name\s*:\s*', '', s, 1)),
       ('system.kernel.options', 'kernel options', lambda s: s),
     ]
+    toshow = []
 
     cr = ctx.cr
     header_y = cr.font_extents()[2] + 10

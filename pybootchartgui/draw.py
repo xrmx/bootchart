@@ -178,10 +178,15 @@ def draw_label_in_box(ctx, color, label, x, y, w, maxx):
 		label_x = x
 	else:
 		label_x = x + w / 2 - label_w / 2   # CENTER
-	if label_w + 10 > w:
-		label_x = x + w + 5
-	if label_x + label_w > maxx:
-		label_x = x - label_w - 5
+
+	if label_w + 10 > w:                # if wider than the process box
+		label_x = x + w + 5         # push outside to right
+	if label_x + label_w > maxx:        # if that's too far right
+		label_x = x - label_w - 5   # push outside to the left
+	draw_text(ctx, label, color, label_x, y)
+
+def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
+	label_w = ctx.text_extents(label)[2]
 	draw_text(ctx, label, color, label_x, y)
 
 def draw_sec_labels(ctx, rect, sec_w, nsecs):
@@ -447,6 +452,8 @@ def render(ctx, options, xscale, trace):
 	(w, h) = extents (options, xscale, trace)
 	global OPTIONS
 	OPTIONS = options.app_options
+	global HZ
+	HZ = trace.HZ
 
 	proc_tree = options.proc_tree (trace)
 
@@ -619,17 +626,19 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 		draw_fill_rect(ctx, cpu_color, (tx, y, tw, proc_h * 7 / 8))
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
-	y += proc_h   # move to bottom of process bar
 	ctx.set_source_rgba(*EVENT_COLOR)
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
 		tx = rect[0] + round(((ev.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
-		ctx.move_to(tx-1, y)
-		ctx.line_to(tx,   y-5)
-		ctx.line_to(tx+1, y)
-		ctx.line_to(tx,   y)
+		ctx.move_to(tx-1, y+proc_h)
+		ctx.line_to(tx,   y+proc_h-5)
+		ctx.line_to(tx+1, y+proc_h)
+		ctx.line_to(tx,   y+proc_h)
 		ctx.fill()
+		if OPTIONS.print_event_times:
+			draw_label_in_box_at_time(ctx, PROC_TEXT_COLOR, '%.2f' % (float(ev.time) / HZ), \
+						  x, y + proc_h - 4, tx)
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	last_tx = -1
@@ -686,7 +695,7 @@ class CumlSample:
 			self.color = (c[0], c[1], c[2], 1.0)
 		return self.color
 
-
+# taskstats-specific
 def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	global palette_idx
 	palette_idx = 0

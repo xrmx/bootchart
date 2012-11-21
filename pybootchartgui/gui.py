@@ -127,6 +127,10 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.options.app_options.hide_events = not button.get_property ('active')
         self.queue_draw()
 
+    def print_event_times(self, button):
+        self.options.app_options.print_event_times = button.get_property ('active')
+        self.queue_draw()
+
     POS_INCREMENT = 100
 
     def on_key_press_event(self, widget, event):
@@ -319,6 +323,11 @@ class PyBootchartShell(gtk.VBox):
         button = gtk.CheckButton("Events")
         button.connect ('toggled', self.widget.hide_events)
         button.set_active (True)
+        hbox.pack_start (button, False)
+
+        button = gtk.CheckButton("event Time Labels")
+        button.connect ('toggled', self.widget.print_event_times)
+        button.set_active (options.app_options.print_event_times)
         hbox.pack_start (button, False)
 
         self.pack_start(hbox, False)

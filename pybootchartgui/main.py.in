@@ -84,6 +84,8 @@ def _mk_options_parser():
                           "  (file:///usr/share/doc/python2.6/html/library/re.htm)")
 	parser.add_option("--hide-events", action="store_true", dest="hide_events", default=False,
 			  help="hide event ticks (small black triangles)")
+	parser.add_option("--print-event-times", action="store_true", dest="print_event_times", default=False,
+			  help="print time of each event, inside the box of the reporting process")
 	parser.add_option("--synthesize-sample-start-events", action="store_true", dest="synthesize_sample_start_events",
 			  help="synthesize an event marking each boundary between sample periods -- " +
                           "helpful in analyzing collector timing issues")

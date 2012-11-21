@@ -31,6 +31,7 @@ from .process_tree import ProcessTree
 
 class Trace:
     def __init__(self, writer, paths, options):
+        self.HZ = 100          # XX  a smarter collector would collect this
         self.headers = None
         self.disk_stats = None
         self.ps_stats = None

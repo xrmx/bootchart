@@ -154,9 +154,8 @@ class Process:
             # self.duration is the _minimum_ known duration of the thread
             self.duration = lastSample.time - self.start_time
 
-        self.activeCount = sum( [1 for sample in self.samples if \
-                            (sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0) \
-                            or sample.state == 'D'])
+        # XX  add in page faults, including "minor"
+        self.activeCount = sum( [1 for sample in self.samples if sample.state != 'S'])
 
     def calc_load(self, userCpu, sysCpu, interval):
         userCpuLoad = float(userCpu - self.user_cpu_time[-1]) / interval

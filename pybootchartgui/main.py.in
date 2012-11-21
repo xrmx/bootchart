@@ -55,8 +55,8 @@ def _mk_options_parser():
 	parser.add_option("--merge", dest="merge", default=False,
 			  help="Prune the process tree of all activity from dull children: " +
                           "stats are added to parent, child process is lost in drawing of chart.")
-	parser.add_option("-C", "--show-high-CPU", dest="show_high_CPU", type="int", default=1, metavar="CSEC",
-			  help="Suppress hiding of any thread consuming more than CSEC of CPU time." +
+	parser.add_option("-C", "--show-high-CPU", dest="show_high_CPU", type="int", default=-1, metavar="CSEC",
+			  help="Suppress hiding of any thread consuming more than CSEC of CPU time [default %default]." +
                           "  Hiding means it's not shown on initial rendering, but can be shown by a mouse click.")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")

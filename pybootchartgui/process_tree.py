@@ -175,15 +175,16 @@ class ProcessTree:
             self.build()
 
     def is_inactive_process(self, p):
-        return p.CPUCount() < self.options.show_high_CPU
+        return p.CPUCount() < self.options.show_high_CPU and \
+            (p.activeCount < 1 and len(p.events) == 0)
 
     def is_inactive_process_without_children(self, p):
         return self.is_inactive_process(p) and \
                self.num_nodes(p.child_list) == 0
 
-    def is_inactive_process_with_inactive_children(self, p):
-        return self.is_inactive_process(p) and \
-               p.c_CPUCount() < self.options.show_high_CPU
+#    def is_inactive_process_with_inactive_children(self, p):
+#        return self.is_inactive_process(p) and \
+#               p.c_CPUCount() < self.options.show_high_CPU
 
     def prune(self, process_subtree, parent, pruning_test):
         n_pruned = 0

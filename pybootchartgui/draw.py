@@ -724,10 +724,14 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 		last_time = sample.time
 	ctx.restore()
 
+def usec_to_csec(usec):
+	'''would drop precision without the float() cast'''
+	return float(usec) / 1000 / 10
+
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
 	ctx.set_source_rgba(*EVENT_COLOR)
-	ev_list = [(ev, csec_to_xscaled(ev.time))
+	ev_list = [(ev, csec_to_xscaled(usec_to_csec(ev.time_usec)))
 		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
 		   for ev in proc.events]
 	# draw ticks
@@ -758,7 +762,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 
 		delta = float(ev.time_usec)/1000/10 - time_origin_relative
 		if ISOTEMPORAL_CSEC:
-			if ISOTEMPORAL_render_serial == render_serial and \
+			if ev.raw_log_line and ISOTEMPORAL_render_serial == render_serial and \
 			       abs(delta*SEC_W) < 1*sec_w_base:
 				print(ev.raw_log_line)
 			if abs(delta) < CSEC:

@@ -657,9 +657,9 @@ def _parse_events_log(writer, tf, file):
             m = split_re.match(line)
             if m == None or m.lastindex < 7:    # XX  Ignore bad data from Java events, for now
                 continue
-            time_usec = m.group(1)
-            pid = m.group(2)
-            tid = m.group(3)
+            time_usec = long(m.group(1))
+            pid = int(m.group(2))
+            tid = int(m.group(3))
             comm = m.group(4)
             func_file_line = m.group(5)
             raw_log_filename = m.group(6)

@@ -754,7 +754,7 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 	ipid = int(proc.pid)
 	itid = int(proc.tid)
 	if (ctx.app_options.show_pid or ctx.app_options.show_all) and ipid is not 0:
-		cmdString = cmdString + " [" + str(ipid / 1000) + ":" + str(itid / 1000) + "]"
+		cmdString = " [" + str(ipid / 1000) + ":" + str(itid / 1000) + "]" + cmdString
 	if ctx.app_options.show_all:
 		if proc.args:
 			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"

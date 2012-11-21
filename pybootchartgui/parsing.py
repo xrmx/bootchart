@@ -124,10 +124,10 @@ class Trace:
                 key = int(ev.pid) * 1000
                 if key in self.ps_stats.process_map:
                     proc = self.ps_stats.process_map[key]
-                    if len(proc.samples) < 1 or ev.time < proc.samples[-1].time:
+                    if ev.time < self.ps_stats.end_time:
                         proc.events.append(ev)
                 else:
-                    writer.warn("event for proc '%s' lost " % ev.pid)
+                    writer.warn("event for [%d:%d] lost at time %d" % (ev.pid, ev.tid, ev.time))
 
         # re-parent any stray orphans if we can
         if self.parent_map is not None:

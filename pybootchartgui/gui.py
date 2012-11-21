@@ -156,6 +156,10 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.options.app_options.print_event_times = button.get_property ('active')
         self.queue_draw()
 
+    def absolute_uptime_event_times(self, button):
+        self.options.app_options.absolute_uptime_event_times = button.get_property ('active')
+        self.queue_draw()
+
     POS_INCREMENT = 100
 
     def on_key_press_event(self, widget, event):
@@ -364,6 +368,11 @@ class PyBootchartShell(gtk.VBox):
         button = gtk_CheckButton("event Time Labels")
         button.connect ('toggled', self.widget.print_event_times)
         button.set_active (options.app_options.print_event_times)
+        hbox.pack_start (button, False)
+
+        button = gtk_CheckButton("event Times Absolute")
+        button.connect ('toggled', self.widget.absolute_uptime_event_times)
+        button.set_active (options.app_options.absolute_uptime_event_times)
         hbox.pack_start (button, False)
 
         self.pack_start(hbox, False)

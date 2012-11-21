@@ -783,8 +783,9 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h):
 		return
 	if SWEEP_CSEC:
 		time_origin_relative = SWEEP_CSEC
+	elif OPTIONS.app_options.absolute_uptime_event_times:
+		time_origin_relative = 0
 	else:
-		# XX  Add support for "absolute" boot-time origin case?
 		# align to time of first sample
 		time_origin_relative = time_origin_drawn + proc_tree.sample_period
 

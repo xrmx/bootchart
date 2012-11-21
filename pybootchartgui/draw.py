@@ -368,11 +368,11 @@ def extents(options, xscale, trace):
 	if OPTIONS.prehistory:
 		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
 	else:
-		time_origin_drawn = trace.ps_stats.start_time - proc_tree.sample_period
+		time_origin_drawn = trace.cpu_stats[0].time - proc_tree.sample_period
 	global SEC_W
 	SEC_W = xscale * sec_w_base
 
-	w = int (csec_to_xscaled(proc_tree.end_time)) + proc_tree.sample_period + 2*off_x
+	w = int (csec_to_xscaled(trace.cpu_stats[-1].time + proc_tree.sample_period) + 2*off_x)
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)

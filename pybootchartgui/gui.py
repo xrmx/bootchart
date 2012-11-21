@@ -193,7 +193,8 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousex = event.x
             self.prevmousey = event.y
         if event.button == 2:
-            self.sweep_csec, uy = self.device_to_csec_user_y(event.x, 0)
+            self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
+                               self.device_to_csec_user_y(event.x + 500, 0)[0]]
             self.queue_draw()
         if event.button == 3:
             self.sweep_csec = None

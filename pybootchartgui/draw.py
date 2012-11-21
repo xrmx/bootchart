@@ -626,8 +626,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None):
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if sweep_csec:
-		width_sec = sweep_window_width_sec(ctx)
-		draw_sweep(ctx, sweep_csec, width_sec * C.CSEC)
+		draw_sweep(ctx, sweep_csec[0], sweep_csec[1] - sweep_csec[0])
 		#dump_pseudo_event(ctx, "start of event window, width " + int(width*1000) + "msec")
 
 	ctx.render_serial += 1
@@ -778,7 +777,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 	for child in proc.child_list:
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y)
-		next_y = next_y + C.proc_h * proc_tree.num_nodes([child])
+		next_y += C.proc_h * proc_tree.num_nodes([child])
 
 	return x, y
 
@@ -812,7 +811,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	if not ev_list:
 		return
 	if ctx.SWEEP_CSEC:
-		time_origin_relative = ctx.SWEEP_CSEC
+		time_origin_relative = ctx.SWEEP_CSEC[0]
 	elif ctx.app_options.absolute_uptime_event_times:
 		time_origin_relative = 0
 	else:

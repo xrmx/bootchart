@@ -60,6 +60,8 @@ class PyBootchartWidget(gtk.DrawingArea):
 
         self.sweep_csec = None
 
+        self.hide_process_y = None       # XX  valid only between self.on_area_button_press() and self.draw()
+
     def do_expose_event(self, event):    # XX called on mouse entering or leaving window -- can these be disabled?
         cr = self.window.cairo_create()
         self.draw(cr)
@@ -73,7 +75,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)
-        draw.render(cr, self.drawctx, self.xscale, self.trace, self.sweep_csec)
+        draw.render(cr, self.drawctx, self.xscale, self.trace, self.sweep_csec, self.hide_process_y)
+        self.hide_process_y = None
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
@@ -196,13 +199,18 @@ class PyBootchartWidget(gtk.DrawingArea):
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.FLEUR))
             self.prevmousex = event.x
             self.prevmousey = event.y
-        if event.button == 2:
-            self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
+        if event.state & gtk.gdk.CONTROL_MASK:
+            if event.button == 2:
+                self.hide_process_y = self.device_to_csec_user_y(event.x, event.y)[1]
+                self.queue_draw()
+        else:
+            if event.button == 2:
+                self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
                                self.device_to_csec_user_y(event.x + 500, 0)[0]]
-            self.queue_draw()
-        if event.button == 3:
-            self.sweep_csec = None
-            self.queue_draw()
+                self.queue_draw()
+            if event.button == 3:
+                self.sweep_csec = None
+                self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False
         return False

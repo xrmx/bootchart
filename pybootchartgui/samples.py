@@ -100,6 +100,8 @@ class Process:
         self.last_blkio_delay_ns = 0
         self.last_swapin_delay_ns = 0
 
+        self.draw = True       # dynamic, view-dependent per-process state boolean
+
     # split this process' run - triggered by a name change
     #  XX  called only if taskstats.log is provided (bootchart2 daemon)
     def split(self, writer, pid, cmd, ppid, start_time):

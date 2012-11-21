@@ -110,8 +110,17 @@ class ProcessTree:
         "Counts the number of nodes in the specified process tree."""
         nodes = 0
         for proc in process_list:
-            nodes = nodes + self.num_nodes(proc.child_list)
+            nodes += self.num_nodes(proc.child_list)
         return nodes + len(process_list)
+
+    def num_nodes_drawn(self, process_list):
+        "Counts the number of nodes in the specified process tree."""
+        nodes = 0
+        for proc in process_list:
+            nodes += self.num_nodes_drawn(proc.child_list)
+            if proc.draw:
+                nodes += 1
+        return nodes
 
     def get_start_time(self, process_subtree):
         """Returns the start time of the process subtree.  This is the start

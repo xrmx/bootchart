@@ -39,6 +39,8 @@ BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
 
 WHITE = (1.0, 1.0, 1.0, 1.0)
 NOTEPAD_YELLLOW = (0.95, 0.95, 0.8, 1.0)
+PURPLE = (0.6, 0.1, 0.6, 1.0)
+
 # Process tree border color.
 BORDER_COLOR = (0.63, 0.63, 0.63, 1.0)
 # Second tick line color.
@@ -215,12 +217,15 @@ class DrawContext:
 		self.charts = charts
 		self.kernel_only = kernel_only  # set iff collector daemon saved output of `dmesg`
 		self.SWEEP_CSEC = None
-		self.SWEEP_render_serial = None
-		self.render_serial = 0
 
 		self.cr = None                # Cairo rendering context
 		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
 		self.SEC_W = None
+
+		# per-rendering state, including recursive process tree traversal
+		self.SWEEP_render_serial = None
+		self.render_serial = 0
+		self.proc_above_was_hidden = False
 
 	def per_render_init(self, cr, time_origin_drawn, SEC_W):
 		self.cr = cr
@@ -548,7 +553,7 @@ def late_init_transform(cr):
 #
 # Render the chart.  Central method of this module.
 #
-def render(cr, ctx, xscale, trace, sweep_csec = None):
+def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
         '''
 	"cr" is the Cairo drawing context -- the transform matrix it carries already has
 	 panning translation and "zoom" scaling applied.
@@ -594,6 +599,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None):
 	if proc_tree.taskstats and ctx.cumulative:
 		proc_height -= C.CUML_HEIGHT
 
+	ctx.hide_process_y = hide_process_y
 	draw_process_bar_chart(ctx, proc_tree, trace.times,
 			       curr_y, w, proc_height)
 
@@ -674,7 +680,11 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	curr_y += 15
 	for root in proc_tree.process_tree:
 		draw_processes_recursively(ctx, root, proc_tree, curr_y)
-		curr_y += C.proc_h * proc_tree.num_nodes([root])
+		curr_y += C.proc_h * proc_tree.num_nodes_drawn([root])
+	if ctx.proc_above_was_hidden:
+		draw_hidden_process_separator(ctx, curr_y)
+		ctx.proc_above_was_hidden = False
+
 	if ctx.SWEEP_CSEC and ctx.SWEEP_render_serial == ctx.render_serial:
 		# mark end of this batch of events, for the benefit of post-processors
 		print
@@ -713,12 +723,7 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y):
-	xmin = ctx.cr.device_to_user(0, 0[0]   # work around numeric overflow at high xscale factors
-	xmin = max(xmin, 0)
-	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
-	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
-
+def draw_process(ctx, proc, proc_tree, x, y, w):
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w)
 
 	# Do not draw right-hand vertical border -- process exit never exactly known
@@ -758,13 +763,62 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 			ctx.cr.device_to_user(0, 0)[0],
 			ctx.cr.clip_extents()[2])
 
+def draw_processes_recursively(ctx, proc, proc_tree, y):
+	xmin = ctx.cr.device_to_user(0, 0)[0]   # work around numeric overflow at high xscale factors
+	xmin = max(xmin, 0)
+	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
+	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
+
+	if ctx.hide_process_y:
+		if ctx.hide_process_y < y - C.proc_h/4:
+			ctx.hide_process_y = None       # no further hits in traversal are possible
+		else:
+			if ctx.hide_process_y < y + C.proc_h/4:
+				if not proc.draw:
+					proc.draw = True
+					ctx.hide_process_y += C.proc_h  # unhide all in consecutive hidden processes
+				else:
+					pass  # ignore hits on the border region if the process is not hidden
+			elif ctx.hide_process_y < y + C.proc_h*3/4:
+				if proc.draw:
+					proc.draw = False
+					ctx.hide_process_y = None
+				else:
+					pass  # ignore hits on already-hidden processes
+
+	if not proc.draw:
+		y -= C.proc_h
+		ctx.proc_above_was_hidden = True
+	else:
+		draw_process(ctx, proc, proc_tree, x, y, w)
+		if ctx.proc_above_was_hidden:
+			draw_hidden_process_separator(ctx, y)
+			ctx.proc_above_was_hidden = False
+
 	next_y = y + C.proc_h
+
 	for child in proc.child_list:
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
-		draw_process_connecting_lines(ctx, x, y, child_x, child_y)
-		next_y += C.proc_h * proc_tree.num_nodes([child])
+		if proc.draw and child.draw:
+			# XX  draws lines on top of the process name label
+			draw_process_connecting_lines(ctx, x, y, child_x, child_y)
+		next_y += C.proc_h * proc_tree.num_nodes_drawn([child])  # XX why a second recursion?
 
 	return x, y
+
+def draw_hidden_process_separator(ctx, y):
+	ctx.cr.save()
+	def draw_again():
+		ctx.cr.move_to(ctx.cr.clip_extents()[0], y)
+		ctx.cr.line_to(ctx.cr.clip_extents()[2], y)
+		ctx.cr.stroke()
+	ctx.cr.set_line_width(1.0)
+	ctx.cr.set_source_rgb(1.0, 1.0, 1.0)
+	draw_again()
+	ctx.cr.set_source_rgb(0.3, 0.3, 0.3)
+	ctx.cr.set_dash([1, 6])
+	draw_again()
+	ctx.cr.restore()
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))

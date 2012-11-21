@@ -565,6 +565,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	(w, h) = extents(ctx, xscale, trace)
 
 	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale))
+	ctx.event_dump_list = []
 
 	ctx.cr.set_line_width(1.0)
 	ctx.cr.select_font_face(FONT_NAME)
@@ -622,6 +623,9 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	ctx.render_serial += 1
 
 	ctx.cr.restore()
+
+	for ev in ctx.event_dump_list:
+		print ev.raw_log_line(),
 
 def sweep_window_width_sec(ctx):
 	'''about half the width of the visible part of the per-process bars'''
@@ -867,7 +871,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 				# ctx.cr.set_source_rgba(*MAGENTA)
 				# W,H = 2,8
 				if ctx.SWEEP_render_serial == ctx.render_serial:
-					print ev.raw_log_line(),
+					ctx.event_dump_list.append(ev)
 		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
 		ctx.cr.rel_line_to(W,-H)       # top
 		ctx.cr.rel_line_to(W, H)       # bottom-right

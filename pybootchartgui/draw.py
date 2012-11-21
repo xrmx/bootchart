@@ -790,21 +790,52 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
-def draw_process(ctx, proc, proc_tree, x, y, w):
-	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w)
+# Cairo draws lines "on-center", so to draw a one-pixel width horizontal line
+# using the (default) 1:1 transform from user-space to device-space,
+# the Y coordinate must be offset by 1/2 user-coord.
+SEPARATOR_THICKNESS = 1.0
+SEP_HALF = SEPARATOR_THICKNESS / 2
+USER_HALF = 0.5
+BAR_HEIGHT = C.proc_h - SEPARATOR_THICKNESS
 
-	# Do not draw right-hand vertical border -- process exit never exactly known
+def draw_visible_process_separator(ctx, proc, x, y, w):
+	ctx.cr.save()
 	ctx.cr.set_source_rgba(*PROC_BORDER_COLOR)
-	ctx.cr.set_line_width(1.0)
+	ctx.cr.set_line_width(SEPARATOR_THICKNESS)
 	ctx.cr.move_to(x+w, y)
 	ctx.cr.rel_line_to(-w, 0)
 	if proc.start_time < ctx.time_origin_drawn:
 		ctx.cr.stroke()
 		ctx.cr.move_to(x, y+C.proc_h)
 	else:
+		# XX  No attempt to align the vertical line with the device pixel grid
 		ctx.cr.rel_line_to(0, C.proc_h)
 	ctx.cr.rel_line_to(w, 0)
 	ctx.cr.stroke()
+	ctx.cr.restore()
+
+def draw_hidden_process_separator(ctx, y):
+	DARK_GREY = 1.0, 1.0, 1.0
+	GREY = 0.3, 0.3, 0.3
+	ctx.cr.save()
+	ctx.cr.set_source_rgb(0.0, 1.0, 0.0)
+	ctx.cr.set_line_width(SEPARATOR_THICKNESS)
+	def draw_again():
+		ctx.cr.move_to(ctx.cr.clip_extents()[0], y)
+		ctx.cr.line_to(ctx.cr.clip_extents()[2], y)
+		ctx.cr.stroke()
+	ctx.cr.set_source_rgb(*DARK_GREY)
+	draw_again()
+	ctx.cr.set_source_rgb(*GREY)
+	ctx.cr.set_dash([1, 4])
+	draw_again()
+	ctx.cr.restore()
+
+def draw_process(ctx, proc, proc_tree, x, y, w):
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w)
+
+	# Do not draw right-hand vertical border -- process exit never exactly known
+	draw_visible_process_separator(ctx, proc, x, y, w)
 
 	draw_process_state_colors(ctx, proc, proc_tree, x, y, w)
 
@@ -858,9 +889,9 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 		ctx.proc_above_was_hidden = True
 		child_y = y
 	else:
-		n_highlighted_events = draw_process(ctx, proc, proc_tree, x, y, w)
+		n_highlighted_events = draw_process(ctx, proc, proc_tree, x, y+USER_HALF, w)
 		if ctx.proc_above_was_hidden:
-			draw_hidden_process_separator(ctx, y)
+			draw_hidden_process_separator(ctx, y+USER_HALF)
 			ctx.proc_above_was_hidden = False
 		child_y = y + C.proc_h*(1 if n_highlighted_events <= 0 else 2)
 
@@ -870,24 +901,10 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 		if proc.draw and child.draw:
 			# draw upward from child to elder sibling or parent (proc)
 			# XX  draws lines on top of the process name label
-			draw_process_connecting_lines(ctx, x, y, child_x, child_y, elder_sibling_y)
+			#draw_process_connecting_lines(ctx, x, y, child_x, child_y, elder_sibling_y)
 			elder_sibling_y = child_y
 		child_y = next_y
 	return x, child_y
-
-def draw_hidden_process_separator(ctx, y):
-	ctx.cr.save()
-	def draw_again():
-		ctx.cr.move_to(ctx.cr.clip_extents()[0], y)
-		ctx.cr.line_to(ctx.cr.clip_extents()[2], y)
-		ctx.cr.stroke()
-	ctx.cr.set_line_width(1.0)
-	ctx.cr.set_source_rgb(1.0, 1.0, 1.0)
-	draw_again()
-	ctx.cr.set_source_rgb(0.3, 0.3, 0.3)
-	ctx.cr.set_dash([1, 6])
-	draw_again()
-	ctx.cr.restore()
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))
@@ -907,14 +924,15 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	#    2. proc start after sampling
 	last_time = max(proc.start_time,
 			proc.samples[0].time - proc_tree.sample_period)
+
 	for sample in proc.samples:
             cpu_self = sample.cpu_sample.user + sample.cpu_sample.sys
 	    cpu_exited_child = 0   # XXXX   sample.exited_child_user + sample.exited_child_sys
 	    width = sample.time - last_time
 
 	    if cpu_exited_child > 0:
-		height = (cpu_exited_child + cpu_self) * C.proc_h
-		draw_fill_rect(ctx.cr, CPU_CHILD_COLOR, (last_time, y+C.proc_h, width, -height))
+		height = (cpu_exited_child + cpu_self) * BAR_HEIGHT
+		draw_fill_rect(ctx.cr, CPU_CHILD_COLOR, (last_time, y+C.proc_h-SEP_HALF, width, -height))
 
 	    if cpu_exited_child != 0:
 		    print "cpu_exited_child == " + str(cpu_exited_child)
@@ -922,21 +940,21 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	    if cpu_self > 1.0:
 		print "process CPU time overflow: ", proc.tid, sample.time, width, cpu_self
 		OVERFLOW_BAR_HEIGHT=2
-		draw_fill_rect(ctx.cr, PURPLE, (last_time, y, width, OVERFLOW_BAR_HEIGHT))
+		draw_fill_rect(ctx.cr, PURPLE, (last_time, y+SEP_HALF, width, OVERFLOW_BAR_HEIGHT))
 		cpu_self = 1.0 - float(OVERFLOW_BAR_HEIGHT)/C.proc_h
 	    if cpu_self > 0:
-	        height = cpu_self * C.proc_h
-	        draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
+	        height = cpu_self * BAR_HEIGHT
+	        draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h-SEP_HALF, width, -height))
 
 	        # in unlikely event of no sys time at all, skip setting of color to CPU_SYS_COLOR
 	        if sample.cpu_sample.sys > 0:
-	        	height = sample.cpu_sample.sys * C.proc_h
-	        	draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h, width, -height))
+	        	height = sample.cpu_sample.sys * BAR_HEIGHT
+	        	draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h-SEP_HALF, width, -height))
 	        	if sample.cpu_sample.sys < cpu_self:
 	    		# draw a separator between the bar segments, to aid the eye in
 	        		# resolving the boundary
 	        		ctx.cr.save()
-	        		ctx.cr.move_to(last_time, y+C.proc_h-height)
+	        		ctx.cr.move_to(last_time, y+C.proc_h-SEP_HALF-height)
 	        		ctx.cr.rel_line_to(width,0)
 	        		ctx.cr.set_source_rgba(*PROC_COLOR_S)
 	        		ctx.cr.set_line_width(DEP_STROKE/2)
@@ -945,7 +963,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 
 	        # If thread ran at all, draw a "speed bump", in case rect was too short to resolve.
 	        tick_height = C.proc_h/5
-	        ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h, tick_height, math.pi, 0.0)
+	        ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h-SEP_HALF, tick_height, math.pi, 0.0)
 	        ctx.cr.close_path()
 	        ctx.cr.fill()
 

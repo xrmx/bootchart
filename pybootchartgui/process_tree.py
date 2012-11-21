@@ -69,7 +69,7 @@ class ProcessTree:
         writer.status("merged %i logger processes" % removed)
 
         if option_prune != "lightest":
-            p_processes = self.prune(self.process_tree, None)
+            p_processes = self.prune(self.process_tree, None, self.is_idle_background_process_without_children)
             if option_prune == "light":
                 p_exploders = 0
                 p_threads = 0
@@ -170,39 +170,33 @@ class ProcessTree:
                 p.child_list = []
             self.build()
 
-    def prune(self, process_subtree, parent):
+    def is_idle_background_process_without_children(self, p):
+        return not p.active and \
+            self.num_nodes(p.child_list) == 0 and \
+            len(p.events) == 0     # never prune a process that reports an event
+
+    def prune(self, process_subtree, parent, pruning_test):
         """Prunes the process tree by removing idle processes and processes
            that only live for the duration of a single top sample.  Sibling
            processes with the same command line (i.e. threads) are merged
            together. This filters out sleepy background processes, short-lived
            processes and bootcharts' analysis tools.
         """
-        def is_idle_background_process_without_children(p):
-            return not p.active and \
-                self.num_nodes(p.child_list) == 0 and \
-                len(p.events) == 0     # never prune a process that reports an event
-
-        num_removed = 0
+        n_pruned = 0
         idx = 0
         while idx < len(process_subtree):
             p = process_subtree[idx]
             if parent != None or len(p.child_list) == 0:
-
-                prune = False
-                if is_idle_background_process_without_children(p):
-                    prune = True
-
-                if prune:
+                if pruning_test(p):
                     p.draw = False
-                    num_removed += 1
-                    continue
+                    n_pruned += 1 + self.prune(p.child_list, p, lambda p: True)
                 else:
-                    num_removed += self.prune(p.child_list, p)
+                    n_pruned += self.prune(p.child_list, p, pruning_test)
             else:
-                num_removed += self.prune(p.child_list, p)
+                n_pruned += self.prune(p.child_list, p, pruning_test)
             idx += 1
 
-        return num_removed
+        return n_pruned
 
     def merge_logger(self, process_subtree, logger_proc, monitored_app, app_tree):
         """Merges the logger's process subtree.  The logger will typically

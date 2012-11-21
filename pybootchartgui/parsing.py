@@ -75,13 +75,13 @@ class Trace:
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
                                      self.ps_stats.sample_period,
                                      self.headers.get("profile.process"),
-                                     options.prune, idle, self.taskstats,
+                                     options, idle, self.taskstats,
                                      self.parent_map is not None)
 
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
                                            self.headers.get("profile.process"),
-                                           False, None, None, True)
+                                           options, None, None, True)
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \

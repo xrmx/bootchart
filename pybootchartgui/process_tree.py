@@ -20,9 +20,9 @@ def sort_func(proc):
 
 class ProcessTree:
     """ProcessTree encapsulates a process tree.  The tree is built from log files
-       retrieved during the boot process.  When building the process tree, it is
-       pruned and merged in order to be able to visualize it in a comprehensible
-       manner.
+       retrieved during the boot process.  When building the process tree, it may be
+       'pruned' i.e. processes merged in order to be able to visualize the whole
+       in a comprehensible manner.
 
        The following pruning techniques are used:
 
@@ -43,7 +43,7 @@ class ProcessTree:
     EXPLODER_PROCESSES = set(['hwup'])
 
     def __init__(self, writer, kernel, psstats, sample_period,
-                 monitoredApp, option_prune, idle, taskstats,
+                 monitoredApp, options, idle, taskstats,
                  accurate_parentage, for_testing = False):
         self.writer = writer
         self.process_tree = []
@@ -74,18 +74,14 @@ class ProcessTree:
             removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
             writer.status("merged %i logger processes" % removed)
 
-        if option_prune != "lightest":
+        if options.hide_processes != "none":
             p_processes = self.prune(self.process_tree, None, self.is_idle_background_process_without_children)
-            if option_prune == "light":
-                p_exploders = 0
-                p_threads = 0
-                p_runs = 0
-            else:
+            if options.merge:
                 p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
                 p_threads = self.merge_siblings(self.process_tree)
                 p_runs = self.merge_runs(self.process_tree)
-
-            writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
+                writer.status("pruned %i process, %i exploders, %i threads, and %i runs" %
+                              (p_processes, p_exploders, p_threads, p_runs))
 
         self.sort(self.process_tree)
 

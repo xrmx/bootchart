@@ -44,20 +44,22 @@ class ExtendOption(Option):
 
 def _mk_options_parser():
 	"""Make an options parser."""
-	usage = "%prog [options] PATH, ..., PATH"
+	usage = "%prog [options] PATH"
 	version = "%prog v@VER@"
-	parser = optparse.OptionParser(usage, version=version,
+	parser = optparse.OptionParser(usage=usage, version=version,
 				       description="PATH must point to a bootchart*.tgz",
 				       epilog=None,
                                        option_class=ExtendOption)
 	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
 			  help="start in active mode")
-	parser.add_option("-n", "--prune", dest="prune", default="heavy",
-			  choices=["heavy", "light", "lightest"],
-			  help="prune the process tree: " +
-			  "heavy, (default); " +
-			  "light, prune only idle processes from the tree; " +
-			  "lightest")
+	parser.add_option("--merge", dest="merge", default=False,
+			  help="Prune the process tree of all activity from dull children: " +
+                          "stats are added to parent, child process is lost in drawing of chart.")
+	parser.add_option("--hide-processes", dest="hide_processes", default="idle",
+			  choices=["none", "idle"],
+			  help="Hide uninteresting processes on initial rendering, " +
+                          "though recoverable in GUI by mouse click: " +
+			  "\"none\", show all; [\"%default\"], hide idle processes.")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,

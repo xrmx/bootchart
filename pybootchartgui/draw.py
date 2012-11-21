@@ -230,7 +230,8 @@ class DrawContext:
 	def proc_tree (self, trace):
 		return trace.kernel_tree if self.kernel_only else trace.proc_tree
 
-	def draw_label_in_box(self, color, label, x, y, w, minx, maxx):
+	def draw_label_in_box(self, color, label,
+			      x, y, w, minx, maxx):
 		# hack in a pair of left and right margins
 		extents = self.cr.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
 		label = " " + label
@@ -242,7 +243,7 @@ class DrawContext:
 
 		y += C.proc_h
 		if self.app_options.justify == JUSTIFY_LEFT:
-			label_x = x
+			label_x = x - label_w
 		else:
 			label_x = x + w / 2 - label_w / 2   # CENTER
 
@@ -763,10 +764,12 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 		else:
 			cmdString = cmdString
 
-	ctx.draw_label_in_box(PROC_TEXT_COLOR, cmdString,
-			csec_to_xscaled(ctx, proc.start_time), y,
+	ctx.draw_label_in_box( PROC_TEXT_COLOR, cmdString,
+			csec_to_xscaled(ctx, max(proc.start_time,ctx.time_origin_drawn)),
+			y,
 			w,
-			max(0, xmin), ctx.cr.clip_extents()[2])
+			ctx.cr.device_to_user(0, 0)[0],
+			ctx.cr.clip_extents()[2])
 
 	next_y = y + C.proc_h
 	for child in proc.child_list:

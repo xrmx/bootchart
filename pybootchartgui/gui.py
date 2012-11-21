@@ -171,6 +171,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         state = event.state
         if state & gtk.gdk.BUTTON2_MASK or state & gtk.gdk.BUTTON1_MASK:
             x, y = int(event.x), int(event.y)
+            if self.prevmousex==None or self.prevmousey==None:
+                return True
             # pan the image
             self.x += (self.prevmousex - x)/self.zoom_ratio
             self.y += (self.prevmousey - y)/self.zoom_ratio

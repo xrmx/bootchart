@@ -322,21 +322,25 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, off_x, curr_y+20, leg_s)
 	draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, curr_y+20, leg_s)
 
-        # render I/O utilization
-	chart_rect = (off_x, curr_y+30, w, bar_h)
-	if clip_visible (clip, chart_rect):
-		draw_box_ticks (ctx, chart_rect, sec_w)
-		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
-		draw_chart (ctx, IO_COLOR, True, chart_rect, \
-			    [(sample.time, sample.util) for sample in trace.disk_stats], \
-			    proc_tree, None)
+	curr_y += 5
 
-	# render disk throughput
-	max_sample = max (trace.disk_stats, key = lambda s: s.tput)
-	if clip_visible (clip, chart_rect):
-		draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect, \
-			    [(sample.time, sample.tput) for sample in trace.disk_stats], \
-			    proc_tree, None)
+        # render I/O utilization
+	for partition in trace.disk_stats:
+		draw_text(ctx, partition.name, TEXT_COLOR, off_x, curr_y+35)
+		chart_rect = (off_x, curr_y+30+10, w, bar_h)
+		if clip_visible (clip, chart_rect):
+			draw_box_ticks (ctx, chart_rect, sec_w)
+			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+			draw_chart (ctx, IO_COLOR, True, chart_rect, \
+					    [(sample.time, sample.util) for sample in partition.samples], \
+					    proc_tree, None)
+
+		# render disk throughput
+		max_sample = max (partition.samples, key = lambda s: s.tput)
+		if clip_visible (clip, chart_rect):
+			draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
+					    [(sample.time, sample.tput) for sample in partition.samples], \
+					    proc_tree, None)
 
 	pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 

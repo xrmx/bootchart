@@ -135,10 +135,15 @@ class Process:
 class DiskSample:
     def __init__(self, time, read, write, util):
         self.time = time
-        self.read = read
-        self.write = write
-        self.util = util
+        self.read = read    # a delta relative to the preceding time
+        self.write = write  #     ~
+        self.util = util    #     ~
         self.tput = read + write
 
-    def __str__(self):
-        return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])
+class DiskSamples:
+    def __init__(self, name, samples):
+        self.name = name
+        self.samples = samples
+#
+#    def __str__(self):
+#        return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])

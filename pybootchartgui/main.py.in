@@ -81,11 +81,10 @@ def _mk_options_parser():
 			  help="relocate the text within process bars (left, center)")
 
 	# event plotting
-	parser.add_option("-e", "--events", dest="event_regex", metavar="REGEX", default=".*",
-			  help="Plot only events matching REGEX." +
-                          "  The regular expression is anchored to beginning and end of line," +
-                          "and syntax is similar to grep 'extended' REs." +
-                          "  So to match FOO or BAR anywhere, use '.*(FOO|BAR).*'." +
+	parser.add_option("-e", "--events", dest="event_regex", metavar="REGEX", default="^$",
+			  help="Highlight events matching REGEX." +
+                          "  Syntax is similar to grep 'extended' REs." +
+                          "  To match FOO or BAR anywhere on the log line, use 'FOO|BAR'." +
                           "  (file:///usr/share/doc/python2.6/html/library/re.htm)")
 	parser.add_option("--hide-events", action="store_true", dest="hide_events", default=False,
 			  help="hide event ticks (small black triangles)")

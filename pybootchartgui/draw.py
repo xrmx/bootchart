@@ -107,7 +107,9 @@ PROC_TEXT_COLOR = (0.19, 0.19, 0.19, 1.0)
 PROC_TEXT_FONT_SIZE = 12
 
 # Event tick color.
-EVENT_COLOR = (0.0, 0.0, 0.0, 1.0)
+DIM_EVENT_COLOR =       (0.3, 0.3, 0.3)
+EVENT_COLOR =           (0.1, 0.1, 0.1)
+HIGHLIGHT_EVENT_COLOR = (2.0, 0.0, 4.0)
 
 # Signature color.
 SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
@@ -231,6 +233,7 @@ class DrawContext:
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
+		self.highlight_event__func_file_line_RE = re.compile(self.app_options.event_regex)
 
 	def proc_tree (self, trace):
 		return trace.kernel_tree if self.kernel_only else trace.proc_tree
@@ -858,7 +861,6 @@ def usec_to_csec(usec):
 	return float(usec) / 1000 / 10
 
 def draw_process_events(ctx, proc, proc_tree, x, y):
-	ev_regex = re.compile(ctx.app_options.event_regex)
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
 		   for ev in proc.events]
 	if not ev_list:
@@ -874,8 +876,12 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	width_csec = sweep_window_width_sec(ctx) * C.CSEC
 	# draw ticks, maybe dump log line
 	for (ev, tx) in ev_list:
-		ctx.cr.set_source_rgba(*EVENT_COLOR)
-		W,H = 1,5
+		if re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line):
+			ctx.cr.set_source_rgba(*HIGHLIGHT_EVENT_COLOR)
+			W,H = 2,8
+		else:
+			ctx.cr.set_source_rgba(*EVENT_COLOR)
+			W,H = 1,5
 		if ctx.SWEEP_CSEC and ev.raw_log_seek:
 			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
 			if delta_csec >= 0 and delta_csec < width_csec:

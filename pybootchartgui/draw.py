@@ -489,10 +489,6 @@ def render(ctx, options, xscale, trace):
 
 	w -= 2*off_x
 
-	ctx.new_path()
-	ctx.rectangle(off_x, 0, w, h)
-	ctx.clip()
-
 	# draw the title and headers
 	if proc_tree.idle:
 		duration = proc_tree.idle
@@ -547,6 +543,11 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	chart_rect = [off_x, curr_y + header_size + 15,
 		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
+
+        ctx.new_path()
+        ctx.rectangle(chart_rect[0]-off_x, 0, \
+		      chart_rect[2]+2*off_x, h_extents)
+	ctx.clip()
 
 	draw_box_ticks (ctx, chart_rect)
 	if SEC_W > 100:

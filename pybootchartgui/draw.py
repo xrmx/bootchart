@@ -381,10 +381,7 @@ def extents(options, xscale, trace):
 		h += CUML_HEIGHT + 4 * off_y
 	return (w, h)  # includes off_x, off_y
 
-def clip_visible(clip, rect):
-	return True
-
-def render_charts(ctx, options, clip, trace, curr_y, w, h):
+def render_charts(ctx, options, trace, curr_y, w, h):
 	proc_tree = options.proc_tree(trace)
 
 	# render bar legend
@@ -398,27 +395,26 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 			120 +90 +140, curr_y+20, leg_s, leg_s)
 
 	chart_rect = (0, curr_y+30, w, bar_h)
-	if clip_visible (clip, chart_rect):
-		draw_box_ticks (ctx, chart_rect)
-		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
-		# render I/O wait -- a backwards delta
-		draw_chart (ctx, IO_COLOR, True, chart_rect, \
-			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
-			    proc_tree, None, plot_square)
-		# render CPU load -- a backwards delta
-		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
-			    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
-			    proc_tree, None, plot_square)
+	draw_box_ticks (ctx, chart_rect)
+	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+	# render I/O wait -- a backwards delta
+	draw_chart (ctx, IO_COLOR, True, chart_rect, \
+		    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
+		    proc_tree, None, plot_square)
+	# render CPU load -- a backwards delta
+	draw_chart (ctx, CPU_COLOR, True, chart_rect, \
+		    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
+		    proc_tree, None, plot_square)
 
-		# instantaneous sample
-		draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
-			    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9], plot_scatter_positive)
+	# instantaneous sample
+	draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
+		    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
+		    proc_tree, [0, 9], plot_scatter_positive)
 
-		# instantaneous sample
-		draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
-			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9], plot_scatter_positive)
+	# instantaneous sample
+	draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
+		    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
+		    proc_tree, [0, 9], plot_scatter_positive)
 
 	curr_y = curr_y + 50 + bar_h
 
@@ -445,30 +441,29 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (0, curr_y+30+5, w, bar_h)
-		if clip_visible (clip, chart_rect):
-			draw_box_ticks (ctx, chart_rect)
-			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
-			# a backwards delta
-			draw_chart (ctx, IO_COLOR, True, chart_rect,
-					    [(sample.time, sample.util) for sample in partition.samples],
-					    proc_tree, [0, 1], plot_square)
+		draw_box_ticks (ctx, chart_rect)
+		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+		# a backwards delta
+		draw_chart (ctx, IO_COLOR, True, chart_rect,
+				    [(sample.time, sample.util) for sample in partition.samples],
+				    proc_tree, [0, 1], plot_square)
 
 		# render disk throughput
 		#  XXX assume single block device, for now
 		if not max_sample:
 			#  XXX correction for non-constant sample.time?
 			max_sample = max (partition.samples, key = lambda s: s.tput)
-		if clip_visible (clip, chart_rect):
-			# a backwards delta
-			draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
-					    [(sample.time, sample.tput) for sample in partition.samples],
-					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
-			# overlay write throughput
-			# a backwards delta
-			draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
-					    [(sample.time, sample.write) for sample in partition.samples],
-					    proc_tree, [0, max_sample.tput], plot_segment_positive)
+		# a backwards delta
+		draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
+				    [(sample.time, sample.tput) for sample in partition.samples],
+				    proc_tree, [0, max_sample.tput], plot_segment_positive)
+
+		# overlay write throughput
+		# a backwards delta
+		draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
+				    [(sample.time, sample.write) for sample in partition.samples],
+				    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
 		# pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
 		#
@@ -485,7 +480,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 	# render mem usage
 	chart_rect = (0, curr_y+30, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
-	if mem_stats and clip_visible (clip, chart_rect):
+	if mem_stats:
 		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
 		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y+20, leg_s)
 		draw_legend_box(ctx, "Used", MEM_USED_COLOR, 240, curr_y+20, leg_s)
@@ -537,9 +532,6 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	ctx.rectangle(0, 0, w, h)
 	ctx.clip()
 
-	# x, y, w, h
-	clip = (-1, -1, -1, -1) # ctx.clip_extents()
-
 	w -= 2*off_x
 
 	# draw the title and headers
@@ -554,14 +546,14 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 		curr_y = off_y;
 
 	if options.charts:
-		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h)
+		curr_y = render_charts (ctx, options, trace, curr_y, w, h)
 
 	# draw process boxes
 	proc_height = h
 	if proc_tree.taskstats and options.cumulative:
 		proc_height -= CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, clip, options, proc_tree, trace.times,
+	draw_process_bar_chart(ctx, options, proc_tree, trace.times,
 			       curr_y, w, proc_height)
 
 	curr_y = proc_height
@@ -569,14 +561,12 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
 		cuml_rect = (0, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
-		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
+		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
 
 	# draw a cumulative I/O-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
 		cuml_rect = (0, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
-		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
+		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if isotemporal_csec:
 		draw_isotemporal(ctx, isotemporal_csec)
@@ -592,7 +582,7 @@ def draw_isotemporal(ctx, isotemporal_csec):
 	ctx.line_to(isotemporal_x, CUML_HEIGHT)
 	ctx.stroke()
 
-def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
+def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
 	if not options.kernel_only:
 		draw_legend_diamond (ctx, "Runnable",
@@ -622,7 +612,7 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 
 	y = curr_y + 60
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
+		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
 		y = y + proc_h * proc_tree.num_nodes([root])
 
 
@@ -658,11 +648,11 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
+def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 	x = csec_to_xscaled(proc.start_time)
 	w = csec_to_xscaled(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
 
-	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
 
 	# Do not draw right-hand vertical border -- process exit never exactly known
 	ctx.set_source_rgba(*PROC_BORDER_COLOR)
@@ -673,7 +663,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	ctx.rel_line_to(w, 0)
 	ctx.stroke()
 
-	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
+	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
 
 	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);
 	# user can work around this by toggling off the event ticks.
@@ -698,13 +688,13 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 	next_y = y + proc_h
 	for child in proc.child_list:
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip)
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])
 
 	return x, y
 
-def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
+def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 	if len(proc.samples) <= 0:
 		return
@@ -750,7 +740,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 				y + proc_h - 4, tx)
 				last_label_str = label_str
 
-def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
+def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 	last_tx = -1
 	for sample in proc.samples :
 		tx = csec_to_xscaled(sample.time)

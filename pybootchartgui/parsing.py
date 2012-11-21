@@ -469,6 +469,9 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
                     sample.add_diskdata([rsect, wsect, use])
                     disk_stat_samples.append(sample)
 
+                if options.partition_labels:
+                    disk_name = options.partition_labels[0]
+                    options.partition_labels = options.partition_labels[1:]
                 partition_samples.append(DiskSamples(disk_name,
                                                      delta_disk_samples(disk_stat_samples, numCpu)))
 

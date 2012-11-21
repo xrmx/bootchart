@@ -327,7 +327,9 @@ class PyBootchartWindow(gtk.Window):
 
         window = self
         window.set_title("Bootchart %s" % trace.filename)
-        window.set_default_size(750, 550)
+        screen = window.get_screen()
+        window.set_default_size(screen.get_width() * 95/100,
+                                screen.get_height() * 95/100)
 
         tab_page = gtk.Notebook()
         tab_page.show()

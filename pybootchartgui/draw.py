@@ -119,7 +119,7 @@ SIG_FONT_SIZE = 14
 SIGNATURE = "http://github.com/mmeeks/bootchart"
 
 # Process dependency line color.
-DEP_COLOR = (0.75, 0.75, 0.75, 1.0)
+DEP_COLOR = (0.75, 0.6, 0.75, 1.0)
 # Process dependency line stroke.
 DEP_STROKE = 1.0
 
@@ -806,11 +806,13 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 
 	next_y = y + C.proc_h
 
+	elder_sibling_y = None
 	for child in proc.child_list:
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
 		if proc.draw and child.draw:
 			# XX  draws lines on top of the process name label
-			pass # draw_process_connecting_lines(ctx, x, y, child_x, child_y)
+			draw_process_connecting_lines(ctx, x, y, child_x, child_y, elder_sibling_y)
+			elder_sibling_y = child_y
 		next_y += C.proc_h * proc_tree.num_nodes_drawn([child])  # XX why a second recursion?
 
 	return x, y
@@ -940,22 +942,28 @@ def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):
 			ctx.cr.set_source_rgba(*color)
 			draw_diamond(ctx.cr, tx, y + C.proc_h/2, 2.5, C.proc_h)
 
-def draw_process_connecting_lines(ctx, px, py, x, y):
+def draw_process_connecting_lines(ctx, px, py, x, y, elder_sibling_y):
+	ON = 1
+	OFF = 2
+	DASH_LENGTH = ON + OFF
+
+	ctx.cr.save()
 	ctx.cr.set_source_rgba(*DEP_COLOR)
-	ctx.cr.set_dash([1, 2])   # XX  repeated draws are not phase-synchronized, resulting in a solid line
-	if abs(px - x) < 3:
-		dep_off_x = 3
-		dep_off_y = C.proc_h / 4
-		ctx.cr.move_to(x, y + C.proc_h / 2)
-		ctx.cr.line_to(px - dep_off_x, y + C.proc_h / 2)
-		ctx.cr.line_to(px - dep_off_x, py - dep_off_y)
-		ctx.cr.line_to(px, py - dep_off_y)
+	ctx.cr.set_dash([ON, OFF])   # repeated draws are not phase-synchronized, resulting in a solid line
+	ctx.cr.set_line_width(DEP_STROKE)
+
+	ctx.cr.move_to(x, y + C.proc_h / 2)                          # child's center
+	# exdent the connecting lines; otherwise the horizontal would be too short to see
+	dep_off_x = 3
+	dep_off_y = 0 # C.proc_h / 4
+	ctx.cr.line_to(px - dep_off_x, y + C.proc_h / 2)             # leftward
+	if elder_sibling_y is not None:
+		ctx.cr.line_to(px - dep_off_x, elder_sibling_y + C.proc_h/2) # upward
 	else:
-		ctx.cr.move_to(x, y + C.proc_h / 2)
-		ctx.cr.line_to(px, y + C.proc_h / 2)
-		ctx.cr.line_to(px, py)
+		ctx.cr.line_to(px - dep_off_x, py + C.proc_h/2)      # upward
+		ctx.cr.rel_line_to(dep_off_x, 0)                     # rightward
 	ctx.cr.stroke()
-	ctx.cr.set_dash([])
+	ctx.cr.restore()
 
 class CumlSample:
 	def __init__(self, proc):

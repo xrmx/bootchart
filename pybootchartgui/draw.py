@@ -26,9 +26,10 @@ import collections
 # XX  The syntax is awkward, but more elegant alternatives have run-time overhead.
 #     http://stackoverflow.com/questions/4996815/ways-to-make-a-class-immutable-in-python
 DrawConsts = collections.namedtuple('XXtypename',
+    #                                        |height of a process, in user-space
+    #                                        |                |taskstats-specific
             ['CSEC','bar_h','off_x','off_y','proc_h','leg_s','CUML_HEIGHT','MIN_IMG_W'])
 C = DrawConsts( 100,     55,     10,     10,      16,     11,         2000,        800)
-#                                                 height of a process, in user-space
 
 # Derived constants
 #   XX  create another namedtuple for these
@@ -221,12 +222,14 @@ class DrawContext:
 		self.kernel_only = kernel_only  # set iff collector daemon saved output of `dmesg`
 		self.SWEEP_CSEC = None
 		self.event_dump_list = None
+		self.trace = trace
 
 		self.cr = None                # Cairo rendering context
 		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
 		self.SEC_W = None
+		self.time_origin_relative = None  # currently used only to locate events
 
-		# per-rendering state
+		# intra-rendering state
 		self.proc_above_was_hidden = False
 
 	def per_render_init(self, cr, time_origin_drawn, SEC_W):
@@ -234,6 +237,14 @@ class DrawContext:
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
 		self.highlight_event__func_file_line_RE = re.compile(self.app_options.event_regex)
+
+		if self.SWEEP_CSEC:
+			self.time_origin_relative = self.SWEEP_CSEC[0]
+		elif self.app_options.absolute_uptime_event_times:
+			self.time_origin_relative = 0
+		else:
+			# align to time of first sample
+			self.time_origin_relative = self.time_origin_drawn + self.trace.proc_tree.sample_period
 
 	def proc_tree (self, trace):
 		return trace.kernel_tree if self.kernel_only else trace.proc_tree
@@ -796,26 +807,25 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 					pass  # ignore hits on already-hidden processes
 
 	if not proc.draw:
-		y -= C.proc_h
 		ctx.proc_above_was_hidden = True
+		child_y = y
 	else:
 		draw_process(ctx, proc, proc_tree, x, y, w)
 		if ctx.proc_above_was_hidden:
 			draw_hidden_process_separator(ctx, y)
 			ctx.proc_above_was_hidden = False
-
-	next_y = y + C.proc_h
+		child_y = y + C.proc_h
 
 	elder_sibling_y = None
 	for child in proc.child_list:
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
+		child_x, next_y = draw_processes_recursively(ctx, child, proc_tree, child_y)
 		if proc.draw and child.draw:
+			# draw upward from child to elder sibling or parent (proc)
 			# XX  draws lines on top of the process name label
 			draw_process_connecting_lines(ctx, x, y, child_x, child_y, elder_sibling_y)
 			elder_sibling_y = child_y
-		next_y += C.proc_h * proc_tree.num_nodes_drawn([child])  # XX why a second recursion?
-
-	return x, y
+		child_y = next_y
+	return x, child_y
 
 def draw_hidden_process_separator(ctx, y):
 	ctx.cr.save()
@@ -877,13 +887,6 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		   for ev in proc.events]
 	if not ev_list:
 		return
-	if ctx.SWEEP_CSEC:
-		time_origin_relative = ctx.SWEEP_CSEC[0]
-	elif ctx.app_options.absolute_uptime_event_times:
-		time_origin_relative = 0
-	else:
-		# align to time of first sample
-		time_origin_relative = ctx.time_origin_drawn + proc_tree.sample_period
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
@@ -914,7 +917,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	for (ev, tx) in ev_list:
 		if tx < last_x_touched + spacing:
 			continue
-		delta = float(ev.time_usec)/1000/10 - time_origin_relative
+		delta = float(ev.time_usec)/1000/10 - ctx.time_origin_relative
 		if ctx.SWEEP_CSEC:
 			if abs(delta) < C.CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))

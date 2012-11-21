@@ -87,6 +87,7 @@ class Process:
         self.last_swapin_delay_ns = 0
 
     # split this process' run - triggered by a name change
+    #  XX  called only if taskstats.log is provided (bootchart2 daemon)
     def split(self, writer, pid, cmd, ppid, start_time):
         split = Process (writer, pid, cmd, ppid, start_time)
 

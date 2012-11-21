@@ -236,7 +236,7 @@ class DrawContext:
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
-		self.highlight_event__func_file_line_RE = re.compile(self.app_options.event_regex)
+		self.highlight_event__match_RE = re.compile(self.app_options.event_regex)
 
 		if self.SWEEP_CSEC:
 			self.time_origin_relative = self.SWEEP_CSEC[0]
@@ -894,7 +894,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
-		m = re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line)
+		m = re.search(ctx.highlight_event__match_RE, ev.match)
 		if m:
 			ctx.cr.set_source_rgb(*HIGHLIGHT_EVENT_COLOR)
 			W,H = 2,8

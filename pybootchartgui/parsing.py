@@ -125,7 +125,7 @@ class Trace:
             for cpu in self.cpu_stats:
                 # assign to the init process's bar, for lack of any better
                 ev = EventSample(cpu.time, cpu.time*10*1000, init_pid, init_pid,
-                                 "comm", "func_file_line", None, None)
+                                 "comm", "match", None, None)
                 proc.events.append(ev)
 
         # merge in events
@@ -720,10 +720,10 @@ def _parse_events_log(writer, tf, file):
             pid = int(m.group(2))
             tid = int(m.group(3))
             comm = m.group(4)
-            func_file_line = m.group(5)
+            match = m.group(5)
             raw_log_filename = m.group(6)
             raw_log_seek = int(m.group(7))
-            samples.append( EventSample(time, time_usec, pid, tid, comm, func_file_line,
+            samples.append( EventSample(time, time_usec, pid, tid, comm, match,
                                         tf.extractfile(raw_log_filename), raw_log_seek))
     return samples
 

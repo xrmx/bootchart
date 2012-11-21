@@ -651,15 +651,16 @@ def draw_sweep(ctx, sweep_csec, width_csec):
 		cr.set_source_rgba(0.0, 0.0, 0.0, 1.0)
 		cr.set_line_width(1.0)
 		cr.move_to(x, 0)
-		cr.line_to(x, C.CUML_HEIGHT)
+		cr.line_to(x, height)
 		cr.stroke()
 
+	height = int(ctx.cr.device_to_user(0,2000)[1])
 	x = csec_to_xscaled(ctx, sweep_csec)
-	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[0]-x),C.CUML_HEIGHT))
+	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[0]-x),height))
 	draw_vertical(ctx.cr, x)
 
 	x = csec_to_xscaled(ctx, sweep_csec + width_csec)
-	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),C.CUML_HEIGHT))
+	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),height))
 	draw_vertical(ctx.cr, x)
 
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):

@@ -57,8 +57,8 @@ class ProcessCPUSample:
         self.time = time
         self.user = user
         self.sys = sys
-        self.io = io
-        self.swap = swap
+        self.io = io        # taskstats-specific
+        self.swap = swap    # taskstats-specific
 
     @property
     def cpu(self):
@@ -112,12 +112,11 @@ class Process:
         self.parent = None
         self.child_list = []
 
-        self.activeCount = 0
-        self.CPUCount = 0
-        self.first_user_cpu_time = None
-        self.first_sys_cpu_time = None
-        self.last_user_cpu_time = 0
-        self.last_sys_cpu_time = 0
+
+        self.user_cpu_time = [-1, -1]
+        self.sys_cpu_time = [-1, -1]
+        self.c_user_cpu_time = [-1, -1]
+        self.c_sys_cpu_time = [-1, -1]
 
         self.last_cpu_ns = 0
         self.last_blkio_delay_ns = 0
@@ -125,7 +124,15 @@ class Process:
 
         self.draw = True       # dynamic, view-dependent per-process state boolean
 
-    # split this process' run - triggered by a name change
+    def CPUCount(self):
+        return self.user_cpu_time[-1] + self.sys_cpu_time[-1] \
+                        - (self.user_cpu_time[0] + self.sys_cpu_time[0])
+
+    def c_CPUCount(self):
+        return self.c_user_cpu_time[-1] + self.c_sys_cpu_time[-1] \
+                        - (self.c_user_cpu_time[0] + self.c_sys_cpu_time[0])
+
+        # split this process' run - triggered by a name change
     #  XX  called only if taskstats.log is provided (bootchart2 daemon)
     def split(self, writer, pid, cmd, ppid, start_time):
         split = Process (writer, pid, cmd, ppid, start_time)
@@ -151,12 +158,10 @@ class Process:
         self.activeCount = sum( [1 for sample in self.samples if \
                             (sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0) \
                             or sample.state == 'D'])
-        self.CPUCount = self.last_user_cpu_time + self.last_sys_cpu_time \
-                        - (self.first_user_cpu_time + self.first_sys_cpu_time)
 
     def calc_load(self, userCpu, sysCpu, interval):
-        userCpuLoad = float(userCpu - self.last_user_cpu_time) / interval
-        sysCpuLoad = float(sysCpu - self.last_sys_cpu_time) / interval
+        userCpuLoad = float(userCpu - self.user_cpu_time[-1]) / interval
+        sysCpuLoad = float(sysCpu - self.sys_cpu_time[-1]) / interval
         cpuLoad = userCpuLoad + sysCpuLoad
         # normalize
         if cpuLoad > 1.0:

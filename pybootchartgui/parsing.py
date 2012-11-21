@@ -270,7 +270,7 @@ def _parse_timed_blocks(file):
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
 def _handle_sample(processMap, writer, ltime, time,
-                   pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime):
+                   pid, tid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime):
     if tid in processMap:
         process = processMap[tid]
         process.cmd = cmd.strip('()') # XX  loses name changes prior to the final sample
@@ -282,19 +282,21 @@ def _handle_sample(processMap, writer, ltime, time,
 
         process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
         processMap[tid] = process
-        process.first_user_cpu_time = userCpu
-        process.first_sys_cpu_time = sysCpu
+        process.user_cpu_time[0] = userCpu
+        process.sys_cpu_time[0] = sysCpu
 
     if ltime == None:           # collector startup, not usually coinciding with thread startup
-        userCpuLoad, sysCpuLoad = 0, 0
+        userCpuLoad, sysCpuLoad, c_userCpuLoad, c_sysCpuLoad = 0, 0, 0, 0
     else:
         userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
 
     cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
     process.samples.append(ProcessSample(time, state, cpuSample))
 
-    process.last_user_cpu_time = userCpu
-    process.last_sys_cpu_time = sysCpu
+    process.user_cpu_time[-1] = userCpu
+    process.sys_cpu_time[-1] = sysCpu
+    process.c_user_cpu_time[-1] = c_userCpu
+    process.c_sys_cpu_time[-1] = c_sysCpu
     return processMap
 
 def _parse_proc_ps_log(options, writer, file):
@@ -317,13 +319,15 @@ def _parse_proc_ps_log(options, writer, file):
 
             offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]
             pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
-            userCpu, sysCpu, starttime = int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
+            userCpu, sysCpu = int(tokens[13+offset]), int(tokens[14+offset]),
+            c_userCpu, c_sysCpu = int(tokens[15+offset]), int(tokens[16+offset])
+            starttime = int(tokens[21+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
             ppid *= 1000
             processMap = _handle_sample(processMap, writer, ltime, time,
-                                        pid, pid, cmd, state, ppid, userCpu, sysCpu, starttime)
+                                        pid, pid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime)
         ltime = time
 
     if len (timed_blocks) < 2:
@@ -368,7 +372,9 @@ def _parse_proc_ps_threads_log(options, writer, file):
 
             offset = [index for index, token in enumerate(tokens[2:]) if (len(token) > 0 and token[-1] == ')')][0]
             pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
-            userCpu, sysCpu, starttime = int(tokens[7+offset]), int(tokens[8+offset]), int(tokens[13+offset])
+            userCpu, sysCpu = int(tokens[7+offset]), int(tokens[8+offset])
+            c_userCpu, c_sysCpu = int(tokens[9+offset]), int(tokens[10+offset])
+            starttime = int(tokens[13+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
@@ -376,7 +382,7 @@ def _parse_proc_ps_threads_log(options, writer, file):
             ppid *= 1000
 
             processMap = _handle_sample(processMap, writer, ltime, time,
-                                        pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime)
+                                        pid, tid, cmd, state, ppid, userCpu, sysCpu, c_userCpu, c_sysCpu, starttime)
         ltime = time
 
     if len (timed_blocks) < 2:

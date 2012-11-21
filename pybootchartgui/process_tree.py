@@ -75,7 +75,7 @@ class ProcessTree:
             removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
             writer.status("merged %i logger processes" % removed)
 
-        p_processes = self.prune(self.process_tree, None, self.is_inactive_process)
+        p_processes = self.prune(self.process_tree, None, self.is_inactive_process_without_children)
         writer.status("hid %i processes" % p_processes)
 
         if options.merge:
@@ -175,12 +175,15 @@ class ProcessTree:
             self.build()
 
     def is_inactive_process(self, p):
-        return p.activeCount < self.options.show_active and \
-               p.CPUCount < self.options.show_high_CPU
+        return p.CPUCount() < self.options.show_high_CPU
 
     def is_inactive_process_without_children(self, p):
-        return is_inactive_process and \
+        return self.is_inactive_process(p) and \
                self.num_nodes(p.child_list) == 0
+
+    def is_inactive_process_with_inactive_children(self, p):
+        return self.is_inactive_process(p) and \
+               p.c_CPUCount() < self.options.show_high_CPU
 
     def prune(self, process_subtree, parent, pruning_test):
         n_pruned = 0

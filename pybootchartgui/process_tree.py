@@ -170,7 +170,8 @@ class ProcessTree:
         """
         def is_idle_background_process_without_children(p):
             return not p.active and \
-                   self.num_nodes(p.child_list) == 0
+                self.num_nodes(p.child_list) == 0 and \
+                len(p.events) == 0     # never prune a process that reports an event
 
         num_removed = 0
         idx = 0

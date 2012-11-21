@@ -123,6 +123,10 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.options.app_options.show_all = button.get_property ('active')
         self.queue_draw()
 
+    def hide_events(self, button):
+        self.options.app_options.hide_events = not button.get_property ('active')
+        self.queue_draw()
+
     POS_INCREMENT = 100
 
     def on_key_press_event(self, widget, event):
@@ -310,7 +314,12 @@ class PyBootchartShell(gtk.VBox):
             # Misc. options
             button = gtk.CheckButton("Show more")
             button.connect ('toggled', self.widget.show_toggled)
-            hbox.pack_start (button, False, True)
+            hbox.pack_start (button, False)
+
+        button = gtk.CheckButton("Events")
+        button.connect ('toggled', self.widget.hide_events)
+        button.set_active (True)
+        hbox.pack_start (button, False)
 
         self.pack_start(hbox, False)
         self.pack_start(scrolled)

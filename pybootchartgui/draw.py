@@ -575,7 +575,10 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
 	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 
-	draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect)
+	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);
+	# user can work around this by toggling off the event ticks.
+	if not OPTIONS.hide_events:
+		draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect)
 
 	ipid = int(proc.pid)
 	if proc_tree.taskstats and OPTIONS.show_all:

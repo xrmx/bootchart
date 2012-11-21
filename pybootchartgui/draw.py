@@ -38,9 +38,12 @@ meminfo_bar_h = 2 * C.bar_h
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
 
+TRANSPARENT = (0.0, 0.0, 0.0, 0.0)
+
 WHITE = (1.0, 1.0, 1.0, 1.0)
 BLACK = (0.0, 0.0, 0.0, 1.0)
-NOTEPAD_YELLLOW = (0.95, 0.95, 0.8, 1.0)
+DARK_GREY = (0.1, 0.1, 0.1)
+NOTEPAD_YELLOW = (0.95, 0.95, 0.8, 1.0)
 PURPLE = (0.6, 0.1, 0.6, 1.0)
 RED = (1.0, 0.0, 0.0)
 
@@ -201,10 +204,19 @@ def draw_legend_line(cr, label, fill_color, x, y, s):
 	cr.fill()
 	draw_text(cr, label, TEXT_COLOR, x + s + 5, y)
 
-def draw_label_in_box_at_time(cr, color, label, y, label_x):
+def draw_label_at_time(cr, color, label, y, label_x):
 	draw_text(cr, label, color, label_x, y)
-	return cr.text_extents(label)[2]
+	return cr.text_extents(label)[2] # return width
 
+# FIXME:  Name assumes cr includes time->user transform
+# y is at process bar boundary above
+def draw_label_on_bg(cr, bg_color, color, label, y, label_x):
+	TOP_MARGIN=3  # user-space
+	label = label
+	x_bearing, y_bearing, width, height, x_advance, y_advance = cr.text_extents(label)
+	draw_fill_rect(cr, bg_color, (label_x, y+1, x_advance, C.proc_h-2))
+	draw_text(cr, label, color, label_x, y-y_bearing+TOP_MARGIN)
+	return x_advance
 
 def _time_origin_drawn(ctx, trace):
 	if ctx.app_options.prehistory:
@@ -266,7 +278,7 @@ class DrawContext:
 	def proc_tree (self, trace):
 		return trace.kernel_tree if self.kernel_only else trace.proc_tree
 
-	def draw_label_in_box(self, color, label,
+	def draw_process_label_in_box(self, color, label,
 			      x, y, w, minx, maxx):
 		# hack in a pair of left and right margins
 		extents = self.cr.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
@@ -285,7 +297,7 @@ class DrawContext:
 		if label_x < minx:
 			label_x = minx
 		# XX ugly magic constants, tuned by trial-and-error
-		draw_fill_rect(self.cr, NOTEPAD_YELLLOW, (label_x, y-1, label_w, -(C.proc_h-2)))
+		draw_fill_rect(self.cr, NOTEPAD_YELLOW, (label_x, y-1, label_w, -(C.proc_h-2)))
 		draw_text(self.cr, label, color, label_x, y-4)
 
 # XX  Should be "_csec_to_user"
@@ -707,7 +719,7 @@ def draw_sweep(ctx, sweep_text_box_y):
 		cr.line_to(x, height)
 		cr.stroke()
 		for y in sweep_text_box_y:
-			draw_label_in_box_at_time(ctx.cr, BLACK,
+			draw_label_at_time(ctx.cr, BLACK,
 				format_label_time(ctx, time - ctx.time_origin_relative),
 				y+ctx.M_HEIGHT,	x+ctx.n_WIDTH/2)
 
@@ -858,7 +870,7 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 	if ctx.app_options.show_all and proc.args:
 		cmdString += " '" + "' '".join(proc.args) + "'"
 
-	ctx.draw_label_in_box( PROC_TEXT_COLOR, cmdString,
+	ctx.draw_process_label_in_box( PROC_TEXT_COLOR, cmdString,
 			csec_to_xscaled(ctx, max(proc.start_time,ctx.time_origin_drawn)),
 			y,
 			w,
@@ -975,7 +987,7 @@ def usec_to_csec(usec):
 	return float(usec) / 1000 / 10
 
 def draw_event_label(ctx, label, tx, y):
-	draw_label_in_box_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
+	draw_label_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
 
 def format_label_time(ctx, delta):
 	if ctx.SWEEP_CSEC:
@@ -991,6 +1003,35 @@ def format_label_time(ctx, delta):
 		return '{0:.{prec}f}'.format(float(delta)/C.CSEC,
 					     prec=min(3, max(0, int(ctx.SEC_W/100))))
 
+def print_event_times(ctx, y, ev_list):
+	ctx.cr.set_source_rgba(*EVENT_COLOR)
+	width = ctx.cr.text_extents("00")[2]
+	last_x_touched = 0
+	last_label_str = None
+	for (ev, tx) in ev_list:
+		for ev_re in ctx.highlight_event__match_RE:
+			m = re.search(ev_re, ev.match)
+			if m:
+				break;
+		if not m and tx < last_x_touched + width:
+			continue
+		delta= float(ev.time_usec)/1000/10 - ctx.time_origin_relative
+
+		label_str = format_label_time(ctx, delta)
+		if m or label_str != last_label_str:
+			if m:
+				# freely step on top of any time labels drawn earlier
+				last_x_touched = tx + draw_label_on_bg(
+					ctx.cr,
+					WHITE,
+					HIGHLIGHT_EVENT_COLOR, label_str, y, tx)
+			else:
+				last_x_touched = tx + draw_label_on_bg(
+					ctx.cr,
+					TRANSPARENT,
+					DARK_GREY, label_str, y, tx)
+			last_label_str = label_str
+
 def draw_process_events(ctx, proc, proc_tree, x, y):
 	n_highlighted_events = 0
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
@@ -998,8 +1039,13 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	if not ev_list:
 		return n_highlighted_events
 
+	# draw numbers
+	if ctx.app_options.print_event_times:
+		print_event_times(ctx, y, ev_list)
+
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
+		# FIXME: Optimize by doing re.search() per-regexp change, rather than per-rendering?
 		for ev_re in ctx.highlight_event__match_RE:
 			m = re.search(ev_re, ev.match)
 			if m:
@@ -1032,25 +1078,6 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		ctx.cr.close_path()
 		ctx.cr.fill()
 
-	# draw numbers
-	if not ctx.app_options.print_event_times:
-		return n_highlighted_events
-	ctx.cr.set_source_rgba(*EVENT_COLOR)
-	spacing = ctx.cr.text_extents("00")[2]
-	last_x_touched = 0
-	last_label_str = None
-	for (ev, tx) in ev_list:
-		if tx < last_x_touched + spacing:
-			continue
-		delta= float(ev.time_usec)/1000/10 - ctx.time_origin_relative
-
-		label_str = format_label_time(ctx, delta)
-		if label_str != last_label_str:
-			last_x_touched = tx + draw_label_in_box_at_time(
-				ctx.cr, PROC_TEXT_COLOR,
-				label_str,
-				y + C.proc_h - 4, tx + ctx.n_WIDTH/2)
-			last_label_str = label_str
 	return n_highlighted_events
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):

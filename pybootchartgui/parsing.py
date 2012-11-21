@@ -481,7 +481,8 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
                 for time, lines in _parse_timed_blocks(file):
                     sample = DiskStatSample(time)
                     relevant_tokens = get_relevant_tokens(lines, this_partition_regex_re)
-                    disk_name = add_tokens_to_sample(sample,relevant_tokens[0]) # [0] assumes 'part' matched only a single line
+                    if relevant_tokens:    # XX  should exit with usage message
+                        disk_name = add_tokens_to_sample(sample,relevant_tokens[0]) # [0] assumes 'part' matched at most a single line
                     disk_stat_samples.append(sample)
 
                 if options.partition_labels:

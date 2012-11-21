@@ -19,8 +19,8 @@ import math
 import re
 import random
 import colorsys
-import traceback
 import collections
+import traceback # debug
 
 # Constants: Put the more heavily used, non-derived constants in a named tuple, for immutability.
 # XX  The syntax is awkward, but more elegant alternatives have run-time overhead.
@@ -236,13 +236,15 @@ class DrawContext:
 		self.unhide_process_y = None
 		self.proc_above_was_hidden = False
 
-	def per_render_init(self, cr, time_origin_drawn, SEC_W):
+	def per_render_init(self, cr, time_origin_drawn, SEC_W, sweep_csec):
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
 		self.highlight_event__match_RE = re.compile(self.app_options.event_regex)
 
+		self.SWEEP_CSEC = sweep_csec
 		if self.SWEEP_CSEC:
+			self.SWEEP_CSEC.sort()
 			self.time_origin_relative = self.SWEEP_CSEC[0]
 		elif self.app_options.absolute_uptime_event_times:
 			self.time_origin_relative = 0
@@ -588,10 +590,8 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	"ctx" is a DrawContext object.
 	'''
 	#traceback.print_stack()
+	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale), sweep_csec)
 	(w, h) = extents(ctx, xscale, trace)
-
-	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale))
-	ctx.SWEEP_CSEC = sweep_csec
 
 	ctx.cr.set_line_width(1.0)
 	ctx.cr.select_font_face(FONT_NAME)
@@ -652,9 +652,8 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		cuml_rect = (0, curr_y + C.off_y * 100, w, C.CUML_HEIGHT/2 - C.off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
-	if sweep_csec:
-		draw_sweep(ctx, sweep_csec[0], sweep_csec[1] - sweep_csec[0])
-		#dump_pseudo_event(ctx, "start of event window, width " + int(width*1000) + "msec")
+	if ctx.SWEEP_CSEC:
+		draw_sweep(ctx)
 
 	ctx.cr.restore()
 
@@ -680,7 +679,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 
 	ctx.event_dump_list = None
 
-def draw_sweep(ctx, sweep_csec, width_csec):
+def draw_sweep(ctx):
 	def draw_shading(cr, rect):
 		# alpha value of the rgba strikes a compromise between appearance on screen, and in printed screenshot
 		cr.set_source_rgba(0.0, 0.0, 0.0, 0.08)
@@ -696,11 +695,10 @@ def draw_sweep(ctx, sweep_csec, width_csec):
 		cr.stroke()
 
 	height = int(ctx.cr.device_to_user(0,2000)[1])
-	x = csec_to_xscaled(ctx, sweep_csec)
+	x = csec_to_xscaled(ctx, ctx.SWEEP_CSEC[0])
 	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[0]-x),height))
 	draw_vertical(ctx.cr, x)
-
-	x = csec_to_xscaled(ctx, sweep_csec + width_csec)
+	x = csec_to_xscaled(ctx, ctx.SWEEP_CSEC[1])
 	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),height))
 	draw_vertical(ctx.cr, x)
 
@@ -976,7 +974,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	for (ev, tx) in ev_list:
 		if tx < last_x_touched + spacing:
 			continue
-		delta = float(ev.time_usec)/1000/10 - ctx.time_origin_relative
+		delta= float(ev.time_usec)/1000/10 - ctx.time_origin_relative
 		if ctx.SWEEP_CSEC:
 			if abs(delta) < C.CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))

@@ -75,7 +75,9 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)
-        draw.render(cr, self.drawctx, self.xscale, self.trace, self.sweep_csec, self.hide_process_y)
+        draw.render(cr, self.drawctx, self.xscale, self.trace,
+                    list(self.sweep_csec) if self.sweep_csec else None, # pass by value not ref
+                    self.hide_process_y)
         self.hide_process_y = []
 
     def position_changed(self):
@@ -183,6 +185,10 @@ class PyBootchartWidget(gtk.DrawingArea):
 
     POS_INCREMENT = 100
 
+    # file:///usr/share/doc/libgtk2.0-doc/gtk/GtkWidget.html says:
+    #     Returns :
+    #        TRUE to stop other handlers from being invoked for the event.
+    #        FALSE to propagate the event further
     def on_key_press_event(self, widget, event):
         if event.keyval == gtk.keysyms.Left:
             self.x -= self.POS_INCREMENT/self.zoom_ratio
@@ -201,7 +207,6 @@ class PyBootchartWidget(gtk.DrawingArea):
     def on_area_button_press(self, area, event):
         # cancel any pending action based on an earlier button pressed and now held down
         self.hide_process_y = []
-        self.sweep_csec = None
 
         if event.button == 1:
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.FLEUR))
@@ -211,13 +216,14 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.hide_process_y.append( self.device_to_csec_user_y(event.x, event.y)[1])
         elif event.button == 3:
             if not self.sweep_csec:
-                self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0], None]
+                self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
+                                   self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]]
             else:
                 self.sweep_csec = None
-                self.queue_draw()
+            self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False
-        return False
+        return True
 
     def on_area_button_release(self, area, event):
         if event.button == 1:
@@ -229,15 +235,11 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.hide_process_y.append( self.device_to_csec_user_y(event.x, event.y)[1])
             self.queue_draw()
         elif event.button == 3:
-            if self.sweep_csec:
-                self.sweep_csec[1] = self.device_to_csec_user_y(event.x, 0)[0]
-                # if no motion between click and release, draw a one-sided sweep window, and don't dump events
-                if self.sweep_csec[1] == self.sweep_csec[0]:
-                    self.sweep_csec[1] = self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]
-                else:
-                    self.drawctx.event_dump_list = []
+            if self.sweep_csec and \
+                   self.sweep_csec[1] != self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]:
+                    self.drawctx.event_dump_list = []    # XX
             self.queue_draw()
-        return False
+        return True
 
     def on_area_scroll_event(self, area, event):
         if event.state & gtk.gdk.CONTROL_MASK:

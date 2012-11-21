@@ -118,8 +118,7 @@ def main(argv=None):
 		writer = _mk_writer(options)
 
 		if len(args) == 0:
-			print("No path given, trying /var/log/bootchart.tgz")
-			args = [ "/var/log/bootchart.tgz" ]
+			raise parsing.ParseError("\n\tNo path to a bootchart.tgz found on command line")
 
 		res = parsing.Trace(writer, args, options)
 

@@ -280,7 +280,7 @@ def _parse_proc_ps_log(writer, file):
 
             if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
                 userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
-                cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0)
+                cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
                 process.samples.append(ProcessSample(time, state, cpuSample))
 
             process.last_user_cpu_time = userCpu
@@ -383,10 +383,10 @@ def _parse_proc_stat_log(file):
     samples = []
     ltimes = None
     for time, lines in _parse_timed_blocks(file):
-        # skip emtpy lines
+        # skip empty lines
         if not lines:
             continue
-        # CPU times {user, nice, system, idle, io_wait, irq, softirq}
+        # CPU times {user, nice, system, idle, io_wait, irq, softirq} summed over all cores.
         tokens = lines[0].split()
         times = [ int(token) for token in tokens[1:] ]
         if ltimes:
@@ -394,12 +394,18 @@ def _parse_proc_stat_log(file):
             system = float((times[2] + times[5] + times[6]) - (ltimes[2] + ltimes[5] + ltimes[6]))
             idle = float(times[3] - ltimes[3])
             iowait = float(times[4] - ltimes[4])
-
             aSum = max(user + system + idle + iowait, 1)
-            samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum) )
+            procs_running = 0
+            procs_blocked = 0
 
+            for line in lines:
+                tokens = line.split()
+                if tokens[0] == 'procs_running':
+                    procs_running = int(tokens[1])
+                if tokens[0] == 'procs_blocked':
+                    procs_blocked = int(tokens[1])
+            samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum, 0.0, procs_running, procs_blocked) )
         ltimes = times
-        # skip the rest of statistics lines
     return samples
 
 def _parse_proc_disk_stat_log(file, options, numCpu):

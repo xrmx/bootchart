@@ -65,6 +65,9 @@ LEGEND_FONT_SIZE = 12
 CPU_COLOR = (0.40, 0.55, 0.70, 1.0)
 # IO wait chart color.
 IO_COLOR = (0.76, 0.48, 0.48, 0.5)
+PROCS_RUNNING_COLOR = (0.0, 1.0, 0.0, 1.0)
+PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
+
 # Disk throughput color.
 DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
 # CPU load chart color.
@@ -223,7 +226,7 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_dash([])
 
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
-	ctx.set_line_width(0.5)
+	ctx.set_line_width(1.0)
 	x_shift = proc_tree.start_time
 
 	def transform_point_coords(point, x_base, y_base, \
@@ -306,6 +309,10 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
 	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, curr_y+20, leg_s)
 	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, curr_y+20, leg_s)
+	draw_legend_box(ctx, "Runnable threads", PROCS_RUNNING_COLOR,
+			off_x +120 +80, curr_y+20, leg_s)
+	draw_legend_box(ctx, "Blocked threads -- uninterruptible sleep (I/O)", PROCS_BLOCKED_COLOR,
+			off_x +120 +80 +140, curr_y+20, leg_s)
 
 	# render I/O wait
 	chart_rect = (off_x, curr_y+30, w, bar_h)
@@ -319,6 +326,14 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
 			    proc_tree, None)
+
+		draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
+			    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
+			    proc_tree, [0, 9])
+
+		draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
+			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
+			    proc_tree, [0, 9])
 
 	curr_y = curr_y + 30 + bar_h
 

@@ -22,12 +22,14 @@ class DiskStatSample:
         self.diskdata = [ a + b for a, b in zip(self.diskdata, new_diskdata) ]
 
 class CPUSample:
-    def __init__(self, time, user, sys, io = 0.0, swap = 0.0):
+    def __init__(self, time, user, sys, io, swap = 0.0, procs_running = 0, procs_blocked = 0):
         self.time = time
         self.user = user
         self.sys = sys
         self.io = io
         self.swap = swap
+        self.procs_running = procs_running
+        self.procs_blocked = procs_blocked
 
     @property
     def cpu(self):

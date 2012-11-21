@@ -223,6 +223,9 @@ def draw_label_in_box_at_time(ctx, color, label, y, label_x):
 def csec_to_xscaled(t_csec):
 	return (t_csec-time_origin_drawn) * SEC_W / CSEC
 
+def csec_to_xscaled_distance(dist_csec):
+	return dist_csec * SEC_W / CSEC
+
 # Solve for t_csec:
 #   x = (t_csec-time_origin_drawn) * SEC_W / CSEC + off_x
 #
@@ -555,6 +558,7 @@ def render(ctx, options, xscale, trace, sweep_csec = None):
 
 	proc_tree = options.proc_tree (trace)
 
+	# clip off left-hand side of process bars
 	ctx.new_path()
 	ctx.rectangle(0, 0, w, h)
 	ctx.clip()
@@ -680,8 +684,9 @@ def draw_header (ctx, headers, duration):
     return header_y
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h):
-	x = csec_to_xscaled(proc.start_time)
-	w = csec_to_xscaled(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
+	xmin, ymin = ctx.device_to_user(0, 0)   # work around numeric overflow at high xscale factors
+	x = max(xmin, csec_to_xscaled(proc.start_time))
+	w = max(xmin, csec_to_xscaled(proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h)
 
@@ -714,8 +719,10 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h):
 		else:
 			cmdString = cmdString
 
-	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y, w, proc_h,
-			  ctx.clip_extents()[0], ctx.clip_extents()[2])
+	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString,
+			csec_to_xscaled(proc.start_time), y,
+			w, proc_h,
+			max(0, xmin), ctx.clip_extents()[2])
 
 	next_y = y + proc_h
 	for child in proc.child_list:

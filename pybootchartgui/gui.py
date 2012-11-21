@@ -77,27 +77,36 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.translate(-self.x, -self.y)
 
     def draw(self, cr, rect):
-        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)   # XX  redundant
-        cr.paint()                               # XX  effect?
+        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
+        cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)
         draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_csec)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
 
-    # back-transform center of window to user coords -- c.f. cr_set_up_transform()
+    def device_to_csec_user_y(self, dx, dy):
+            cr = self.window.cairo_create()
+            self.cr_set_up_transform(cr)
+            ux, uy = cr.device_to_user(dx, dy)
+            self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
+            return draw.xscaled_to_csec(ux), uy     # XX  depends on state set by draw.extents()
+
+    # back-transform center of widget to (time, chart_height) coords
     def current_center (self):
-        return (self.x + (self.hadj.page_size / self.zoom_ratio / 2), self.y + (self.vadj.page_size / self.zoom_ratio / 2))
+        (wx, wy, ww, wh) = self.get_allocation()
+        return self.device_to_csec_user_y (ww/2, wh/2)
 
-    # assuming a new zoom_ratio, set top-left corner displayed in user space so that
-    # (x, y) will be at window center
-    def set_center (self, x, y):
-        # back-transform window (w, h)
-        user_w = self.hadj.page_size / self.zoom_ratio
-        user_h = self.vadj.page_size / self.zoom_ratio
-
-        self.x = x - user_w/2
-        self.y = y - user_h/2
+    # Assuming a new zoom_ratio or xscale have been set, correspondingly
+    # set top-left corner displayed (self.x, self.y) so that
+    # (csec_x, user_y) will be at window center
+    def set_center (self, csec_x, user_y):
+        cur_csec, cur_user_y = self.current_center ()
+        cur_user_x = draw.csec_to_xscaled(cur_csec)
+        user_x = draw.csec_to_xscaled(csec_x)
+        self.x += (user_x - cur_user_x)
+        self.y += (user_y - cur_user_y)
+        self.position_changed()
 
     ZOOM_INCREMENT = 1.25
     # Zoom maintaining the content at window's current center untranslated.
@@ -116,11 +125,12 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.position_changed()
 
     def set_xscale(self, xscale):
-        old_mid_x = self.x + self.hadj.page_size / 2
+        old_x, old_y = self.current_center ()
         self.xscale = xscale
         self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
-        new_x = old_mid_x
-        self.zoom_image (self.zoom_ratio)
+        self.set_center(old_x, old_y)
+        self._set_scroll_adjustments (self.hadj, self.vadj)
+        self.queue_draw()
 
     def on_expand(self, action):
         self.set_xscale (self.xscale * 1.1)
@@ -176,10 +186,7 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousex = event.x
             self.prevmousey = event.y
         if event.button == 2:
-            cr = self.window.cairo_create()
-            self.cr_set_up_transform(cr)
-            ux, uy = cr.device_to_user(event.x, 0)
-            self.isotemporal_csec = draw.xscaled_to_csec(ux)
+            self.isotemporal_csec, uy = self.device_to_csec_user_y(event.x, 0)
             self.queue_draw()
         if event.button == 3:
             self.isotemporal_csec = None

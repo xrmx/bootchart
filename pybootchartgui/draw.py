@@ -877,7 +877,7 @@ def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):
 
 def draw_process_connecting_lines(ctx, px, py, x, y):
 	ctx.cr.set_source_rgba(*DEP_COLOR)
-	ctx.cr.set_dash([2, 2])
+	ctx.cr.set_dash([1, 2])   # XX  repeated draws are not phase-synchronized, resulting in a solid line
 	if abs(px - x) < 3:
 		dep_off_x = 3
 		dep_off_y = C.proc_h / 4

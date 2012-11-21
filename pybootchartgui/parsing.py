@@ -51,7 +51,7 @@ class Trace:
 
         # Turn that parsed information into something more useful
         # link processes into a tree of pointers, calculate statistics
-        self.adorn_process_map(writer)
+        self.adorn_process_map(writer, options)
 
         # Crop the chart to the end of the first idle period after the given
         # process
@@ -87,7 +87,7 @@ class Trace:
         return self.headers != None and self.disk_stats != None and \
                self.ps_stats != None and self.cpu_stats != None
 
-    def adorn_process_map(self, writer):
+    def adorn_process_map(self, writer, options):
 
         def find_parent_id_for(pid):
             if pid is 0:
@@ -117,6 +117,15 @@ class Trace:
                     proc.args = cmd['args']
 #                else:
 #                    print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
+
+        if options.synthesize_sample_start_events:
+            init_pid = 1
+            key = init_pid * 1000
+            proc = self.ps_stats.process_map[key]
+            for cpu in self.cpu_stats:
+                # assign to the init process's bar, for lack of any better
+                ev = EventSample(cpu.time, cpu.time*10*1000, init_pid, init_pid, "sample_start", "no raw file", -1)
+                proc.events.append(ev)
 
         # merge in events
         if self.events is not None:

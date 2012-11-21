@@ -619,7 +619,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	y += proc_h   # move to bottom of process bar
 	ctx.set_source_rgba(*EVENT_COLOR)
 	for ev in proc.events:
-		if not ev_regex.match(ev.match):
+		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
 		tx = rect[0] + round(((ev.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
 		ctx.move_to(tx-1, y)

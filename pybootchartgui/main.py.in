@@ -78,6 +78,9 @@ def _mk_options_parser():
 	# event plotting
 	parser.add_option("-e", "--events", dest="event_regex", metavar="REGEX", default=".*",
 			  help="plot only events matching REGEX")
+	parser.add_option("--synthesize-sample-start-events", action="store_true", dest="synthesize_sample_start_events",
+			  help="synthesize an event marking each boundary between sample periods -- " +
+                          "helpful in analyzing collector timing issues")
 
 	pg_Bootchart2 = optparse.OptionGroup(parser,"Bootchart2-specific",
 			    "Options effective only for logs coming from the Bootchart2 binary-format collector")

@@ -557,7 +557,7 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 		nsec = 1
 	else:
 		nsec = 5
-	draw_sec_labels (ctx, chart_rect, nsec)
+	#draw_sec_labels (ctx, chart_rect, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
 	y = curr_y + 60

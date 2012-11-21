@@ -337,8 +337,19 @@ def draw_sec_labels(ctx, rect, nsecs):
 				draw_text(ctx.cr, label, TEXT_COLOR, x, rect[1] - 2)
 				prev_x = x + label_w
 
-def draw_box(ctx, rect):
+def draw_box_1(ctx, rect):
+	""" draws an outline one user-space unit in width around rect.
+	For best appearance with the default transform (or zoom to an odd multiple),
+	the corners of rect should be offset by USER_HALF (0.5).
+	This is a consequence of Cairo's line-drawing model."""
+	# XX  But zooming currently is in steps of sqrt(2) -- what solution would give
+	#     both pixel-aligned lines, and reasonble zoom steps?
+	#           ... 1/8, 1/6, 1/4, 1/3, 1/2, 1/sqrt(2), 1, sqrt(2), 2, 3, 4, 5, 6, 8, ...
+	# XX  Drawing within the chart should be similarly aligned.
+	ctx.cr.save()
+	ctx.cr.set_line_width(1.0)
 	draw_rect(ctx.cr, BORDER_COLOR, tuple(rect))
+	ctx.cr.restore()
 
 def draw_annotations(ctx, proc_tree, times, rect):
     ctx.cr.set_line_cap(cairo.LINE_CAP_SQUARE)
@@ -387,6 +398,7 @@ def plot_scatter_positive_small(cr, point, x, y):
 	return _plot_scatter_positive(cr, point, x, y, 3.6, 3.6)
 
 # All charts assumed to be full-width
+# XX horizontal coords in chart_bounds are now on-pixel-center
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
 	def transform_point_coords(point, y_base, yscale):
 		x = csec_to_xscaled(ctx, point[0])
@@ -474,7 +486,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 				    curr_x +70, curr_y, C.leg_s, C.leg_s)
 
 	chart_rect = (0, curr_y+10+USER_HALF, w, C.bar_h)
-	draw_box (ctx, chart_rect)
+	draw_box_1 (ctx, chart_rect)
 	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 	# render I/O wait -- a backwards delta
 	draw_chart (ctx, IO_COLOR, True, chart_rect, \
@@ -530,7 +542,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (0, curr_y+18+5+USER_HALF, w, C.bar_h)
-		draw_box (ctx, chart_rect)
+		draw_box_1 (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
 		draw_chart (ctx, IO_COLOR, True, chart_rect,
@@ -578,7 +590,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 			draw_legend_box(ctx.cr, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y, C.leg_s)
 			draw_legend_line(ctx.cr, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
 					 MEM_SWAP_COLOR, 480, curr_y, C.leg_s)
-		draw_box (ctx, chart_rect)
+		draw_box_1 (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
@@ -1276,7 +1288,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 
 		below = row
 
-	draw_box (ctx, chart_bounds)
+	draw_box_1 (ctx, chart_bounds)
 
 	# render labels
 	for l in labels:

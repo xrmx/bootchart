@@ -504,6 +504,8 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 
 	return curr_y
 
+ISOTEMPORAL_CSEC = None
+
 #
 # Render the chart.
 #
@@ -515,6 +517,9 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+
+	global ISOTEMPORAL_CSEC
+	ISOTEMPORAL_CSEC = isotemporal_csec
 
 	ctx.save()
 	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
@@ -712,8 +717,14 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
+	if ISOTEMPORAL_CSEC:
+		time_origin_relative = ISOTEMPORAL_CSEC
+	else:
+		time_origin_relative = time_origin_drawn + proc_tree.sample_period  # XX align to time of first sample
 	ctx.set_source_rgba(*EVENT_COLOR)
 	last_x_touched = 0
+	last_label_str = None
+	precision = min(6, SEC_W/100)
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
@@ -724,10 +735,13 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 		ctx.line_to(tx,   y+proc_h)
 		ctx.fill()
 		if OPTIONS.print_event_times and tx > last_x_touched + 5:
-			last_x_touched = tx + draw_label_in_box_at_time(
+			label_str = '%.*f' % (precision, (float(ev.time_usec)/1000/10 - time_origin_relative) / CSEC)
+			if label_str != last_label_str:
+				last_x_touched = tx + draw_label_in_box_at_time(
 				ctx, PROC_TEXT_COLOR,
-				'%.2f' % (float(ev.time - time_origin_drawn) / CSEC),
+				label_str,
 				y + proc_h - 4, tx)
+				last_label_str = label_str
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	last_tx = -1

@@ -17,6 +17,7 @@ import gobject
 import gtk
 import gtk.gdk
 import gtk.keysyms
+import math
 from . import draw
 from .draw import DrawContext
 
@@ -112,7 +113,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.y = (ctr_user_y - float(self.get_allocation()[3])/self.zoom_ratio/2)
         self.position_changed()
 
-    ZOOM_INCREMENT = 1.25
+    ZOOM_INCREMENT = 2
+    ZOOM_HALF_INCREMENT = math.sqrt(2)
     # Zoom maintaining the content at window's current center untranslated.
     # "Center" is irrespective of any occlusion.
     def zoom_image (self, zoom_ratio):
@@ -251,10 +253,10 @@ class PyBootchartWidget(gtk.DrawingArea):
                 return True
         elif event.state & gtk.gdk.MOD1_MASK:
             if event.direction == gtk.gdk.SCROLL_UP:
-                self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
+                self.zoom_image(self.zoom_ratio * self.ZOOM_HALF_INCREMENT)
                 return True
             if event.direction == gtk.gdk.SCROLL_DOWN:
-                self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
+                self.zoom_image(self.zoom_ratio / self.ZOOM_HALF_INCREMENT)
                 return True
 
     def on_area_motion_notify(self, area, event):

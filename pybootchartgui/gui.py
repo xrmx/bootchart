@@ -199,18 +199,16 @@ class PyBootchartWidget(gtk.DrawingArea):
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.FLEUR))
             self.prevmousex = event.x
             self.prevmousey = event.y
-        if event.state & gtk.gdk.CONTROL_MASK:
-            if event.button == 2:
-                self.hide_process_y = self.device_to_csec_user_y(event.x, event.y)[1]
-                self.queue_draw()
-        else:
-            if event.button == 2:
+        if event.button == 2:
+            self.hide_process_y = self.device_to_csec_user_y(event.x, event.y)[1]
+            self.queue_draw()
+        if event.button == 3:
+            if not self.sweep_csec:
                 self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
                                self.device_to_csec_user_y(event.x + 500, 0)[0]]
-                self.queue_draw()
-            if event.button == 3:
+            else:
                 self.sweep_csec = None
-                self.queue_draw()
+            self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False
         return False

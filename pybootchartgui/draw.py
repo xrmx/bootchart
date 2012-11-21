@@ -206,21 +206,21 @@ def draw_label_in_box_at_time(ctx, color, label, y, label_x):
 	draw_text(ctx, label, color, label_x, y)
 	return ctx.text_extents(label)[2]
 
-def time_in_hz_to_ideal_coord(t_hz):
-	return (t_hz-time_origin_drawn) * SEC_W / HZ
+def csec_to_xscaled(t_csec):
+	return (t_csec-time_origin_drawn) * SEC_W / CSEC
 
-# Solve for t_hz:
-#   x = (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
+# Solve for t_csec:
+#   x = (t_csec-time_origin_drawn) * SEC_W / CSEC + off_x
 #
-#   x - off_x = (t_hz-time_origin_drawn) * SEC_W / HZ
-#   (x - off_x) * HZ / SEC_W = t_hz-time_origin_drawn
+#   x - off_x = (t_csec-time_origin_drawn) * SEC_W / CSEC
+#   (x - off_x) * CSEC / SEC_W = t_csec-time_origin_drawn
 #
-def user_to_time(x):
-	return (x - off_x) * HZ / SEC_W + time_origin_drawn
+def xscaled_to_csec(x):
+	return (x - off_x) * CSEC / SEC_W + time_origin_drawn
 
-def ctx_save__time_in_hz_to_x(ctx):
+def ctx_save__csec_to_xscaled(ctx):
 	ctx.save()
-	ctx.scale(float(SEC_W) / HZ, 1.0)
+	ctx.scale(float(SEC_W) / CSEC, 1.0)
 	ctx.translate(-time_origin_drawn, 0.0)
 
 def draw_sec_labels(ctx, rect, nsecs):
@@ -258,7 +258,7 @@ def draw_annotations(ctx, proc_tree, times, rect):
 
     for time in times:
         if time is not None:
-            x = time_in_hz_to_ideal_coord(time)
+            x = csec_to_xscaled(time)
 
             ctx.move_to(x, rect[1] + 1)
             ctx.line_to(x, rect[1] + rect[3] - 1)
@@ -293,11 +293,11 @@ def plot_scatter_positive(ctx, point, x, y):
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
 	def transform_point_coords(point, y_base, \
 				   xscale, yscale, x_trans, y_trans):
-		x = time_in_hz_to_ideal_coord(point[0])
+		x = csec_to_xscaled(point[0])
 		y = (point[1] - y_base) * -yscale + y_trans + chart_bounds[3]
 		return x, y
 
-	max_x = proc_tree.end_time    # units of HZ
+	max_x = proc_tree.end_time    # units of CSEC
 	max_y = max (y for (x, y) in data)
 	# avoid divide by zero
 	if max_y == 0:
@@ -339,6 +339,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot
 
 # Constants
 # XX  put all of constants in a named tuple, for immutability
+CSEC = 100
 bar_h = 55
 meminfo_bar_h = 2 * bar_h
 # offsets
@@ -351,7 +352,6 @@ CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
 
 SEC_W = None
-HZ = None
 time_origin_drawn = None  # time of leftmost plotted data
 
 # window coords
@@ -360,9 +360,8 @@ time_origin_drawn = None  # time of leftmost plotted data
 # and every time xscale changes.
 # Returns size of a window capable of holding the whole scene?
 def extents(options, xscale, trace):
-	global OPTIONS, HZ, time_origin_drawn
+	global OPTIONS, time_origin_drawn
 	OPTIONS = options.app_options
-	HZ = trace.HZ
 
 	proc_tree = options.proc_tree(trace)
 	if OPTIONS.prehistory:
@@ -372,7 +371,7 @@ def extents(options, xscale, trace):
 	global SEC_W
 	SEC_W = int (xscale * sec_w_base)
 
-	w = int (time_in_hz_to_ideal_coord(proc_tree.end_time)) + proc_tree.sample_period + 2*off_x
+	w = int (csec_to_xscaled(proc_tree.end_time)) + proc_tree.sample_period + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
@@ -510,7 +509,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 #
 # "ctx" is the Cairo drawing context.  ctx transform already has panning translation
 # and "zoom" scaling applied, but not the asymmetrical xscale arg.
-def render(ctx, options, xscale, trace, isotemporal_x = None):
+def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	(w, h) = extents (options, xscale, trace)  # XX  redundant?
 
 	ctx.set_line_width(1.0)
@@ -567,16 +566,16 @@ def render(ctx, options, xscale, trace, isotemporal_x = None):
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
-	if isotemporal_x:
-		draw_isotemporal(ctx, isotemporal_x)
+	if isotemporal_csec:
+		draw_isotemporal(ctx, isotemporal_csec)
 
 	ctx.restore()
 
-def draw_isotemporal(ctx, isotemporal_x):
+def draw_isotemporal(ctx, isotemporal_csec):
 	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
 	ctx.set_line_width(0.8)
 	ctx.set_dash([4, 2])
-	isotemporal_x = time_in_hz_to_ideal_coord(isotemporal_x)
+	isotemporal_x = csec_to_xscaled(isotemporal_csec)
 	ctx.move_to(isotemporal_x, 0)
 	ctx.line_to(isotemporal_x, CUML_HEIGHT)
 	ctx.stroke()
@@ -648,8 +647,8 @@ def draw_header (ctx, headers, duration):
     return header_y
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
-	x = time_in_hz_to_ideal_coord(proc.start_time)
-	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
+	x = csec_to_xscaled(proc.start_time)
+	w = csec_to_xscaled(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 
@@ -702,7 +701,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 	#          XX  should look up time of previous sample, not assume 'proc_tree.sample_period'
 	#    2. proc start after sampling
 	last_time = max(proc.start_time, proc.samples[0].time - proc_tree.sample_period)
-	ctx_save__time_in_hz_to_x(ctx)
+	ctx_save__csec_to_xscaled(ctx)
 	for sample in proc.samples[1:] :
 		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
  		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
@@ -718,7 +717,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
-		tx = time_in_hz_to_ideal_coord(ev.time)
+		tx = csec_to_xscaled(ev.time)
 		ctx.move_to(tx-1, y+proc_h)
 		ctx.line_to(tx,   y+proc_h-5)
 		ctx.line_to(tx+1, y+proc_h)
@@ -727,13 +726,13 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 		if OPTIONS.print_event_times and tx > last_x_touched + 5:
 			last_x_touched = tx + draw_label_in_box_at_time(
 				ctx, PROC_TEXT_COLOR,
-				'%.2f' % (float(ev.time - time_origin_drawn) / HZ),
+				'%.2f' % (float(ev.time - time_origin_drawn) / CSEC),
 				y + proc_h - 4, tx)
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	last_tx = -1
 	for sample in proc.samples :
-		tx = time_in_hz_to_ideal_coord(sample.time)
+		tx = csec_to_xscaled(sample.time)
 		state = get_proc_state( sample.state )
 		if state == STATE_WAITING or state == STATE_RUNNING:
 			color = STATE_COLORS[state]

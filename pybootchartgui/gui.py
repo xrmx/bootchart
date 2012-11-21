@@ -58,7 +58,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.hadj_changed_signal_id = None
         self.vadj_changed_signal_id = None
 
-        self.isotemporal_x = None
+        self.isotemporal_csec = None
 
     def do_expose_event(self, event):
         cr = self.window.cairo_create()
@@ -80,7 +80,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()
         self.cr_set_up_transform(cr)
-        draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_x)
+        draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_csec)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
@@ -160,13 +160,12 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousey = event.y
         if event.button == 2:
             cr = self.window.cairo_create()
-            uy = None
             self.cr_set_up_transform(cr)
-            self.isotemporal_x, uy = cr.device_to_user(event.x, 0)
-            self.isotemporal_x = draw.user_to_time(self.isotemporal_x)
+            ux, uy = cr.device_to_user(event.x, 0)
+            self.isotemporal_csec = draw.xscaled_to_csec(ux)
             self.queue_draw()
         if event.button == 3:
-            self.isotemporal_x = None
+            self.isotemporal_csec = None
             self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False

@@ -863,7 +863,8 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))
 
 	ctx_save__csec_to_xscaled(ctx)
-	# draw visual reminder of unknowability of thread end time
+	ctx.cr.set_line_width(0.0)
+ 	# draw visual reminder of unknowability of thread end time
 	ctx.cr.move_to(proc.samples[-1].time + proc_tree.sample_period, y+C.proc_h/2)
 	ctx.cr.line_to(proc.samples[-1].time, y+C.proc_h)
 	ctx.cr.line_to(proc.samples[-1].time, y)
@@ -898,13 +899,9 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 					ctx.cr.stroke()
 					ctx.cr.restore()
 
-			# If thread ran at all, draw a tick mark, in case rect was too short to resolve.
-			tick_width = width/3
-			tick_height = C.proc_h/3
-
-			ctx.cr.move_to(last_time + width/2, y+C.proc_h-tick_height)
-			ctx.cr.rel_line_to(-tick_width/2, tick_height)
-			ctx.cr.rel_line_to(tick_width, 0)
+			# If thread ran at all, draw a "speed bump", in case rect was too short to resolve.
+			tick_height = C.proc_h/5
+			ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h, tick_height, math.pi, 0.0)
 			ctx.cr.close_path()
 			ctx.cr.fill()
 

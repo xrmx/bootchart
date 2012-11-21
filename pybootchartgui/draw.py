@@ -127,13 +127,13 @@ HSV_STEP = 7
 
 # Process states
 STATE_UNDEFINED = 0
-STATE_RUNNING   = 1
+STATE_RUNNING   = 1  # useful state info
 STATE_SLEEPING  = 2
-STATE_WAITING   = 3  # sole useful state info?
+STATE_WAITING   = 3  # useful state info
 STATE_STOPPED   = 4
 STATE_ZOMBIE    = 5
 
-STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_S, PROC_COLOR_S, PROC_COLOR_D, \
+STATE_COLORS = [(0, 0, 0, 0), PROCS_RUNNING_COLOR, PROC_COLOR_S, PROC_COLOR_D, \
 		PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
 JUSTIFY_LEFT = "left"
@@ -582,14 +582,16 @@ def draw_isotemporal(ctx, isotemporal_x):
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
 	if not options.kernel_only:
+		draw_legend_diamond (ctx, "Runnable",
+				 PROCS_RUNNING_COLOR, 10, curr_y + 45, leg_s*3/4, proc_h)
 		draw_legend_diamond (ctx, "Uninterruptible Syscall",
-				 PROC_COLOR_D, 10, curr_y + 45, leg_s*3/4, proc_h)
+				 PROC_COLOR_D, 10+100, curr_y + 45, leg_s*3/4, proc_h)
 		draw_legend_box (ctx, "Running (%cpu)",
-				 PROC_COLOR_R, 10+180, curr_y + 45, leg_s)
+				 PROC_COLOR_R, 10+100+180, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Sleeping",
-				 PROC_COLOR_S, 10+180+130, curr_y + 45, leg_s)
+				 PROC_COLOR_S, 10+100+180+130, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Zombie",
-				 PROC_COLOR_Z, 10+180+130+90, curr_y + 45, leg_s)
+				 PROC_COLOR_Z, 10+100+180+130+90, curr_y + 45, leg_s)
 		header_size = 45
 
 	#chart_rect = [0, curr_y + header_size + 30,
@@ -720,7 +722,7 @@ def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	for sample in proc.samples :
 		tx = time_in_hz_to_ideal_coord(sample.time)
 		state = get_proc_state( sample.state )
-		if state == STATE_WAITING:
+		if state == STATE_WAITING or state == STATE_RUNNING:
 			color = STATE_COLORS[state]
 			ctx.set_source_rgba(*color)
 			draw_diamond(ctx, tx, y + proc_h/2, 2.5, proc_h)

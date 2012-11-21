@@ -362,7 +362,7 @@ def plot_segment_positive(cr, point, x, y):
 	if point[1] <= 0:           # zero-Y samples draw nothing
 		cr.move_to(x, y)
 		return
-	cr.set_line_width(1.5)
+	cr.set_line_width(1.0)
 	cr.line_to(x, y)
 
 def _plot_scatter_positive(cr, point, x, y, w, h):
@@ -462,7 +462,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 		curr_x += draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
 				    curr_x +70, curr_y, C.leg_s, C.leg_s)
 
-	chart_rect = (0, curr_y+10, w, C.bar_h)
+	chart_rect = (0, curr_y+10+USER_HALF, w, C.bar_h)
 	draw_box (ctx, chart_rect)
 	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 	# render I/O wait -- a backwards delta
@@ -518,7 +518,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 		draw_text(ctx.cr, partition.name, TEXT_COLOR, 0, curr_y+18)
 
 		# utilization -- inherently normalized [0,1]
-		chart_rect = (0, curr_y+18+5, w, C.bar_h)
+		chart_rect = (0, curr_y+18+5+USER_HALF, w, C.bar_h)
 		draw_box (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
@@ -556,7 +556,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 		curr_y += 18+C.bar_h
 
 	# render mem usage
-	chart_rect = (0, curr_y+30, w, meminfo_bar_h)
+	chart_rect = (0, curr_y+30+USER_HALF, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
 	if mem_stats:
 		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)

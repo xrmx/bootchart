@@ -66,6 +66,8 @@ LEGEND_FONT_SIZE = 12
 
 # CPU load chart color.
 CPU_COLOR = (0.60, 0.65, 0.75, 1.0)
+# CPU system-mode load chart color.
+CPU_SYS_COLOR = (0.70, 0.65, 0.40, 1.0)
 # IO wait chart color.
 IO_COLOR = (0.76, 0.48, 0.48, 0.5)
 PROCS_RUNNING_COLOR = (0.0, 1.0, 0.0, 1.0)
@@ -157,6 +159,7 @@ def draw_text(cr, text, color, x, y):
 	cr.set_source_rgba(*color)
 	cr.move_to(x, y)
 	cr.show_text(text)
+	return cr.text_extents(text)[2]
 
 def draw_fill_rect(cr, color, rect):
 	cr.set_source_rgba(*color)
@@ -182,12 +185,11 @@ def draw_diamond(cr, x, y, w, h):
 def draw_legend_diamond(cr, label, fill_color, x, y, w, h):
 	cr.set_source_rgba(*fill_color)
 	draw_diamond(cr, x, y-h/2, w, h)
-	draw_text(cr, label, TEXT_COLOR, x + w + 5, y)
+	return draw_text(cr, label, TEXT_COLOR, x + w + 5, y)
 
 def draw_legend_box(cr, label, fill_color, x, y, s):
 	draw_fill_rect(cr, fill_color, (x, y - s, s, s))
-	#draw_rect(cr, PROC_BORDER_COLOR, (x, y - s, s, s))
-	draw_text(cr, label, TEXT_COLOR, x + s + 5, y)
+	return s + 5 + draw_text(cr, label, TEXT_COLOR, x + s + 5, y)
 
 def draw_legend_line(cr, label, fill_color, x, y, s):
 	draw_fill_rect(cr, fill_color, (x, y - s/2, s + 1, 3))
@@ -435,12 +437,14 @@ def render_charts(ctx, trace, curr_y, w, h):
 		# render bar legend
 		ctx.cr.set_font_size(LEGEND_FONT_SIZE)
 		curr_y += 20
-		draw_legend_box(ctx.cr, "CPU (user+sys)", CPU_COLOR, 0, curr_y, C.leg_s)
-		draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, 120, curr_y, C.leg_s)
-		draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
-				    120 +90, curr_y, C.leg_s, C.leg_s)
-		draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
-				    120 +90 +140, curr_y, C.leg_s, C.leg_s)
+		curr_x = 0
+		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (user)", CPU_COLOR, curr_x, curr_y, C.leg_s)
+		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (sys)", CPU_SYS_COLOR, curr_x, curr_y, C.leg_s)
+		curr_x += 20 + draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, curr_x, curr_y, C.leg_s)
+		curr_x += draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
+				    curr_x +10, curr_y, C.leg_s, C.leg_s)
+		curr_x += draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
+				    curr_x +70, curr_y, C.leg_s, C.leg_s)
 
 	chart_rect = (0, curr_y+10, w, C.bar_h)
 	draw_box (ctx, chart_rect)
@@ -452,6 +456,10 @@ def render_charts(ctx, trace, curr_y, w, h):
 	# render CPU load -- a backwards delta
 	draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 		    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
+		    proc_tree, None, plot_square)
+	# render CPU load -- a backwards delta
+	draw_chart (ctx, CPU_SYS_COLOR, True, chart_rect, \
+		    [(sample.time, sample.sys) for sample in trace.cpu_stats], \
 		    proc_tree, None, plot_square)
 
 	# instantaneous sample
@@ -680,12 +688,15 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 				 PROCS_RUNNING_COLOR, 10, curr_y, C.leg_s*3/4, C.proc_h)
 		draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
 				 PROC_COLOR_D, 10+100, curr_y, C.leg_s*3/4, C.proc_h)
-		draw_legend_box (ctx.cr, "Running (%cpu)",
-				 PROC_COLOR_R, 10+100+180, curr_y, C.leg_s)
-		draw_legend_box (ctx.cr, "Sleeping",
-				 PROC_COLOR_S, 10+100+180+130, curr_y, C.leg_s)
-		draw_legend_box (ctx.cr, "Zombie",
-				 PROC_COLOR_Z, 10+100+180+130+90, curr_y, C.leg_s)
+		curr_x = 10+100+40
+		curr_x += 20 + draw_legend_box (ctx.cr, "Running (user)",
+				 PROC_COLOR_R, 10+100+curr_x, curr_y, C.leg_s)
+		curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
+				 CPU_SYS_COLOR, 10+100+curr_x, curr_y, C.leg_s)
+		curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
+				 PROC_COLOR_S, 10+100+curr_x, curr_y, C.leg_s)
+		curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
+				 PROC_COLOR_Z, 10+100+curr_x, curr_y, C.leg_s)
 		curr_y -= 9
 
 	chart_rect = [-1, -1, -1, -1]
@@ -865,7 +876,22 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 			height = normalized * C.proc_h
 			draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
 
-			# If thread ran at all, draw a pair of tick marks, in case rect was too short to resolve.
+			# in unlikely event of no sys time at all, skip setting of color to CPU_SYS_COLOR
+			if sample.cpu_sample.sys > 0:
+				height = sample.cpu_sample.sys * C.proc_h
+				draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h, width, -height))
+				if sample.cpu_sample.sys < normalized:
+					# draw a separator between the bar segments, to aid the eye in
+					# resolving the boundary
+					ctx.cr.save()
+					ctx.cr.move_to(last_time, y+C.proc_h-height)
+					ctx.cr.rel_line_to(width,0)
+					ctx.cr.set_source_rgba(*PROC_COLOR_S)
+					ctx.cr.set_line_width(DEP_STROKE/2)
+					ctx.cr.stroke()
+					ctx.cr.restore()
+
+			# If thread ran at all, draw a tick mark, in case rect was too short to resolve.
 			tick_width = width/3
 			tick_height = C.proc_h/3
 

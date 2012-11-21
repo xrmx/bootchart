@@ -841,11 +841,23 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	ctx_save__csec_to_xscaled(ctx)
 	for sample in proc.samples[1:] :
 		normalized = sample.cpu_sample.user + sample.cpu_sample.sys
-		# XX  If thread ran at all, draw at least one user-space unit in height.
-		height = math.floor(normalized * C.proc_h + 1.0)
+		if normalized > 0:
+			width = sample.time - last_time
+			height = normalized * C.proc_h
+			draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
 
-		draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h,
-						      sample.time - last_time, -height))
+			# XX  If thread ran at all, draw a pair of tick marks, in case rect was too short to resolve.
+			tick_width = width/3
+			tick_height = C.proc_h/3
+			#draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width/6, -tick_height))
+			#draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time + width, y+C.proc_h, -width/6, -tick_height))
+
+			ctx.cr.move_to(last_time + width/2, y+C.proc_h-tick_height)
+			ctx.cr.rel_line_to(-tick_width/2, tick_height)
+			ctx.cr.rel_line_to(tick_width, 0)
+			ctx.cr.close_path()
+			ctx.cr.fill()
+
 		last_time = sample.time
 	ctx.cr.restore()
 

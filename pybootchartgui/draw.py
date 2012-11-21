@@ -70,7 +70,7 @@ AXIS_FONT_SIZE = 11
 LEGEND_FONT_SIZE = 12
 
 # CPU load chart color.
-CPU_COLOR = (0.60, 0.65, 0.75, 1.0)
+CPU_COLOR = (0.60, 0.60, 0.70, 1.0)
 # CPU system-mode load chart color.
 CPU_SYS_COLOR = (0.70, 0.65, 0.40, 1.0)
 # IO wait chart color.
@@ -102,7 +102,7 @@ PROC_COLOR_D = PROCS_BLOCKED_COLOR   # (0.76, 0.45, 0.35, 1.0)
 # Running process color.
 PROC_COLOR_R = CPU_COLOR   # (0.40, 0.50, 0.80, 1.0)  # should look similar to CPU_COLOR
 # Sleeping process color.
-PROC_COLOR_S = (0.95, 0.95, 0.95, 1.0)
+PROC_COLOR_S = (0.95, 0.93, 0.93, 1.0)
 # Stopped process color.
 PROC_COLOR_T = (0.94, 0.50, 0.50, 1.0)
 # Zombie process color.
@@ -756,7 +756,7 @@ def draw_process_bar_chart_legends(ctx, curr_y):
 				   PROC_COLOR_S, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
 				   PROC_COLOR_Z, curr_x, curr_y, C.leg_s)
-	curr_y -= 9
+	curr_y -= 15
 	return curr_y
 
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):

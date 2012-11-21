@@ -268,7 +268,7 @@ def _parse_timed_blocks(file):
     blocks = file.read().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
-def _parse_proc_ps_log(writer, file):
+def _parse_proc_ps_log(options, writer, file):
     """
      * See proc(5) for details.
      *
@@ -288,7 +288,7 @@ def _parse_proc_ps_log(writer, file):
 
             offset = [index for index, token in enumerate(tokens[1:]) if token[-1] == ')'][0]
             pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
-            userCpu, sysCpu, stime = int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
+            userCpu, sysCpu, starttime = int(tokens[13+offset]), int(tokens[14+offset]), int(tokens[21+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
@@ -297,7 +297,12 @@ def _parse_proc_ps_log(writer, file):
                 process = processMap[pid]
                 process.cmd = cmd.strip('()') # why rename after latest name??
             else:
-                process = Process(writer, pid, cmd.strip('()'), ppid, min(time, stime))
+                if time < starttime:
+                    # large values signify a collector problem, e.g. resource starvation
+                    writer.status("time (%d) < starttime (%d), diff %d -- PID %d" %
+                                  (time, starttime, time-starttime, pid/1000))
+
+                process = Process(writer, pid, cmd.strip('()'), ppid, starttime)
                 processMap[pid] = process
 
             if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
@@ -332,7 +337,7 @@ def _parse_taskstats_log(writer, file):
     ltime = None
     timed_blocks = _parse_timed_blocks(file)
     for time, lines in timed_blocks:
-        # we have no 'stime' from taskstats, so prep 'init'
+        # we have no 'starttime' from taskstats, so prep 'init'
         if ltime is None:
             process = Process(writer, 1, '[init]', 0, 0)
             processMap[1000] = process
@@ -746,7 +751,7 @@ def _do_parse(writer, state, name, file, options):
     elif name == "paternity.log":
         state.parent_map = _parse_paternity_log(writer, file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
-        state.ps_stats = _parse_proc_ps_log(writer, file)
+        state.ps_stats = _parse_proc_ps_log(options, writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(writer, file)
     elif name == "events-6.log":   # 6 is number of fields -- a crude versioning scheme

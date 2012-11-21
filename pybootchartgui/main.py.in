@@ -99,6 +99,8 @@ def _mk_options_parser():
 	pg_Scripting = optparse.OptionGroup(parser,"Scripting support",
 			    "Options most useful in scripted processing of tgz batches")
 
+	pg_Scripting.add_option("--prehistory", action="store_true", dest="prehistory", default=False,
+			  help="extend process bars to the recorded start time of each, even if before any samples were collected")
 	pg_Scripting.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,
 			  help="only display the boot time of the boot in text format (stdout)")
 	pg_Scripting.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],

@@ -189,6 +189,9 @@ def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
 	label_w = ctx.text_extents(label)[2]
 	draw_text(ctx, label, color, label_x, y)
 
+def time_in_hz_to_ideal_coord(t_hz):
+	return (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
+
 def draw_sec_labels(ctx, rect, nsecs):
 	ctx.set_font_size(AXIS_FONT_SIZE)
 	prev_x = 0
@@ -233,20 +236,20 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
+# All charts assumed to be full-width
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = True):
 	if square and not fill:
 		ctx.set_line_width(2.0)
 	else:
 		ctx.set_line_width(1.0)
-	x_shift = proc_tree.start_time
 
-	def transform_point_coords(point, x_base, y_base, \
+	def transform_point_coords(point, y_base, \
 				   xscale, yscale, x_trans, y_trans):
-		x = (point[0] - x_base) * xscale + x_trans
+		x = time_in_hz_to_ideal_coord(point[0])
 		y = (point[1] - y_base) * -yscale + y_trans + chart_bounds[3]
 		return x, y
 
-	max_x = max (x for (x, y) in data)
+	max_x = proc_tree.end_time    # units of HZ
 	max_y = max (y for (x, y) in data)
 	# avoid divide by zero
 	if max_y == 0:
@@ -262,9 +265,9 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, squa
 		yscale = float(chart_bounds[3]) / max_y
 		ybase = 0
 
-	first = transform_point_coords (data[0], x_shift, ybase, xscale, yscale, \
+	last =  transform_point_coords (data[-1], ybase, xscale, yscale, \
 				        chart_bounds[0], chart_bounds[1])
-	last =  transform_point_coords (data[-1], x_shift, ybase, xscale, yscale, \
+	first = transform_point_coords (data[0], ybase, xscale, yscale, \
 				        chart_bounds[0], chart_bounds[1])
 
 	ctx.set_source_rgba(*color)
@@ -272,7 +275,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, squa
 	prev_y = first[1]
 	prev_point = data[0]
 	for point in data:
-		x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
+		x, y = transform_point_coords (point, ybase, xscale, yscale, \
 					       chart_bounds[0], chart_bounds[1])
 		if square:
 			if fill:
@@ -299,6 +302,8 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, squa
 		ctx.stroke()
 	ctx.set_line_width(1.0)
 
+# Constants
+# XX  put all of constants in a named tuple, for immutability
 bar_h = 55
 meminfo_bar_h = 2 * bar_h
 # offsets
@@ -311,19 +316,36 @@ CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
 
 SEC_W = None
+HZ = None
+time_origin_drawn = None  # time of leftmost plotted data
 
+w_extents = None   # includes off_x * 2
+h_extents = None   # includes off_y * (2 + N)
+
+# Called from gui.py and batch.py, before first call to render(),
+# and every time xscale changes.
 def extents(options, xscale, trace):
+	global OPTIONS, HZ, time_origin_drawn
+	OPTIONS = options.app_options
+	HZ = trace.HZ
+	if OPTIONS.prehistory:
+		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
+	else:
+		time_origin_drawn = trace.ps_stats.start_time
 	global SEC_W
 	SEC_W = int (xscale * sec_w_base)
 
 	proc_tree = options.proc_tree(trace)
-	w = int (proc_tree.duration * SEC_W / 100) + 2*off_x
+	w = int ((proc_tree.duration-time_origin_drawn) * SEC_W / HZ) + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
 	if proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
-	return (w, h)
+	global w_extents, h_extents
+	w_extents = w
+	h_extents = h
+	return (w, h)  # includes off_x, off_y
 
 def clip_visible(clip, rect):
 	return True
@@ -455,20 +477,22 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 #
 def render(ctx, options, xscale, trace):
 	(w, h) = extents (options, xscale, trace)
-	global OPTIONS
-	OPTIONS = options.app_options
-	global HZ
-	HZ = trace.HZ
 
 	proc_tree = options.proc_tree (trace)
 
 	# x, y, w, h
-	clip = ctx.clip_extents()
+	clip = ctx.clip_extents()   # XX  Bounds are initialized, yet clipping is not enforced by pyCairo! ???
 
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+
 	w -= 2*off_x
+
+	ctx.new_path()
+	ctx.rectangle(off_x, 0, w, h)
+	ctx.clip()
+
 	# draw the title and headers
 	if proc_tree.idle:
 		duration = proc_tree.idle
@@ -579,8 +603,10 @@ def get_sample_width(proc_tree, rect, tx, last_tx):
 	return tw, tx + tw
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
-	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
-	w = ((proc.duration) * rect[2] / proc_tree.duration)
+	#x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
+	x = time_in_hz_to_ideal_coord(proc.start_time)
+	#w = ((proc.duration) * rect[2] / proc_tree.duration)
+	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
@@ -614,40 +640,45 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 	return x, y
 
-
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
+	if len(proc.samples) <= 0:
+		return
+	# cases:
+	#    1. proc started before sampling did
+	#          XX  should look up time of previous sample, not assume 'proc_tree.sample_period'
+	#    2. proc start after sampling
+	last_time = max(proc.start_time, proc.samples[0].time - proc_tree.sample_period)
+	last_tx = time_in_hz_to_ideal_coord(last_time)
+	for sample in proc.samples[1:] :
+		tx = time_in_hz_to_ideal_coord(sample.time)
+		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
+ 		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
+		# XXX  correct color for non-uniform sample intervals
+		draw_fill_rect(ctx, cpu_color, (last_tx, y, tx - last_tx, proc_h * 7 / 8))
+		last_tx = tx
 
-	last_tx = -1
-	for sample in proc.samples :
-		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
-
-		tw, last_tx = get_sample_width(proc_tree, rect, tx, last_tx)
-
-		alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
-		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
-#		print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
-		draw_fill_rect(ctx, cpu_color, (tx, y, tw, proc_h * 7 / 8))
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
 	ctx.set_source_rgba(*EVENT_COLOR)
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
-		tx = rect[0] + round(((ev.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+		tx = time_in_hz_to_ideal_coord(ev.time)
 		ctx.move_to(tx-1, y+proc_h)
 		ctx.line_to(tx,   y+proc_h-5)
 		ctx.line_to(tx+1, y+proc_h)
 		ctx.line_to(tx,   y+proc_h)
 		ctx.fill()
 		if OPTIONS.print_event_times:
-			draw_label_in_box_at_time(ctx, PROC_TEXT_COLOR, '%.2f' % (float(ev.time) / HZ), \
+			draw_label_in_box_at_time(ctx, PROC_TEXT_COLOR,
+						  '%.2f' % (float(ev.time - time_origin_drawn) / HZ),
 						  x, y + proc_h - 4, tx)
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	last_tx = -1
 	for sample in proc.samples :
-		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+		tx = time_in_hz_to_ideal_coord(sample.time)
 		state = get_proc_state( sample.state )
 		if state == STATE_WAITING:
 			color = STATE_COLORS[state]

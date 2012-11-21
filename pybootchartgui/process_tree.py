@@ -63,6 +63,7 @@ class ProcessTree:
 
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
+        self.options = options
         self.idle = idle
 
         if for_testing:
@@ -74,14 +75,15 @@ class ProcessTree:
             removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
             writer.status("merged %i logger processes" % removed)
 
-        if options.hide_processes != "none":
-            p_processes = self.prune(self.process_tree, None, self.is_idle_background_process_without_children)
-            if options.merge:
-                p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
-                p_threads = self.merge_siblings(self.process_tree)
-                p_runs = self.merge_runs(self.process_tree)
-                writer.status("pruned %i process, %i exploders, %i threads, and %i runs" %
-                              (p_processes, p_exploders, p_threads, p_runs))
+        p_processes = self.prune(self.process_tree, None, self.is_inactive_process)
+        writer.status("hid %i processes" % p_processes)
+
+        if options.merge:
+            p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
+            p_threads = self.merge_siblings(self.process_tree)
+            p_runs = self.merge_runs(self.process_tree)
+            writer.status("pruned %i exploders, %i threads, and %i runs" %
+                          (p_exploders, p_threads, p_runs))
 
         self.sort(self.process_tree)
 
@@ -172,10 +174,13 @@ class ProcessTree:
                 p.child_list = []
             self.build()
 
-    def is_idle_background_process_without_children(self, p):
-        return not p.active and \
-            self.num_nodes(p.child_list) == 0 and \
-            len(p.events) == 0     # never prune a process that reports an event
+    def is_inactive_process(self, p):
+        return p.activeCount < self.options.show_active and \
+               p.CPUCount < self.options.show_high_CPU
+
+    def is_inactive_process_without_children(self, p):
+        return is_inactive_process and \
+               self.num_nodes(p.child_list) == 0
 
     def prune(self, process_subtree, parent, pruning_test):
         """Prunes the process tree by removing idle processes and processes

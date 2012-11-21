@@ -112,7 +112,10 @@ class Process:
         self.parent = None
         self.child_list = []
 
-        self.active = None
+        self.activeCount = 0
+        self.CPUCount = 0
+        self.first_user_cpu_time = None
+        self.first_sys_cpu_time = None
         self.last_user_cpu_time = None
         self.last_sys_cpu_time = None
 
@@ -145,9 +148,11 @@ class Process:
             # one-half of a sample period beyond the instant at which lastSample was taken.
             self.duration = lastSample.time - self.start_time + samplePeriod / 2
 
-        activeCount = sum( [1 for sample in self.samples if sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0] )
-        activeCount = activeCount + sum( [1 for sample in self.samples if sample.state == 'D'] )
-        self.active = (activeCount>0)   # controls pruning during process_tree creation time
+        self.activeCount = sum( [1 for sample in self.samples if \
+                            (sample.cpu_sample and sample.cpu_sample.sys + sample.cpu_sample.user + sample.cpu_sample.io > 0.0) \
+                            or sample.state == 'D'])
+        self.CPUCount = self.last_user_cpu_time + self.last_sys_cpu_time \
+                        - (self.first_user_cpu_time + self.first_sys_cpu_time)
 
     def calc_load(self, userCpu, sysCpu, interval):
         userCpuLoad = float(userCpu - self.last_user_cpu_time) / interval

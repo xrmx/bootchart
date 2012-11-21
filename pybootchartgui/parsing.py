@@ -269,11 +269,12 @@ def _parse_timed_blocks(file):
     blocks = file.read().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
-def _handle_sample(processMap, writer, ltime,
-                   time, pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime):
+def _handle_sample(processMap, writer, ltime, time,
+                   pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime):
             if tid in processMap:
                 process = processMap[tid]
                 process.cmd = cmd.strip('()') # why rename after latest name??
+                userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
             else:
                 if time < starttime:
                     # large values signify a collector problem, e.g. resource starvation
@@ -282,14 +283,12 @@ def _handle_sample(processMap, writer, ltime,
 
                 process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
                 processMap[tid] = process
+                process.first_user_cpu_time = userCpu
+                process.first_sys_cpu_time = sysCpu
+                userCpuLoad, sysCpuLoad = 0, 0
 
-            if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
-                if ltime is None:
-                    userCpuLoad, sysCpuLoad = 0, 0
-                else:
-                    userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
-                cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
-                process.samples.append(ProcessSample(time, state, cpuSample))
+            cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+            process.samples.append(ProcessSample(time, state, cpuSample))
 
             process.last_user_cpu_time = userCpu
             process.last_sys_cpu_time = sysCpu
@@ -304,7 +303,7 @@ def _parse_proc_ps_log(options, writer, file):
      *  kstkesp, kstkeip}
     """
     processMap = {}
-    ltime = 0
+    ltime = None
     timed_blocks = _parse_timed_blocks(file)
     for time, lines in timed_blocks:
         for line in lines:
@@ -320,8 +319,8 @@ def _parse_proc_ps_log(options, writer, file):
             # magic fixed point-ness ...
             pid *= 1000
             ppid *= 1000
-            processMap = _handle_sample(processMap, writer, ltime,
-                   time, pid, pid, cmd, state, ppid, userCpu, sysCpu, starttime)
+            processMap = _handle_sample(processMap, writer, ltime, time,
+                                        pid, pid, cmd, state, ppid, userCpu, sysCpu, starttime)
         ltime = time
 
     if len (timed_blocks) < 2:
@@ -354,7 +353,7 @@ def _parse_proc_ps_threads_log(options, writer, file):
      *   16  scheduling_policy
     """
     processMap = {}
-    ltime = 0
+    ltime = None
     timed_blocks = _parse_timed_blocks(file)
     for time, lines in timed_blocks:
         for line in lines:
@@ -373,8 +372,8 @@ def _parse_proc_ps_threads_log(options, writer, file):
             tid *= 1000
             ppid *= 1000
 
-            processMap = _handle_sample(processMap, writer, ltime,
-                   time, pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime)
+            processMap = _handle_sample(processMap, writer, ltime, time,
+                                        pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime)
         ltime = time
 
     if len (timed_blocks) < 2:

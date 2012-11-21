@@ -225,7 +225,7 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = False):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = True):
 	ctx.set_line_width(1.0)
 	x_shift = proc_tree.start_time
 
@@ -325,7 +325,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
-			    proc_tree, None)
+			    proc_tree, None, True)
 		# render CPU load
 		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \

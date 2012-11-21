@@ -142,6 +142,7 @@ STATE_COLORS = [(0, 0, 0, 0), PROCS_RUNNING_COLOR, PROC_COLOR_S, PROC_COLOR_D, \
 		PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
 JUSTIFY_LEFT = "left"
+JUSTIFY_CENTER = "center"
 
 # CumulativeStats Types
 STAT_TYPE_CPU = 0
@@ -249,15 +250,10 @@ class DrawContext:
 		label_y_advance = extents[5]
 
 		y += C.proc_h
-		if self.app_options.justify == JUSTIFY_LEFT:
-			label_x = x - label_w
-		else:
+		if self.app_options.justify == JUSTIFY_CENTER and label_w + 10 <= w:
 			label_x = x + w / 2 - label_w / 2   # CENTER
-
-		if label_w + 10 > w:                # if wider than the process box
-			label_x = x + w + 5         # push outside to right
-		if label_x + label_w > maxx:        # if that's too far right
-			label_x = x - label_w - 5   # push outside to the left
+		else:
+			label_x = x - label_w - 2
 		if label_x < minx:
 			label_x = minx
 		# XX ugly magic constants, tuned by trial-and-error

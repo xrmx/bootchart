@@ -673,10 +673,6 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 
 		process_total_time = cuml
 
-		# hide really tiny processes
-		if cuml * pix_per_ns <= 2:
-			continue
-
 		last_time = times[0]
 		y = last_below = below[last_time]
 		last_cuml = cuml = 0.0

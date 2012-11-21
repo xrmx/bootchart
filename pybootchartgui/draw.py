@@ -40,6 +40,7 @@ class RenderOptions:
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
 
 WHITE = (1.0, 1.0, 1.0, 1.0)
+NOTEPAD_YELLLOW = (0.95, 0.95, 0.8, 1.0)
 # Process tree border color.
 BORDER_COLOR = (0.63, 0.63, 0.63, 1.0)
 # Second tick line color.
@@ -189,8 +190,17 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 	ctx.fill()
 	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
 
-def draw_label_in_box(ctx, color, label, x, y, w, minx, maxx):
-	label_w = ctx.text_extents(label)[2]
+def draw_label_in_box(ctx, color, label, x, y, w, proc_h, minx, maxx):
+	# hack in a pair of left and right margins
+	extents = ctx.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
+	label = " " + label
+
+	label_y_bearing = extents[1]
+	label_w = extents[2]
+	label_height = extents[3]
+	label_y_advance = extents[5]
+
+	y += proc_h
 	if OPTIONS.app_options.justify == JUSTIFY_LEFT:
 		label_x = x
 	else:
@@ -202,7 +212,9 @@ def draw_label_in_box(ctx, color, label, x, y, w, minx, maxx):
 		label_x = x - label_w - 5   # push outside to the left
 	if label_x < minx:
 		label_x = minx
-	draw_text(ctx, label, color, label_x, y)
+	# XX ugly magic constants, tuned by trial-and-error
+	draw_fill_rect(ctx, NOTEPAD_YELLLOW, (label_x, y-1, label_w, -(proc_h-2)))
+	draw_text(ctx, label, color, label_x, y-4)
 
 def draw_label_in_box_at_time(ctx, color, label, y, label_x):
 	draw_text(ctx, label, color, label_x, y)
@@ -703,7 +715,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 		else:
 			cmdString = cmdString
 
-	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w,
+	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y, w, proc_h,
 			  ctx.clip_extents()[0], ctx.clip_extents()[2])
 
 	next_y = y + proc_h

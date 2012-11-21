@@ -28,8 +28,8 @@ import traceback # debug
 DrawConsts = collections.namedtuple('XXtypename',
     #                                        |height of a process, in user-space
     #                                        |                |taskstats-specific
-            ['CSEC','bar_h','off_x','off_y','proc_h','leg_s','CUML_HEIGHT','MIN_IMG_W'])
-C = DrawConsts( 100,     55,     10,     10,      16,     11,         2000,        800)
+            ['CSEC','bar_h','off_x','off_y','proc_h','leg_s','CUML_HEIGHT','MIN_IMG_W','legend_indent'])
+C = DrawConsts( 100,     55,     10,     10,      16,     11,         2000,        800, 5)
 
 # Derived constants
 #   XX  create another namedtuple for these
@@ -118,9 +118,8 @@ PROC_TEXT_COLOR = (0.19, 0.19, 0.19, 1.0)
 PROC_TEXT_FONT_SIZE = 12
 
 # Event tick color.
-DIM_EVENT_COLOR =       (0.3, 0.3, 0.3)
-EVENT_COLOR =           (0.1, 0.1, 0.1)
-HIGHLIGHT_EVENT_COLOR = (0.6, 0.0, 0.6)
+DIM_EVENT_COLOR =       (0.2, 0.2, 0.2)
+HIGHLIGHT_EVENT_COLOR = (0.4, 0.0, 0.6)
 
 # Signature color.
 SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
@@ -193,7 +192,7 @@ def draw_diamond(cr, x, y, w, h):
 def draw_legend_diamond(cr, label, fill_color, x, y, w, h):
 	cr.set_source_rgba(*fill_color)
 	draw_diamond(cr, x, y-h/2, w, h)
-	return draw_text(cr, label, TEXT_COLOR, x + w + 5, y)
+	return draw_text(cr, label, TEXT_COLOR, x + w, y)
 
 def draw_legend_box(cr, label, fill_color, x, y, s):
 	draw_fill_rect(cr, fill_color, (x, y - s, s, s))
@@ -459,12 +458,13 @@ def extents(ctx, xscale, trace):
 
 def render_charts(ctx, trace, curr_y, w, h):
 	proc_tree = ctx.proc_tree(trace)
+	x_onscreen = max(0, ctx.cr.device_to_user(0, 0)[0])
 
 	if ctx.app_options.show_legends:
 		# render bar legend
 		ctx.cr.set_font_size(LEGEND_FONT_SIZE)
 		curr_y += 20
-		curr_x = 0
+		curr_x = C.legend_indent + x_onscreen
 		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (user)", CPU_COLOR, curr_x, curr_y, C.leg_s)
 		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (sys)", CPU_SYS_COLOR, curr_x, curr_y, C.leg_s)
 		curr_x += 20 + draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, curr_x, curr_y, C.leg_s)
@@ -508,25 +508,25 @@ def render_charts(ctx, trace, curr_y, w, h):
 	curr_y += 8 + C.bar_h
 
 	if ctx.app_options.show_legends:
-		curr_y += 30
+		curr_y += 34
 		# render second chart
 		draw_legend_box(ctx.cr, "Disk utilization -- fraction of sample interval I/O queue was not empty",
-				IO_COLOR, 0, curr_y, C.leg_s)
+				IO_COLOR, C.legend_indent+x_onscreen, curr_y, C.leg_s)
 		if ctx.app_options.show_ops_not_bytes:
 			unit = "ops"
 		else:
 			unit = "bytes"
 		draw_legend_line(ctx.cr, "Disk writes -- " + unit + "/sample",
-				 DISK_WRITE_COLOR, 470, curr_y, C.leg_s)
+				 DISK_WRITE_COLOR, C.legend_indent+x_onscreen+470, curr_y, C.leg_s)
 		draw_legend_line(ctx.cr, "Disk reads+writes -- " + unit + "/sample",
-				 DISK_TPUT_COLOR, 470+120*2, curr_y, C.leg_s)
+				 DISK_TPUT_COLOR, C.legend_indent+x_onscreen+470+220, curr_y, C.leg_s)
 
 	# render disk throughput
 	max_sample = None
 
         # render I/O utilization
 	for partition in trace.disk_stats:
-		draw_text(ctx.cr, partition.name, TEXT_COLOR, 0, curr_y+18)
+		draw_text(ctx.cr, partition.name, TEXT_COLOR, C.legend_indent+x_onscreen, curr_y+18)
 
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (0, curr_y+18+5+USER_HALF, w, C.bar_h)
@@ -741,21 +741,21 @@ def draw_sweep(ctx):
 
 def draw_process_bar_chart_legends(ctx, curr_y):
 	curr_y += 30
-	draw_legend_diamond (ctx.cr, "Runnable",
-			 PROCS_RUNNING_COLOR, 10, curr_y, C.leg_s*3/4, C.proc_h)
-	draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
-			 PROC_COLOR_D, 10+100, curr_y, C.leg_s*3/4, C.proc_h)
-	curr_x = 10+100+40
+	curr_x = 10 + C.legend_indent + max(0, ctx.cr.device_to_user(0, 0)[0])
+	curr_x += 30 + draw_legend_diamond (ctx.cr, "Runnable",
+				       PROCS_RUNNING_COLOR, curr_x, curr_y, C.leg_s*3/4, C.proc_h)
+	curr_x += 30 + draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
+				       PROC_COLOR_D, curr_x, curr_y, C.leg_s*3/4, C.proc_h)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Running (user)",
-			 PROC_COLOR_R, 10+100+curr_x, curr_y, C.leg_s)
+				   PROC_COLOR_R, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
-			 CPU_SYS_COLOR, 10+100+curr_x, curr_y, C.leg_s)
+				   CPU_SYS_COLOR, curr_x, curr_y, C.leg_s)
         curr_x += 20 + draw_legend_box (ctx.cr, "Child CPU time lost, charged to parent",
-                         CPU_CHILD_COLOR, 10+100+curr_x, curr_y, C.leg_s)
+				   CPU_CHILD_COLOR, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
-			 PROC_COLOR_S, 10+100+curr_x, curr_y, C.leg_s)
+				   PROC_COLOR_S, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
-			 PROC_COLOR_Z, 10+100+curr_x, curr_y, C.leg_s)
+				   PROC_COLOR_Z, curr_x, curr_y, C.leg_s)
 	curr_y -= 9
 	return curr_y
 
@@ -789,7 +789,8 @@ def draw_header (ctx, headers, duration):
     cr = ctx.cr
     header_y = cr.font_extents()[2] + 10
     cr.set_font_size(TITLE_FONT_SIZE)
-    draw_text(cr, headers['title'], TEXT_COLOR, 0, header_y)
+    x_onscreen = C.legend_indent + max(0, ctx.cr.device_to_user(0, 0)[0])
+    draw_text(cr, headers['title'], TEXT_COLOR, x_onscreen, header_y)
     cr.set_font_size(TEXT_FONT_SIZE)
 
     for (headerkey, headertitle, mangle) in toshow:
@@ -799,7 +800,7 @@ def draw_header (ctx, headers, duration):
         else:
             value = ""
         txt = headertitle + ': ' + mangle(value)
-        draw_text(cr, txt, TEXT_COLOR, 0, header_y)
+        draw_text(cr, txt, TEXT_COLOR, x_onscreen, header_y)
 
 #     dur = duration / 100.0
 #     txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
@@ -1013,7 +1014,7 @@ def format_label_time(ctx, delta):
 					     prec=min(3, max(0, int(ctx.SEC_W/100))))
 
 def print_event_times(ctx, y, ev_list):
-	ctx.cr.set_source_rgba(*EVENT_COLOR)
+	ctx.cr.set_source_rgba(*DIM_EVENT_COLOR)
 	width = ctx.cr.text_extents("00")[2]
 	last_x_touched = 0
 	last_label_str = None
@@ -1038,7 +1039,7 @@ def print_event_times(ctx, y, ev_list):
 				last_x_touched = tx + draw_label_on_bg(
 					ctx.cr,
 					TRANSPARENT,
-					DARK_GREY, label_str, y, tx)
+					DIM_EVENT_COLOR, label_str, y, tx)
 			last_label_str = label_str
 
 def draw_process_events(ctx, proc, proc_tree, x, y):
@@ -1073,7 +1074,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 					 tx, y+2*C.proc_h-4)
 			n_highlighted_events += 1
 		else:
-			ctx.cr.set_source_rgb(*EVENT_COLOR)
+			ctx.cr.set_source_rgb(*DIM_EVENT_COLOR)
 			W,H = 1,5
 		# don't dump synthetic events
 		if ctx.event_dump_list != None and ctx.SWEEP_CSEC and ev.raw_log_seek:

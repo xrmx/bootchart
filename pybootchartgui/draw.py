@@ -86,9 +86,9 @@ PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
 PROC_COLOR_D = (0.76, 0.48, 0.48, 0.5)
 # Running process color.
-PROC_COLOR_R = (0.20, 0.50, 0.70, 1.0)
+PROC_COLOR_R = CPU_COLOR   # (0.40, 0.50, 0.80, 1.0)  # should look similar to CPU_COLOR
 # Sleeping process color.
-PROC_COLOR_S = (0.94, 0.94, 0.94, 1.0)
+PROC_COLOR_S = (0.95, 0.95, 0.95, 1.0)
 # Stopped process color.
 PROC_COLOR_T = (0.94, 0.50, 0.50, 1.0)
 # Zombie process color.

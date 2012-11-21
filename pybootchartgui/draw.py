@@ -208,7 +208,7 @@ def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
 	draw_text(ctx, label, color, label_x, y)
 
 def time_in_hz_to_ideal_coord(t_hz):
-	return (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
+	return (t_hz-time_origin_drawn) * SEC_W / HZ
 
 # Solve for t_hz:
 #   x = (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
@@ -254,10 +254,10 @@ def draw_annotations(ctx, proc_tree, times, rect):
 
     for time in times:
         if time is not None:
-            x = ((time - proc_tree.start_time) * rect[2] / proc_tree.duration())
+            x = time_in_hz_to_ideal_coord(time)
 
-            ctx.move_to(rect[0] + x, rect[1] + 1)
-            ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
+            ctx.move_to(x, rect[1] + 1)
+            ctx.line_to(x, rect[1] + rect[3] - 1)
             ctx.stroke()
 
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
@@ -350,32 +350,30 @@ SEC_W = None
 HZ = None
 time_origin_drawn = None  # time of leftmost plotted data
 
-w_extents = None   # includes off_x * 2
-h_extents = None   # includes off_y * (2 + N)
+# window coords
 
 # Called from gui.py and batch.py, before first call to render(),
 # and every time xscale changes.
+# Returns size of a window capable of holding the whole scene?
 def extents(options, xscale, trace):
 	global OPTIONS, HZ, time_origin_drawn
 	OPTIONS = options.app_options
 	HZ = trace.HZ
+
+	proc_tree = options.proc_tree(trace)
 	if OPTIONS.prehistory:
 		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
 	else:
-		time_origin_drawn = trace.ps_stats.start_time
+		time_origin_drawn = trace.ps_stats.start_time - proc_tree.sample_period
 	global SEC_W
 	SEC_W = int (xscale * sec_w_base)
 
-	proc_tree = options.proc_tree(trace)
-	w = int ((proc_tree.duration()-time_origin_drawn) * SEC_W / HZ) + 2*off_x
+	w = int (time_in_hz_to_ideal_coord(proc_tree.end_time)) + proc_tree.sample_period + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
 	if proc_tree.taskstats and options.cumulative:
 		h += CUML_HEIGHT + 4 * off_y
-	global w_extents, h_extents
-	w_extents = w
-	h_extents = h
 	return (w, h)  # includes off_x, off_y
 
 def clip_visible(clip, rect):
@@ -387,15 +385,15 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 	# render bar legend
 	ctx.set_font_size(LEGEND_FONT_SIZE)
 
-	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, off_x, curr_y+20, leg_s)
-	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, off_x + 120, curr_y+20, leg_s)
+	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, 0, curr_y+20, leg_s)
+	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, 120, curr_y+20, leg_s)
 	draw_legend_diamond(ctx, "Runnable threads", PROCS_RUNNING_COLOR,
-			off_x +120 +90, curr_y+20, leg_s, leg_s)
+			120 +90, curr_y+20, leg_s, leg_s)
 	draw_legend_diamond(ctx, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
-			off_x +120 +90 +140, curr_y+20, leg_s, leg_s)
+			120 +90 +140, curr_y+20, leg_s, leg_s)
 
 	# render I/O wait
-	chart_rect = (off_x, curr_y+30, w, bar_h)
+	chart_rect = (0, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
 		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
@@ -419,15 +417,15 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 
 	# render second chart
 	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
-			IO_COLOR, off_x, curr_y+20, leg_s)
+			IO_COLOR, 0, curr_y+20, leg_s)
 	if OPTIONS.show_ops_not_bytes:
 		unit = "ops"
 	else:
 		unit = "bytes"
 	draw_legend_line(ctx, "Disk writes -- " + unit + "/sample",
-			 DISK_WRITE_COLOR, off_x+470, curr_y+20, leg_s)
+			 DISK_WRITE_COLOR, 470, curr_y+20, leg_s)
 	draw_legend_line(ctx, "Disk reads+writes -- " + unit + "/sample",
-			 DISK_TPUT_COLOR, off_x+470+120*2, curr_y+20, leg_s)
+			 DISK_TPUT_COLOR, 470+120*2, curr_y+20, leg_s)
 
 	curr_y += 5
 
@@ -436,10 +434,10 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 
         # render I/O utilization
 	for partition in trace.disk_stats:
-		draw_text(ctx, partition.name, TEXT_COLOR, off_x, curr_y+30)
+		draw_text(ctx, partition.name, TEXT_COLOR, 0, curr_y+30)
 
 		# utilization -- inherently normalized [0,1]
-		chart_rect = (off_x, curr_y+30+5, w, bar_h)
+		chart_rect = (0, curr_y+30+5, w, bar_h)
 		if clip_visible (clip, chart_rect):
 			draw_box_ticks (ctx, chart_rect)
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
@@ -462,10 +460,10 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 					    [(sample.time, sample.write) for sample in partition.samples], \
 					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
-		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
+		pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
 
 		shift_x, shift_y = -20, 20
-		if (pos_x < off_x + 245):
+		if (pos_x < 245):
 			shift_x, shift_y = 5, 40
 
 		# DISK_BLOCK_SIZE = 1024
@@ -475,15 +473,15 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 		curr_y = curr_y + 30 + bar_h
 
 	# render mem usage
-	chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)
+	chart_rect = (0, curr_y+30, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
 	if mem_stats and clip_visible (clip, chart_rect):
 		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
-		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Used", MEM_USED_COLOR, off_x + 240, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Used", MEM_USED_COLOR, 240, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y+20, leg_s)
 		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
-				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
+				 MEM_SWAP_COLOR, 480, curr_y+20, leg_s)
 		draw_box_ticks(ctx, chart_rect)
 		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
@@ -506,17 +504,26 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 #
 # Render the chart.
 #
+# "ctx" is the Cairo drawing context.  ctx transform already has panning translation
+# and "zoom" scaling applied, but not the asymmetrical xscale arg.
 def render(ctx, options, xscale, trace, isotemporal_x = None):
-	(w, h) = extents (options, xscale, trace)
-
-	proc_tree = options.proc_tree (trace)
-
-	# x, y, w, h
-	clip = ctx.clip_extents()   # XX  Bounds are initialized, yet clipping is not enforced by pyCairo! ???
+	(w, h) = extents (options, xscale, trace)  # XX  redundant?
 
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+
+	ctx.save()
+	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
+
+	proc_tree = options.proc_tree (trace)
+
+	ctx.new_path()
+	ctx.rectangle(0, 0, w, h)
+	ctx.clip()
+
+	# x, y, w, h
+	clip = (-1, -1, -1, -1) # ctx.clip_extents()
 
 	w -= 2*off_x
 
@@ -548,18 +555,20 @@ def render(ctx, options, xscale, trace, isotemporal_x = None):
 
 	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
-		cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
+		cuml_rect = (0, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
 
 	# draw a cumulative I/O-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
-		cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
+		cuml_rect = (0, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if isotemporal_x:
 		draw_isotemporal(ctx, isotemporal_x)
+
+	ctx.restore()
 
 def draw_isotemporal(ctx, isotemporal_x):
 	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
@@ -574,23 +583,19 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
 	if not options.kernel_only:
 		draw_legend_diamond (ctx, "Uninterruptible Syscall",
-				 PROC_COLOR_D, off_x+10, curr_y + 45, leg_s*3/4, proc_h)
+				 PROC_COLOR_D, 10, curr_y + 45, leg_s*3/4, proc_h)
 		draw_legend_box (ctx, "Running (%cpu)",
-				 PROC_COLOR_R, off_x+10+180, curr_y + 45, leg_s)
+				 PROC_COLOR_R, 10+180, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Sleeping",
-				 PROC_COLOR_S, off_x+10+180+130, curr_y + 45, leg_s)
+				 PROC_COLOR_S, 10+180+130, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Zombie",
-				 PROC_COLOR_Z, off_x+10+180+130+90, curr_y + 45, leg_s)
+				 PROC_COLOR_Z, 10+180+130+90, curr_y + 45, leg_s)
 		header_size = 45
 
-	chart_rect = [off_x, curr_y + header_size + 30,
-		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
+	#chart_rect = [0, curr_y + header_size + 30,
+	#	      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
+	chart_rect = [-1, -1, -1, -1]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
-
-        ctx.new_path()
-        ctx.rectangle(chart_rect[0]-off_x, 0, \
-		      chart_rect[2]+2*off_x, h_extents)
-	ctx.clip()
 
 	draw_box_ticks (ctx, chart_rect)
 	if SEC_W > 100:
@@ -616,7 +621,7 @@ def draw_header (ctx, headers, duration):
 
     header_y = ctx.font_extents()[2] + 10
     ctx.set_font_size(TITLE_FONT_SIZE)
-    draw_text(ctx, headers['title'], TEXT_COLOR, off_x, header_y)
+    draw_text(ctx, headers['title'], TEXT_COLOR, 0, header_y)
     ctx.set_font_size(TEXT_FONT_SIZE)
 
     for (headerkey, headertitle, mangle) in toshow:
@@ -626,7 +631,7 @@ def draw_header (ctx, headers, duration):
         else:
             value = ""
         txt = headertitle + ': ' + mangle(value)
-        draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
+        draw_text(ctx, txt, TEXT_COLOR, 0, header_y)
 
     dur = duration / 100.0
     txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
@@ -634,13 +639,13 @@ def draw_header (ctx, headers, duration):
         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
 
     header_y += ctx.font_extents()[2]
-    draw_text (ctx, txt, TEXT_COLOR, off_x, header_y)
+    draw_text (ctx, txt, TEXT_COLOR, 0, header_y)
 
     return header_y
 
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	x = time_in_hz_to_ideal_coord(proc.start_time)
-	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x
+	w = time_in_hz_to_ideal_coord(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
@@ -665,7 +670,7 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 			cmdString = cmdString
 
 	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w,
-			  off_x, rect[0] + rect[2])
+			  0, rect[0] + rect[2])
 
 	next_y = y + proc_h
 	for child in proc.child_list:
@@ -881,7 +886,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 			label_h = extnts[3]
 #			print "Text extents %g by %g" % (label_w, label_h)
 			labels.append((label,
-				       chart_bounds[0] + chart_bounds[2] - label_w - off_x * 2,
+				       chart_bounds[0] + chart_bounds[2] - label_w,
 				       y + (cuml + label_h) / 2))
 			if cs in legends:
 				print("ARGH - duplicate process in list !")
@@ -915,7 +920,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 		label = "Cumulative I/O usage, by process; total I/O: " \
 			" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
 
-	draw_text(ctx, label, TEXT_COLOR, chart_bounds[0] + off_x,
+	draw_text(ctx, label, TEXT_COLOR, chart_bounds[0],
 		  chart_bounds[1] + font_height)
 
 	i = 0
@@ -924,7 +929,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 	for t in legends:
 		cs = t[0]
 		time = t[1]
-		x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
+		x = chart_bounds[0] + int (i/LEGENDS_PER_COL) * label_width
 		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
 		str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
 		draw_legend_box(ctx, str, cs.color, x, y, leg_s)

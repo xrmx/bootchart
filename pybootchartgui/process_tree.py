@@ -255,7 +255,7 @@ class ProcessTree:
                 idx -= 1
                 num_removed += 1
                 p.child_list.extend(nextp.child_list)
-                self.merge_processes(p, nextp)
+                self.subsume_process(p, nextp)
             num_removed += self.merge_siblings(p.child_list)
             idx += 1
         if len(process_subtree) > 0:
@@ -275,16 +275,17 @@ class ProcessTree:
             if len(p.child_list) == 1 and p.child_list[0].cmd == p.cmd:
                 child = p.child_list[0]
                 p.child_list = list(child.child_list)
-                self.merge_processes(p, child)
+                self.subsume_process(p, child)
                 num_removed += 1
                 continue
             num_removed += self.merge_runs(p.child_list)
             idx += 1
         return num_removed
 
-    def merge_processes(self, p1, p2):
-        """Merges two process' samples."""
-        p1.samples.extend(p2.samples)
+    # XX  return a new instance instead, so that start_time and end_time can be made immutable?
+    def subsume_process(self, p1, p2):
+        """Subsume process p2 into p1.  Attributes of p2 other than samples[], start_time and end_time are lost."""
+        p1.samples.extend(p2.samples)   # result no longer necessarily in temporal order
         p1.samples.sort( key = lambda p: p.time )
         p1time = p1.start_time
         p2time = p2.start_time

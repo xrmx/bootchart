@@ -723,7 +723,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	last_label_str = None
 	precision = int( min(6, SEC_W/100))
 	for ev in proc.events:
-		if not ev_regex.match(ev.match) and ev.match != "sample_start":
+		if ev.raw_log_line and not ev_regex.match(ev.raw_log_line):
 			continue
 		tx = csec_to_xscaled(ev.time)
 		ctx.move_to(tx-1, y+proc_h)

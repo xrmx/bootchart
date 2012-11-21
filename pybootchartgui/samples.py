@@ -15,14 +15,14 @@
 
 
 class EventSample:
-    def __init__(self, time, time_usec, tid, pid, match, raw_file, raw_line_number):
+    def __init__(self, time, time_usec, pid, tid, comm, func_file_line, raw_log_line):
         self.time = time
         self.time_usec = time_usec
-        self.tid = tid
         self.pid = pid
-        self.match = match
-        self.raw_file = raw_file
-        self.raw_line_number = raw_line_number
+        self.tid = tid
+        self.comm = comm
+        self.func_file_line = func_file_line
+        self.raw_log_line = raw_log_line
 
 class DiskStatSample:
     def __init__(self, time):

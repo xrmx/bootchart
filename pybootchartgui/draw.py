@@ -624,8 +624,20 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 
 	ctx.cr.restore()
 
-	for ev in ctx.event_dump_list:
-		print ev.raw_log_line(),
+	if False:   # dump events only
+		ctx.event_dump_list.sort(key = lambda e: e.time_usec)
+		for ev in ctx.event_dump_list:
+			print ev.raw_log_line(),
+	else:   # dump all raw log lines between events, where "between" means merely textually,
+		# irrespective of time.
+		ctx.event_dump_list.sort(key = lambda e: e.raw_log_seek)
+		if len(ctx.event_dump_list):
+			event0 = ctx.event_dump_list[0]
+			event0.raw_log_file.seek(event0.raw_log_seek)
+			eventN = ctx.event_dump_list[-1]
+			#for line in event0.raw_log_file.readline():
+			while event0.raw_log_file.tell() <= eventN.raw_log_seek:
+				print event0.raw_log_file.readline(),
 
 def sweep_window_width_sec(ctx):
 	'''about half the width of the visible part of the per-process bars'''
@@ -867,9 +879,8 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		if ctx.SWEEP_CSEC and ev.raw_log_seek:
 			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
 			if delta_csec >= 0 and delta_csec < width_csec:
-				# ctx.cr.set_source_rgba(*MAGENTA)
-				# W,H = 2,8
-				if ctx.SWEEP_render_serial == ctx.render_serial:
+				# don't dump synthetic events
+				if ev.raw_log_seek and ctx.SWEEP_render_serial == ctx.render_serial:
 					ctx.event_dump_list.append(ev)
 		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
 		ctx.cr.rel_line_to(W,-H)       # top

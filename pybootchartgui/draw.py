@@ -202,9 +202,9 @@ def draw_label_in_box(ctx, color, label, x, y, w, minx, maxx):
 		label_x = minx
 	draw_text(ctx, label, color, label_x, y)
 
-def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
-	label_w = ctx.text_extents(label)[2]
+def draw_label_in_box_at_time(ctx, color, label, y, label_x):
 	draw_text(ctx, label, color, label_x, y)
+	return ctx.text_extents(label)[2]
 
 def time_in_hz_to_ideal_coord(t_hz):
 	return (t_hz-time_origin_drawn) * SEC_W / HZ
@@ -709,6 +709,7 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
 	ctx.set_source_rgba(*EVENT_COLOR)
+	last_x_touched = 0
 	for ev in proc.events:
 		if not ev_regex.match(ev.match) and ev.match != "sample_start":
 			continue
@@ -718,10 +719,11 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 		ctx.line_to(tx+1, y+proc_h)
 		ctx.line_to(tx,   y+proc_h)
 		ctx.fill()
-		if OPTIONS.print_event_times:
-			draw_label_in_box_at_time(ctx, PROC_TEXT_COLOR,
-						  '%.2f' % (float(ev.time - time_origin_drawn) / HZ),
-						  x, y + proc_h - 4, tx)
+		if OPTIONS.print_event_times and tx > last_x_touched + 5:
+			last_x_touched = tx + draw_label_in_box_at_time(
+				ctx, PROC_TEXT_COLOR,
+				'%.2f' % (float(ev.time - time_origin_drawn) / HZ),
+				y + proc_h - 4, tx)
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
 	last_tx = -1

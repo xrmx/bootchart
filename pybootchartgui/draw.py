@@ -189,25 +189,25 @@ def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
 	label_w = ctx.text_extents(label)[2]
 	draw_text(ctx, label, color, label_x, y)
 
-def draw_sec_labels(ctx, rect, sec_w, nsecs):
+def draw_sec_labels(ctx, rect, nsecs):
 	ctx.set_font_size(AXIS_FONT_SIZE)
 	prev_x = 0
-	for i in range(0, rect[2] + 1, sec_w):
-		if ((i / sec_w) % nsecs == 0) :
-			label = "%ds" % (i / sec_w)
+	for i in range(0, rect[2] + 1, SEC_W):
+		if ((i / SEC_W) % nsecs == 0) :
+			label = "%ds" % (i / SEC_W)
 			label_w = ctx.text_extents(label)[2]
 			x = rect[0] + i - label_w/2
 			if x >= prev_x:
 				draw_text(ctx, label, TEXT_COLOR, x, rect[1] - 2)
 				prev_x = x + label_w
 
-def draw_box_ticks(ctx, rect, sec_w):
+def draw_box_ticks(ctx, rect):
 	draw_rect(ctx, BORDER_COLOR, tuple(rect))
 
 	ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
 
-	for i in range(sec_w, rect[2] + 1, sec_w):
-		if ((i / sec_w) % 5 == 0) :
+	for i in range(SEC_W, rect[2] + 1, SEC_W):
+		if ((i / SEC_W) % 5 == 0) :
 			ctx.set_source_rgba(*TICK_COLOR_BOLD)
 		else :
 			ctx.set_source_rgba(*TICK_COLOR)
@@ -310,9 +310,14 @@ MIN_IMG_W = 800
 CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
 
+SEC_W = None
+
 def extents(options, xscale, trace):
+	global SEC_W
+	SEC_W = int (xscale * sec_w_base)
+
 	proc_tree = options.proc_tree(trace)
-	w = int (proc_tree.duration * sec_w_base * xscale / 100) + 2*off_x
+	w = int (proc_tree.duration * SEC_W / 100) + 2*off_x
 	h = proc_h * proc_tree.num_proc + 2 * off_y
 	if options.charts:
 		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
@@ -323,7 +328,7 @@ def extents(options, xscale, trace):
 def clip_visible(clip, rect):
 	return True
 
-def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
+def render_charts(ctx, options, clip, trace, curr_y, w, h):
 	proc_tree = options.proc_tree(trace)
 
 	# render bar legend
@@ -339,7 +344,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	# render I/O wait
 	chart_rect = (off_x, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
-		draw_box_ticks (ctx, chart_rect, sec_w)
+		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
@@ -383,7 +388,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (off_x, curr_y+30+5, w, bar_h)
 		if clip_visible (clip, chart_rect):
-			draw_box_ticks (ctx, chart_rect, sec_w)
+			draw_box_ticks (ctx, chart_rect)
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 			draw_chart (ctx, IO_COLOR, True, chart_rect, \
 					    [(sample.time, sample.util) for sample in partition.samples], \
@@ -426,7 +431,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
 		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
 				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
-		draw_box_ticks(ctx, chart_rect, sec_w)
+		draw_box_ticks(ctx, chart_rect)
 		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
@@ -460,7 +465,6 @@ def render(ctx, options, xscale, trace):
 	# x, y, w, h
 	clip = ctx.clip_extents()
 
-	sec_w = int (xscale * sec_w_base)
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
@@ -477,7 +481,7 @@ def render(ctx, options, xscale, trace):
 		curr_y = off_y;
 
 	if options.charts:
-		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h, sec_w)
+		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h)
 
 	# draw process boxes
 	proc_height = h
@@ -485,7 +489,7 @@ def render(ctx, options, xscale, trace):
 		proc_height -= CUML_HEIGHT
 
 	draw_process_bar_chart(ctx, clip, options, proc_tree, trace.times,
-			       curr_y, w, proc_height, sec_w)
+			       curr_y, w, proc_height)
 
 	curr_y = proc_height
 	ctx.set_font_size(SIG_FONT_SIZE)
@@ -495,15 +499,15 @@ def render(ctx, options, xscale, trace):
 	if proc_tree.taskstats and options.cumulative:
 		cuml_rect = (off_x, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_CPU)
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
 
 	# draw a cumulative I/O-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
 		cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
-			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)
+			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
-def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
+def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	header_size = 0
 	if not options.kernel_only:
 		draw_legend_box (ctx, "Running (%cpu)",
@@ -520,12 +524,12 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 		      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
 
-	draw_box_ticks (ctx, chart_rect, sec_w)
-	if sec_w > 100:
+	draw_box_ticks (ctx, chart_rect)
+	if SEC_W > 100:
 		nsec = 1
 	else:
 		nsec = 5
-	draw_sec_labels (ctx, chart_rect, sec_w, nsec)
+	draw_sec_labels (ctx, chart_rect, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
 	y = curr_y + 60
@@ -696,7 +700,7 @@ class CumlSample:
 		return self.color
 
 # taskstats-specific
-def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
+def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 	global palette_idx
 	palette_idx = 0
 
@@ -821,7 +825,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 		below = row
 
 	# render grid-lines over the top
-	draw_box_ticks(ctx, chart_bounds, sec_w)
+	draw_box_ticks(ctx, chart_bounds)
 
 	# render labels
 	for l in labels:

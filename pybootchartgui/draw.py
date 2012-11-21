@@ -347,10 +347,16 @@ def plot_segment_positive(cr, point, x, y):
 	cr.set_line_width(1.5)
 	cr.line_to(x, y)
 
-def plot_scatter_positive(cr, point, x, y):
+def _plot_scatter_positive(cr, point, x, y, w, h):
 	if point[1] <= 0:
 		return
-	draw_diamond(cr, x, y, 3.6, 3.6)
+	draw_diamond(cr, x, y, w, h)
+
+def plot_scatter_positive_big(cr, point, x, y):
+	return _plot_scatter_positive(cr, point, x, y, 5.5, 5.5)
+
+def plot_scatter_positive_small(cr, point, x, y):
+	return _plot_scatter_positive(cr, point, x, y, 3.6, 3.6)
 
 # All charts assumed to be full-width
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
@@ -447,14 +453,14 @@ def render_charts(ctx, trace, curr_y, w, h):
 		    proc_tree, None, plot_square)
 
 	# instantaneous sample
-	draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
-		    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
-		    proc_tree, [0, 9], plot_scatter_positive)
-
-	# instantaneous sample
 	draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
 		    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
-		    proc_tree, [0, 9], plot_scatter_positive)
+		    proc_tree, [0, 9], plot_scatter_positive_big)
+
+	# instantaneous sample
+	draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
+		    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
+		    proc_tree, [0, 9], plot_scatter_positive_small)
 
 	curr_y = curr_y + 50 + C.bar_h
 

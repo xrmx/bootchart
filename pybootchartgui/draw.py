@@ -584,13 +584,6 @@ def render(cr, ctx, xscale, trace, sweep_csec = None):
 
 	proc_tree = ctx.proc_tree (trace)
 
-	# clip off left-hand side of process bars
-	ctx.cr.new_path()
-	ctx.cr.rectangle(0, 0, w, h)
-	ctx.cr.clip()
-
-	w -= 2*C.off_x
-
 	# draw the title and headers
 	if proc_tree.idle:
 		duration = proc_tree.idle
@@ -602,6 +595,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None):
 	else:
 		curr_y = C.off_y;
 
+	w -= 2*C.off_x
 	if ctx.charts:
 		curr_y = render_charts (ctx, trace, curr_y, w, h)
 
@@ -732,7 +726,8 @@ def draw_header (ctx, headers, duration):
     return header_y
 
 def draw_processes_recursively(ctx, proc, proc_tree, y):
-	xmin, ymin = ctx.cr.device_to_user(0, 0)   # work around numeric overflow at high xscale factors
+	xmin = ctx.cr.device_to_user(0, 0[0]   # work around numeric overflow at high xscale factors
+	xmin = max(xmin, 0)
 	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
 	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
 

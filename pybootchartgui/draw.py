@@ -635,7 +635,8 @@ def sweep_window_width_sec(ctx):
 
 def draw_sweep(ctx, sweep_csec, width_csec):
 	def draw_shading(cr, rect):
-		cr.set_source_rgba(0.0, 0.0, 0.0, 0.1)
+		# alpha value of the rgba strikes a compromise between appearance on screen, and in printed screenshot
+		cr.set_source_rgba(0.0, 0.0, 0.0, 0.08)
 		cr.set_line_width(0.0)
 		cr.rectangle(rect)
 		cr.fill()

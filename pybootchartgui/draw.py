@@ -631,7 +631,6 @@ def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
 	chart_rect = [-1, -1, -1, -1]
 	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
 
-	draw_box_ticks (ctx, chart_rect)
 	if SEC_W > 100:
 		nsec = 1
 	else:
@@ -641,7 +640,7 @@ def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
 
 	y = curr_y + 60
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
+		draw_processes_recursively(ctx, root, proc_tree, y, proc_h)
 		y = y + proc_h * proc_tree.num_nodes([root])
 	if SWEEP_CSEC and SWEEP_render_serial == render_serial:
 		# mark end of this batch of events, for the benefit of post-processors
@@ -680,11 +679,11 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
+def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h):
 	x = csec_to_xscaled(proc.start_time)
 	w = csec_to_xscaled(proc.start_time + proc.duration) - x  # XX parser fudges duration upward
 
-	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h)
 
 	# Do not draw right-hand vertical border -- process exit never exactly known
 	ctx.set_source_rgba(*PROC_BORDER_COLOR)
@@ -695,12 +694,12 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 	ctx.rel_line_to(w, 0)
 	ctx.stroke()
 
-	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect)
+	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h)
 
 	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);
 	# user can work around this by toggling off the event ticks.
 	if not OPTIONS.app_options.hide_events:
-		draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect)
+		draw_process_events(ctx, proc, proc_tree, x, y, proc_h)
 
 	ipid = int(proc.pid)
 	if proc_tree.taskstats and OPTIONS.app_options.show_all:
@@ -720,13 +719,13 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 
 	next_y = y + proc_h
 	for child in proc.child_list:
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect)
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])
 
 	return x, y
 
-def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
+def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h):
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 	if len(proc.samples) <= 0:
 		return
@@ -748,7 +747,7 @@ def usec_to_csec(usec):
 	'''would drop precision without the float() cast'''
 	return float(usec) / 1000 / 10
 
-def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
+def draw_process_events(ctx, proc, proc_tree, x, y, proc_h):
 	ev_regex = re.compile(OPTIONS.app_options.event_regex)
 	ev_list = [(ev, csec_to_xscaled(usec_to_csec(ev.time_usec)))
 		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
@@ -808,7 +807,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 				y + proc_h - 4, tx)
 			last_label_str = label_str
 
-def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
+def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h):
 	last_tx = -1
 	for sample in proc.samples :
 		tx = csec_to_xscaled(sample.time)

@@ -103,6 +103,9 @@ PROC_TEXT_COLOR = (0.19, 0.19, 0.19, 1.0)
 # Process label font.
 PROC_TEXT_FONT_SIZE = 12
 
+# Event tick color.
+EVENT_COLOR = (0.0, 0.0, 0.0, 1.0)
+
 # Signature color.
 SIG_COLOR = (0.0, 0.0, 0.0, 0.3125)
 # Signature font.
@@ -556,12 +559,24 @@ def draw_header (ctx, headers, duration):
 
     return header_y
 
+def get_sample_width(proc_tree, rect, tx, last_tx):
+	tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
+	if last_tx != -1 and abs(last_tx - tx) <= tw:
+		tw -= last_tx - tx
+		tx = last_tx
+	tw = max (tw, 1) # nice to see at least something    XX
+	return tw, tx + tw
+
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	w = ((proc.duration) * rect[2] / proc_tree.duration)
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
+
+	draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect)
+
 	ipid = int(proc.pid)
 	if proc_tree.taskstats and OPTIONS.show_all:
 		cmdString = ''
@@ -593,23 +608,32 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 	for sample in proc.samples :
 		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
 
-		# samples are sorted chronologically
-		tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
-		if last_tx != -1 and abs(last_tx - tx) <= tw:
-			tw -= last_tx - tx
-			tx = last_tx
-		tw = max (tw, 1) # nice to see at least something
-
-		last_tx = tx + tw
-		state = get_proc_state( sample.state )
+		tw, last_tx = get_sample_width(proc_tree, rect, tx, last_tx)
 
 		alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
 		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 #		print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
 		draw_fill_rect(ctx, cpu_color, (tx, y, tw, proc_h * 7 / 8))
+def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
+	y += proc_h   # move to bottom of process bar
+	ctx.set_source_rgba(*EVENT_COLOR)
+	for ev in proc.events:
+		tx = rect[0] + round(((ev.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+		ctx.move_to(tx-1, y)
+		ctx.line_to(tx,   y-5)
+		ctx.line_to(tx+1, y)
+		ctx.line_to(tx,   y)
+		ctx.fill()
 
-		color = STATE_COLORS[state]
-		draw_fill_rect(ctx, color, (tx, y + proc_h * 7 / 8, tw, proc_h / 8))
+def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
+	last_tx = -1
+	for sample in proc.samples :
+		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
+		state = get_proc_state( sample.state )
+		if state == STATE_WAITING:
+			color = STATE_COLORS[state]
+			tw, last_tx = get_sample_width(proc_tree, rect, tx, last_tx)
+			draw_fill_rect(ctx, color, (tx, y + proc_h * 7 / 8, tw, proc_h / 8))
 
 def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.set_source_rgba(*DEP_COLOR)

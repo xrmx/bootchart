@@ -232,6 +232,8 @@ class DrawContext:
 		self.time_origin_relative = None  # currently used only to locate events
 
 		# intra-rendering state
+		self.hide_process_y = None
+		self.unhide_process_y = None
 		self.proc_above_was_hidden = False
 
 	def per_render_init(self, cr, time_origin_drawn, SEC_W):
@@ -615,12 +617,26 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	if ctx.charts:
 		curr_y = render_charts (ctx, trace, curr_y, w, h)
 
+	if ctx.app_options.show_legends and not ctx.kernel_only:
+		curr_y = draw_process_bar_chart_legends(ctx, curr_y)
+
 	# draw process boxes
 	proc_height = h
 	if proc_tree.taskstats and ctx.cumulative:
 		proc_height -= C.CUML_HEIGHT
 
-	ctx.hide_process_y = hide_process_y
+	# curr_y points to the *top* of the first per-process line
+	if hide_process_y and hide_process_y[0] > (curr_y - C.proc_h/4):
+		hide_mod_proc_h = (hide_process_y[0] - curr_y) % C.proc_h
+		# if first button-down (hide_process_y[0]) falls in middle half of any process bar, then set up for hiding
+		if hide_mod_proc_h >= C.proc_h/4 and hide_mod_proc_h < C.proc_h*3/4:
+				hide_process_y.sort()
+				ctx.hide_process_y = hide_process_y
+				ctx.unhide_process_y = None
+		else: # unhide
+			ctx.hide_process_y = None
+			ctx.unhide_process_y = hide_process_y[0]
+
 	draw_process_bar_chart(ctx, proc_tree, trace.times,
 			       curr_y, w, proc_height)
 
@@ -688,24 +704,25 @@ def draw_sweep(ctx, sweep_csec, width_csec):
 	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),height))
 	draw_vertical(ctx.cr, x)
 
-def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
-	if ctx.app_options.show_legends and not ctx.kernel_only:
-		curr_y += 30
-		draw_legend_diamond (ctx.cr, "Runnable",
-				 PROCS_RUNNING_COLOR, 10, curr_y, C.leg_s*3/4, C.proc_h)
-		draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
-				 PROC_COLOR_D, 10+100, curr_y, C.leg_s*3/4, C.proc_h)
-		curr_x = 10+100+40
-		curr_x += 20 + draw_legend_box (ctx.cr, "Running (user)",
-				 PROC_COLOR_R, 10+100+curr_x, curr_y, C.leg_s)
-		curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
-				 CPU_SYS_COLOR, 10+100+curr_x, curr_y, C.leg_s)
-		curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
-				 PROC_COLOR_S, 10+100+curr_x, curr_y, C.leg_s)
-		curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
-				 PROC_COLOR_Z, 10+100+curr_x, curr_y, C.leg_s)
-		curr_y -= 9
+def draw_process_bar_chart_legends(ctx, curr_y):
+	curr_y += 30
+	draw_legend_diamond (ctx.cr, "Runnable",
+			 PROCS_RUNNING_COLOR, 10, curr_y, C.leg_s*3/4, C.proc_h)
+	draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
+			 PROC_COLOR_D, 10+100, curr_y, C.leg_s*3/4, C.proc_h)
+	curr_x = 10+100+40
+	curr_x += 20 + draw_legend_box (ctx.cr, "Running (user)",
+			 PROC_COLOR_R, 10+100+curr_x, curr_y, C.leg_s)
+	curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
+			 CPU_SYS_COLOR, 10+100+curr_x, curr_y, C.leg_s)
+	curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
+			 PROC_COLOR_S, 10+100+curr_x, curr_y, C.leg_s)
+	curr_x += 20 + draw_legend_box (ctx.cr, "Zombie",
+			 PROC_COLOR_Z, 10+100+curr_x, curr_y, C.leg_s)
+	curr_y -= 9
+	return curr_y
 
+def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	chart_rect = [-1, -1, -1, -1]
 	ctx.cr.set_font_size (PROC_TEXT_FONT_SIZE)
 
@@ -807,22 +824,18 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
 	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x
 
-	if ctx.hide_process_y:
-		if ctx.hide_process_y < y - C.proc_h/4:
-			ctx.hide_process_y = None       # no further hits in traversal are possible
+	if ctx.hide_process_y and y+C.proc_h > ctx.hide_process_y[0] and proc.draw:
+		proc.draw = False
+		ctx.hide_process_y[1] -= C.proc_h
+		if y > (ctx.hide_process_y[1]) / C.proc_h * C.proc_h:
+			ctx.hide_process_y = None
+
+	elif ctx.unhide_process_y and y+C.proc_h*3/4 > ctx.unhide_process_y:
+		if proc.draw:    # found end of run of hidden processes
+			ctx.unhide_process_y = None
 		else:
-			if ctx.hide_process_y < y + C.proc_h/4:
-				if not proc.draw:
-					proc.draw = True
-					ctx.hide_process_y += C.proc_h  # unhide all in consecutive hidden processes
-				else:
-					pass  # ignore hits on the border region if the process is not hidden
-			elif ctx.hide_process_y < y + C.proc_h*3/4:
-				if proc.draw:
-					proc.draw = False
-					ctx.hide_process_y = None
-				else:
-					pass  # ignore hits on already-hidden processes
+			proc.draw = True
+			ctx.unhide_process_y += C.proc_h
 
 	if not proc.draw:
 		ctx.proc_above_was_hidden = True

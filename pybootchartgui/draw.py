@@ -19,6 +19,7 @@ import math
 import re
 import random
 import colorsys
+import traceback
 
 class RenderOptions:
 
@@ -360,7 +361,8 @@ def in_chart_X_margin(proc_tree):
 
 # Called from gui.py and batch.py, before first call to render(),
 # and every time xscale changes.
-# Returns size of a window capable of holding the whole scene?
+# Returned (w, h) maximum useful x, y user coordinates -- minimums are 0, 0.
+# (w) will get bigger if xscale does.
 def extents(options, xscale, trace):
 	global OPTIONS, time_origin_drawn
 	OPTIONS = options.app_options
@@ -514,7 +516,8 @@ ISOTEMPORAL_CSEC = None
 # "ctx" is the Cairo drawing context.  ctx transform already has panning translation
 # and "zoom" scaling applied, but not the asymmetrical xscale arg.
 def render(ctx, options, xscale, trace, isotemporal_csec = None):
-	(w, h) = extents (options, xscale, trace)  # XX  redundant?
+	#traceback.print_stack()
+	(w, h) = extents (options, xscale, trace)
 
 	ctx.set_line_width(1.0)
 	ctx.select_font_face(FONT_NAME)
@@ -714,31 +717,52 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
+	ctx.set_source_rgba(*EVENT_COLOR)
+	ev_list = [(ev, csec_to_xscaled(ev.time))
+		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
+		   for ev in proc.events]
+	# draw ticks
+	for (ev, tx) in ev_list:
+		W,H = 1,5
+		ctx.move_to(tx-W, y+proc_h) # bottom-left
+		ctx.rel_line_to(W,-H)       # top
+		ctx.rel_line_to(W, H)       # bottom-right
+		ctx.close_path()
+		ctx.fill()
+
+	if not OPTIONS.print_event_times:
+		return
+
+	# draw time labels
+	# XX  Add support for "absolute" boot-time origin case?
 	if ISOTEMPORAL_CSEC:
 		time_origin_relative = ISOTEMPORAL_CSEC
 	else:
-		time_origin_relative = time_origin_drawn + proc_tree.sample_period  # XX align to time of first sample
-	ctx.set_source_rgba(*EVENT_COLOR)
+		# align to time of first sample
+		time_origin_relative = time_origin_drawn + proc_tree.sample_period
+	spacing = ctx.text_extents("00")[2]
 	last_x_touched = 0
 	last_label_str = None
-	precision = int( min(6, SEC_W/100))
-	for ev in proc.events:
-		if ev.raw_log_line and not ev_regex.match(ev.raw_log_line):
+	for (ev, tx) in ev_list:
+		if tx < last_x_touched + spacing:
 			continue
-		tx = csec_to_xscaled(ev.time)
-		ctx.move_to(tx-1, y+proc_h)
-		ctx.line_to(tx,   y+proc_h-5)
-		ctx.line_to(tx+1, y+proc_h)
-		ctx.line_to(tx,   y+proc_h)
-		ctx.fill()
-		if OPTIONS.print_event_times and tx > last_x_touched + 5:
-			label_str = '%.*f' % (precision, (float(ev.time_usec)/1000/10 - time_origin_relative) / CSEC)
-			if label_str != last_label_str:
-				last_x_touched = tx + draw_label_in_box_at_time(
+
+		delta = float(ev.time_usec)/1000/10 - time_origin_relative
+		if ISOTEMPORAL_CSEC:
+			if abs(delta) < CSEC:
+				label_str = '{0:3d}'.format(int(delta*10))
+			else:
+				label_str = '{0:.{prec}f}'.format(delta/CSEC,
+								  prec=min(3, abs( int(3*CSEC/delta))))
+		else:
+			label_str = '{0:.{prec}f}'.format(delta/CSEC,
+							  prec=min(3, max(0, int(SEC_W/100))))
+		if label_str != last_label_str:
+			last_x_touched = tx + draw_label_in_box_at_time(
 				ctx, PROC_TEXT_COLOR,
 				label_str,
 				y + proc_h - 4, tx)
-				last_label_str = label_str
+			last_label_str = label_str
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect):
 	last_tx = -1

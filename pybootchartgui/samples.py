@@ -134,12 +134,13 @@ class Process:
     def get_end_time(self):
         return self.start_time + self.duration
 
+# To understand 'io_ticks', see the kernel's part_round_stats_single() and part_round_stats()
 class DiskSample:
-    def __init__(self, time, read, write, util):
+    def __init__(self, time, read, write, io_ticks):
         self.time = time
-        self.read = read    # a delta relative to the preceding time
+        self.read = read    # sectors, a delta relative to the preceding time
         self.write = write  #     ~
-        self.util = util    #     ~
+        self.util = io_ticks    # a delta, units of msec
         self.tput = read + write
 
 class DiskSamples:

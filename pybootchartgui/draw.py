@@ -70,6 +70,8 @@ PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
 
 # Disk throughput color.
 DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
+# Disk throughput color.
+DISK_WRITE_COLOR = (0.7, 0.0, 0.7, 1.0)
 # CPU load chart color.
 FILE_OPEN_COLOR = (0.20, 0.71, 0.71, 1.0)
 # Mem cached color
@@ -356,29 +358,45 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	curr_y = curr_y + 30 + bar_h
 
 	# render second chart
-	draw_legend_line(ctx, "Disk throughput", DISK_TPUT_COLOR, off_x, curr_y+20, leg_s)
-	draw_legend_box(ctx, "Disk utilization", IO_COLOR, off_x + 120, curr_y+20, leg_s)
+	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
+			IO_COLOR, off_x, curr_y+20, leg_s)
+	draw_legend_line(ctx, "Disk writes -- bytes per sample",
+			 DISK_WRITE_COLOR, off_x + 500, curr_y+20, leg_s)
+	draw_legend_line(ctx, "Disk reads+writes -- bytes per sample",
+			 DISK_TPUT_COLOR, off_x + 500 + 120 * 2, curr_y+20, leg_s)
 
 	curr_y += 5
+
+	# render disk throughput
+	max_sample = None
 
         # render I/O utilization
 	for partition in trace.disk_stats:
 		draw_text(ctx, partition.name, TEXT_COLOR, off_x, curr_y+30)
 
+		# utilization -- inherently normalized [0,1]
 		chart_rect = (off_x, curr_y+30+5, w, bar_h)
 		if clip_visible (clip, chart_rect):
 			draw_box_ticks (ctx, chart_rect, sec_w)
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 			draw_chart (ctx, IO_COLOR, True, chart_rect, \
 					    [(sample.time, sample.util) for sample in partition.samples], \
-					    proc_tree, None)
+					    proc_tree, [0, 1])
 
 		# render disk throughput
-		max_sample = max (partition.samples, key = lambda s: s.tput)
+		#  XXX assume single block device, for now
+		if not max_sample:
+			#  XXX correction for non-constant sample.time?
+			max_sample = max (partition.samples, key = lambda s: s.tput)
 		if clip_visible (clip, chart_rect):
 			draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
 					    [(sample.time, sample.tput) for sample in partition.samples], \
-					    proc_tree, None)
+					    proc_tree, [0, max_sample.tput])
+
+			# overlay write throughput
+			draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
+					    [(sample.time, sample.write) for sample in partition.samples], \
+					    proc_tree, [0, max_sample.tput])
 
 		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration)
 
@@ -386,8 +404,9 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		if (pos_x < off_x + 245):
 			shift_x, shift_y = 5, 40
 
-		label = "%dMB/s" % round ((max_sample.tput) / 1024.0)
-		draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
+		# DISK_BLOCK_SIZE = 1024
+		# label = "%.1fMB/s" % round ((max_sample.tput) / DISK_BLOCK_SIZE)
+		# draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
 		curr_y = curr_y + 30 + bar_h
 

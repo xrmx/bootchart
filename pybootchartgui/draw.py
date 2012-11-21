@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
-
+import sys
 import cairo
 import math
 import re
@@ -72,7 +72,8 @@ PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
 # Disk throughput color.
 DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
 # Disk throughput color.
-DISK_WRITE_COLOR = (0.7, 0.0, 0.7, 1.0)
+MAGENTA = (0.7, 0.0, 0.7, 1.0)
+DISK_WRITE_COLOR = MAGENTA
 # Mem cached color
 MEM_CACHED_COLOR = CPU_COLOR
 # Mem used color
@@ -526,10 +527,10 @@ def render(ctx, options, xscale, trace, sweep_csec = None):
 
 	global render_serial
 	if sweep_csec:
-		global SWEEP_CSEC
-		SWEEP_CSEC = sweep_csec
-		global SWEEP_render_serial
-		SWEEP_render_serial = render_serial
+		global SWEEP_CSEC, SWEEP_render_serial
+		if SWEEP_CSEC != sweep_csec:
+			SWEEP_render_serial = render_serial
+	SWEEP_CSEC = sweep_csec
 
 	ctx.save()
 	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
@@ -626,7 +627,10 @@ def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
 	for root in proc_tree.process_tree:
 		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect)
 		y = y + proc_h * proc_tree.num_nodes([root])
-
+	if SWEEP_CSEC and SWEEP_render_serial == render_serial:
+		# mark end of this batch of events, for the benefit of post-processors
+		print
+		sys.stdout.flush()
 
 def draw_header (ctx, headers, duration):
     toshow = [
@@ -730,48 +734,56 @@ def usec_to_csec(usec):
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 	ev_regex = re.compile(OPTIONS.event_regex)
-	ctx.set_source_rgba(*EVENT_COLOR)
 	ev_list = [(ev, csec_to_xscaled(usec_to_csec(ev.time_usec)))
 		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
 		   for ev in proc.events]
-	# draw ticks
+	if not ev_list:
+		return
+	if SWEEP_CSEC:
+		time_origin_relative = SWEEP_CSEC
+	else:
+		# XX  Add support for "absolute" boot-time origin case?
+		# align to time of first sample
+		time_origin_relative = time_origin_drawn + proc_tree.sample_period
+
+	# draw ticks, maybe dump log line
 	for (ev, tx) in ev_list:
-		W,H = 1,5
+		delta = ev.time_usec/1000/10 - time_origin_relative
+		if ev.raw_log_line and \
+		       abs(ctx.user_to_device_distance(delta * SEC_W / CSEC, 0)[0]) < 10:
+			if SWEEP_CSEC and SWEEP_render_serial == render_serial:
+				print ev.raw_log_line,
+			ctx.set_source_rgba(*MAGENTA)
+			W,H = 2,8
+		else:
+			ctx.set_source_rgba(*EVENT_COLOR)
+			W,H = 1,5
 		ctx.move_to(tx-W, y+proc_h) # bottom-left
 		ctx.rel_line_to(W,-H)       # top
 		ctx.rel_line_to(W, H)       # bottom-right
 		ctx.close_path()
 		ctx.fill()
 
+	# draw numbers
 	if not OPTIONS.print_event_times:
 		return
-
-	# draw time labels
-	# XX  Add support for "absolute" boot-time origin case?
-	if SWEEP_CSEC:
-		time_origin_relative = SWEEP_CSEC
-	else:
-		# align to time of first sample
-		time_origin_relative = time_origin_drawn + proc_tree.sample_period
+	ctx.set_source_rgba(*EVENT_COLOR)
 	spacing = ctx.text_extents("00")[2]
 	last_x_touched = 0
 	last_label_str = None
 	for (ev, tx) in ev_list:
 		if tx < last_x_touched + spacing:
 			continue
-
-		delta = float(ev.time_usec)/1000/10 - time_origin_relative
+		delta = ev.time_usec/1000/10 - time_origin_relative
 		if SWEEP_CSEC:
-			if ev.raw_log_line and SWEEP_render_serial == render_serial and \
-			       abs(delta*SEC_W) < 1*sec_w_base:
-				print(ev.raw_log_line)
 			if abs(delta) < CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))
 			else:
-				label_str = '{0:.{prec}f}'.format(delta/CSEC,
-								  prec=min(3, abs( int(3*CSEC/delta))))
+				label_str = '{0:.{prec}f}'.format(float(delta)/CSEC,
+								  prec=min(3, max(1, abs(int(3*CSEC/delta)))))
 		else:
-			label_str = '{0:.{prec}f}'.format(delta/CSEC,
+			# format independent of delta
+			label_str = '{0:.{prec}f}'.format(float(delta)/CSEC,
 							  prec=min(3, max(0, int(SEC_W/100))))
 		if label_str != last_label_str:
 			last_x_touched = tx + draw_label_in_box_at_time(

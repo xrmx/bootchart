@@ -31,15 +31,22 @@ class DiskStatSample:
     def add_diskdata(self, new_diskdata):
         self.diskdata = [ a + b for a, b in zip(self.diskdata, new_diskdata) ]
 
-class CPUSample:
-    def __init__(self, time, user, sys, io, swap = 0.0, procs_running = 0, procs_blocked = 0):
+class SystemCPUSample:
+    def __init__(self, time, user, sys, io, procs_running, procs_blocked):
+        self.time = time
+        self.user = user
+        self.sys = sys
+        self.io = io
+        self.procs_running = procs_running
+        self.procs_blocked = procs_blocked
+
+class ProcessCPUSample:
+    def __init__(self, time, user, sys, io, swap):
         self.time = time
         self.user = user
         self.sys = sys
         self.io = io
         self.swap = swap
-        self.procs_running = procs_running
-        self.procs_blocked = procs_blocked
 
     @property
     def cpu(self):

@@ -310,7 +310,7 @@ def _parse_proc_ps_log(options, writer, file):
                     userCpuLoad, sysCpuLoad = 0, 0
                 else:
                     userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
-                cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+                cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
                 process.samples.append(ProcessSample(time, state, cpuSample))
 
             process.last_user_cpu_time = userCpu
@@ -382,7 +382,7 @@ def _parse_proc_ps_threads_log(options, writer, file):
                     userCpuLoad, sysCpuLoad = 0, 0
                 else:
                     userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
-                cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+                cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
                 process.samples.append(ProcessSample(time, state, cpuSample))
 
             process.last_user_cpu_time = userCpu
@@ -459,11 +459,11 @@ def _parse_taskstats_log(writer, file):
             else:
                 state = "S"
 
-            # retain the ns timing information into a CPUSample - that tries
+            # retain the ns timing information into a ProcessCPUSample - that tries
             # with the old-style to be a %age of CPU used in this time-slice.
             if delta_cpu_ns + delta_blkio_delay_ns + delta_swapin_delay_ns > 0:
 #                               print "proc %s cpu_ns %g delta_cpu %g" % (cmd, cpu_ns, delta_cpu_ns)
-                cpuSample = CPUSample('null', delta_cpu_ns, 0.0,
+                cpuSample = ProcessCPUSample('null', delta_cpu_ns, 0.0,
                                       delta_blkio_delay_ns,
                                       delta_swapin_delay_ns)
                 process.samples.append(ProcessSample(time, state, cpuSample))
@@ -507,9 +507,9 @@ def _parse_proc_stat_log(file):
             if tokens[0] == 'procs_blocked':
                 procs_blocked = int(tokens[1])
         if ltimes:
-            samples.append( CPUSample(time, user/aSum, system/aSum, iowait/aSum, 0.0, procs_running, procs_blocked) )
+            samples.append( SystemCPUSample(time, user/aSum, system/aSum, iowait/aSum, procs_running, procs_blocked) )
         else:
-            samples.append( CPUSample(time, 0.0, 0.0, 0.0, 0.0, procs_running, procs_blocked) )
+            samples.append( SystemCPUSample(time, 0.0, 0.0, 0.0, procs_running, procs_blocked) )
         ltimes = times
     return samples
 

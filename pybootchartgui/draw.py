@@ -509,6 +509,7 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 	return curr_y
 
 ISOTEMPORAL_CSEC = None
+ISOTEMPORAL_render_serial = None
 
 #
 # Render the chart.
@@ -523,8 +524,12 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	ctx.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
 
-	global ISOTEMPORAL_CSEC
-	ISOTEMPORAL_CSEC = isotemporal_csec
+	global render_serial
+	if isotemporal_csec:
+		global ISOTEMPORAL_CSEC
+		ISOTEMPORAL_CSEC = isotemporal_csec
+		global ISOTEMPORAL_render_serial
+		ISOTEMPORAL_render_serial = render_serial
 
 	ctx.save()
 	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
@@ -574,7 +579,11 @@ def render(ctx, options, xscale, trace, isotemporal_csec = None):
 	if isotemporal_csec:
 		draw_isotemporal(ctx, isotemporal_csec)
 
+	render_serial += 1
+
 	ctx.restore()
+
+render_serial = 0
 
 def draw_isotemporal(ctx, isotemporal_csec):
 	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
@@ -749,6 +758,9 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 
 		delta = float(ev.time_usec)/1000/10 - time_origin_relative
 		if ISOTEMPORAL_CSEC:
+			if ISOTEMPORAL_render_serial == render_serial and \
+			       abs(delta*SEC_W) < 1*sec_w_base:
+				print(ev.raw_log_line)
 			if abs(delta) < CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))
 			else:

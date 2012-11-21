@@ -116,8 +116,8 @@ class Process:
         self.CPUCount = 0
         self.first_user_cpu_time = None
         self.first_sys_cpu_time = None
-        self.last_user_cpu_time = None
-        self.last_sys_cpu_time = None
+        self.last_user_cpu_time = 0
+        self.last_sys_cpu_time = 0
 
         self.last_cpu_ns = 0
         self.last_blkio_delay_ns = 0

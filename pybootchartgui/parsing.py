@@ -271,28 +271,31 @@ def _parse_timed_blocks(file):
 
 def _handle_sample(processMap, writer, ltime, time,
                    pid, tid, cmd, state, ppid, userCpu, sysCpu, starttime):
-            if tid in processMap:
-                process = processMap[tid]
-                process.cmd = cmd.strip('()') # why rename after latest name??
-                userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
-            else:
-                if time < starttime:
-                    # large values signify a collector problem, e.g. resource starvation
-                    writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
-                                  (time, starttime, time-starttime, tid/1000))
+    if tid in processMap:
+        process = processMap[tid]
+        process.cmd = cmd.strip('()') # XX  loses name changes prior to the final sample
+    else:
+        if time < starttime:
+            # large values signify a collector problem, e.g. resource starvation
+            writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
+                          (time, starttime, time-starttime, tid/1000))
 
-                process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
-                processMap[tid] = process
-                process.first_user_cpu_time = userCpu
-                process.first_sys_cpu_time = sysCpu
-                userCpuLoad, sysCpuLoad = 0, 0
+        process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
+        processMap[tid] = process
+        process.first_user_cpu_time = userCpu
+        process.first_sys_cpu_time = sysCpu
 
-            cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
-            process.samples.append(ProcessSample(time, state, cpuSample))
+    if ltime == None:           # collector startup, not usually coinciding with thread startup
+        userCpuLoad, sysCpuLoad = 0, 0
+    else:
+        userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
 
-            process.last_user_cpu_time = userCpu
-            process.last_sys_cpu_time = sysCpu
-            return processMap
+    cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+    process.samples.append(ProcessSample(time, state, cpuSample))
+
+    process.last_user_cpu_time = userCpu
+    process.last_sys_cpu_time = sysCpu
+    return processMap
 
 def _parse_proc_ps_log(options, writer, file):
     """

@@ -830,27 +830,26 @@ def draw_hidden_process_separator(ctx, y):
 	ctx.cr.restore()
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
+	#
 	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))
-	if len(proc.samples) <= 0:
-		return
+
 	# cases:
 	#    1. proc started before sampling did
 	#          XX  should look up time of previous sample, not assume 'proc_tree.sample_period'
 	#    2. proc start after sampling
-	last_time = max(proc.start_time, proc.samples[0].time - proc_tree.sample_period)
+	last_time = max(proc.start_time,
+			proc.samples[0].time - proc_tree.sample_period)
 	ctx_save__csec_to_xscaled(ctx)
-	for sample in proc.samples[1:] :
+	for sample in proc.samples:
 		normalized = sample.cpu_sample.user + sample.cpu_sample.sys
 		if normalized > 0:
 			width = sample.time - last_time
 			height = normalized * C.proc_h
 			draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width, -height))
 
-			# XX  If thread ran at all, draw a pair of tick marks, in case rect was too short to resolve.
+			# If thread ran at all, draw a pair of tick marks, in case rect was too short to resolve.
 			tick_width = width/3
 			tick_height = C.proc_h/3
-			#draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h, width/6, -tick_height))
-			#draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time + width, y+C.proc_h, -width/6, -tick_height))
 
 			ctx.cr.move_to(last_time + width/2, y+C.proc_h-tick_height)
 			ctx.cr.rel_line_to(-tick_width/2, tick_height)

@@ -760,8 +760,8 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 	# Event ticks step on the rectangle painted by draw_process_state_colors(),
 	# e.g. for non-interruptible wait.
 	# User can work around this by toggling off the event ticks.
-	if not ctx.app_options.hide_events:
-		draw_process_events(ctx, proc, proc_tree, x, y)
+	n_highlighted_events = 0 if ctx.app_options.hide_events else \
+			       draw_process_events(ctx, proc, proc_tree, x, y)
 
 	if proc_tree.taskstats and ctx.app_options.show_all:
 		cmdString = ''
@@ -782,6 +782,7 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 			w,
 			ctx.cr.device_to_user(0, 0)[0],
 			ctx.cr.clip_extents()[2])
+	return n_highlighted_events
 
 def draw_processes_recursively(ctx, proc, proc_tree, y):
 	xmin = ctx.cr.device_to_user(0, 0)[0]   # work around numeric overflow at high xscale factors
@@ -883,16 +884,18 @@ def usec_to_csec(usec):
 	return float(usec) / 1000 / 10
 
 def draw_process_events(ctx, proc, proc_tree, x, y):
+	n_highlighted_events = 0
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
 		   for ev in proc.events]
 	if not ev_list:
-		return
+		return n_highlighted_events
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
 		if re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line):
 			ctx.cr.set_source_rgba(*HIGHLIGHT_EVENT_COLOR)
 			W,H = 2,8
+			n_highlighted_events += 1
 		else:
 			ctx.cr.set_source_rgba(*EVENT_COLOR)
 			W,H = 1,5
@@ -909,7 +912,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 
 	# draw numbers
 	if not ctx.app_options.print_event_times:
-		return
+		return n_highlighted_events
 	ctx.cr.set_source_rgba(*EVENT_COLOR)
 	spacing = ctx.cr.text_extents("00")[2]
 	last_x_touched = 0
@@ -934,6 +937,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 				label_str,
 				y + C.proc_h - 4, tx)
 			last_label_str = label_str
+	return n_highlighted_events
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):
 	last_tx = -1

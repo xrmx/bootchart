@@ -161,6 +161,17 @@ def draw_rect(ctx, color, rect):
 	ctx.rectangle(*rect)
 	ctx.stroke()
 
+def draw_diamond(ctx, x, y, w, h):
+	ctx.save()
+	ctx.set_line_width(0.0)
+	ctx.move_to(x-w/2, y)
+	ctx.line_to(x, y+h/2)
+	ctx.line_to(x+w/2, y)
+	ctx.line_to(x, y-h/2)
+	ctx.line_to(x-w/2, y)
+	ctx.fill()
+	ctx.restore()
+
 def draw_legend_box(ctx, label, fill_color, x, y, s):
 	draw_fill_rect(ctx, fill_color, (x, y - s, s, s))
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y - s, s, s))
@@ -239,13 +250,30 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-# All charts assumed to be full-width
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, square = True):
-	if square and not fill:
-		ctx.set_line_width(2.0)
-	else:
-		ctx.set_line_width(1.0)
+def plot_line(ctx, point, x, y):
+	ctx.set_line_width(1.0)
+	ctx.line_to(x, y)       # rightward, and upward or downward
 
+def plot_square(ctx, point, x, y):
+	ctx.set_line_width(1.0)
+	ctx.line_to(x, ctx.get_current_point()[1])  # rightward
+	ctx.line_to(x, y)       # upward or downward
+
+def plot_segment_positive(ctx, point, x, y):
+	ctx.move_to(ctx.get_current_point()[0], y)       # upward or downward
+	if point[1] <= 0:
+		ctx.move_to(x, y)
+		return
+	ctx.set_line_width(1.5)
+	ctx.line_to(x, y)
+
+def plot_scatter_positive(ctx, point, x, y):
+	if point[1] <= 0:
+		return
+	draw_diamond(ctx, x, y, 3.6, 3.6)
+
+# All charts assumed to be full-width
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
 	def transform_point_coords(point, y_base, \
 				   xscale, yscale, x_trans, y_trans):
 		x = time_in_hz_to_ideal_coord(point[0])
@@ -275,24 +303,11 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, squa
 
 	ctx.set_source_rgba(*color)
 	ctx.move_to(*first)
-	prev_y = first[1]
-	prev_point = data[0]
+
 	for point in data:
 		x, y = transform_point_coords (point, ybase, xscale, yscale, \
 					       chart_bounds[0], chart_bounds[1])
-		if square:
-			if fill:
-				ctx.line_to(x, prev_y)  # rightward
-				ctx.line_to(x, y)       # upward or downward
-			else:
-				# draw horizontals only, and then only if non-zero -- result cannot be "filled"
-				if prev_point[1] > 0:
-					ctx.line_to(x, prev_y)  # rightward
-				ctx.move_to(x, y)       # upward or downward, maybe rightward
-				prev_point = point
-			prev_y = y
-		else:
-			ctx.line_to(x, y)
+		plot_point_func(ctx, point, x, y)
 
 	if fill:
 		ctx.set_line_width(0.0)
@@ -373,19 +388,19 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
-			    proc_tree, None, True)
+			    proc_tree, None, plot_square)
 		# render CPU load
 		draw_chart (ctx, CPU_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys) for sample in trace.cpu_stats], \
-			    proc_tree, None)
+			    proc_tree, None, plot_square)
 
 		draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9], True)
+			    proc_tree, [0, 9], plot_scatter_positive)
 
 		draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
 			    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
-			    proc_tree, [0, 9], True)
+			    proc_tree, [0, 9], plot_scatter_positive)
 
 	curr_y = curr_y + 50 + bar_h
 
@@ -417,7 +432,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 			draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 			draw_chart (ctx, IO_COLOR, True, chart_rect, \
 					    [(sample.time, sample.util) for sample in partition.samples], \
-					    proc_tree, [0, 1])
+					    proc_tree, [0, 1], plot_square)
 
 		# render disk throughput
 		#  XXX assume single block device, for now
@@ -427,12 +442,12 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 		if clip_visible (clip, chart_rect):
 			draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
 					    [(sample.time, sample.tput) for sample in partition.samples], \
-					    proc_tree, [0, max_sample.tput])
+					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
 			# overlay write throughput
 			draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
 					    [(sample.time, sample.write) for sample in partition.samples], \
-					    proc_tree, [0, max_sample.tput])
+					    proc_tree, [0, max_sample.tput], plot_segment_positive)
 
 		pos_x = off_x + ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
 
@@ -460,16 +475,16 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
-			   proc_tree, [0, mem_scale])
+			   proc_tree, [0, mem_scale], plot_square)
 		draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
-			   proc_tree, [0, mem_scale])
+			   proc_tree, [0, mem_scale], plot_square)
 		draw_chart(ctx, MEM_CACHED_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['Cached']) for sample in mem_stats], \
-			   proc_tree, [0, mem_scale])
+			   proc_tree, [0, mem_scale], plot_square)
 		draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, \
 			   [(sample.time, float(sample.records['SwapTotal'] - sample.records['SwapFree'])) for sample in mem_stats], \
-			   proc_tree, None)
+			   proc_tree, None, plot_square)
 
 		curr_y = curr_y + meminfo_bar_h
 

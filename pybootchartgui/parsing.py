@@ -655,8 +655,7 @@ def parse_paths(writer, state, paths):
     for path in paths:
         root, extension = os.path.splitext(path)
         if not(os.path.exists(path)):
-            writer.warn("warning: path '%s' does not exist, ignoring." % path)
-            continue
+            raise ParseError("\n\tpath '%s' does not exist" % path)
         state.filename = path
         if os.path.isdir(path):
             files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]

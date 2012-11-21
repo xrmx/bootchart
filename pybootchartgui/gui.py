@@ -119,7 +119,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.zoom_image(1.0)
         self.set_xscale(1.0)
 
-    def show_toggled(self, button):
+    def show_thread_details(self, button):
         self.options.app_options.show_all = button.get_property ('active')
         self.queue_draw()
 
@@ -312,8 +312,8 @@ class PyBootchartShell(gtk.VBox):
 
         if not options.kernel_only:
             # Misc. options
-            button = gtk.CheckButton("Show more")
-            button.connect ('toggled', self.widget.show_toggled)
+            button = gtk.CheckButton("thread details")
+            button.connect ('toggled', self.widget.show_thread_details)
             hbox.pack_start (button, False)
 
         button = gtk.CheckButton("Events")

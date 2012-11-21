@@ -160,12 +160,18 @@ class PyBootchartWidget(gtk.DrawingArea):
     def on_area_scroll_event(self, area, event):
         if event.state & gtk.gdk.CONTROL_MASK:
             if event.direction == gtk.gdk.SCROLL_UP:
+                self.on_expand(None)
+                return True
+            if event.direction == gtk.gdk.SCROLL_DOWN:
+                self.on_contract(None)
+                return True
+        elif event.state & gtk.gdk.MOD1_MASK:
+            if event.direction == gtk.gdk.SCROLL_UP:
                 self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
                 return True
             if event.direction == gtk.gdk.SCROLL_DOWN:
                 self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
                 return True
-            return False
 
     def on_area_motion_notify(self, area, event):
         state = event.state

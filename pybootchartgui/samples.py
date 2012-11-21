@@ -15,14 +15,26 @@
 
 
 class EventSample:
-    def __init__(self, time, time_usec, pid, tid, comm, func_file_line, raw_log_line):
+    def __init__(self, time, time_usec, pid, tid, comm, func_file_line, raw_log_file, raw_log_seek):
         self.time = time
         self.time_usec = time_usec
         self.pid = pid
         self.tid = tid
         self.comm = comm
         self.func_file_line = func_file_line
-        self.raw_log_line = raw_log_line
+        self.raw_log_file = raw_log_file  # a File object
+        self.raw_log_seek = raw_log_seek
+
+    def raw_log_line(self):
+        def _readline(file, raw_log_seek):
+            if not file:
+                return
+            file.seek(raw_log_seek)
+            line = file.readline()
+            return line
+        return _readline(self.raw_log_file, self.raw_log_seek)
+
+
 
 class DiskStatSample:
     def __init__(self, time):

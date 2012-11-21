@@ -125,7 +125,7 @@ class Trace:
             for cpu in self.cpu_stats:
                 # assign to the init process's bar, for lack of any better
                 ev = EventSample(cpu.time, cpu.time*10*1000, init_pid, init_pid,
-                                 "comm", "func_file_line", None)
+                                 "comm", "func_file_line", None, None)
                 proc.events.append(ev)
 
         # merge in events
@@ -138,7 +138,7 @@ class Trace:
                     self.ps_stats.process_map[key].events.append(ev)
                 else:
                     writer.warn("no samples of /proc/%d/task/%d/proc found -- event lost:\n\t%s" %
-                                (ev.pid, ev.tid, ev.raw_log_line))
+                                (ev.pid, ev.tid, ev.raw_log_line()))
 
         # re-parent any stray orphans if we can
         if self.parent_map is not None:
@@ -698,15 +698,6 @@ def _parse_events_log(writer, tf, file):
     is the responsibility of target-specific pre-processors.
     Eventual output is per-process lists of events in temporal order.
     '''
-    def _readline(raw_log_filename, raw_log_seek):
-        file = tf.extractfile(raw_log_filename)
-        if not file:
-            return
-        file.seek(raw_log_seek)
-        line = file.readline()
-        file.close()
-        return line
-
     split_re = re.compile ("^(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+)$")
     timed_blocks = _parse_timed_blocks(file)
     samples = []
@@ -724,8 +715,8 @@ def _parse_events_log(writer, tf, file):
             func_file_line = m.group(5)
             raw_log_filename = m.group(6)
             raw_log_seek = int(m.group(7))
-            raw_log_line = _readline(raw_log_filename, raw_log_seek)
-            samples.append( EventSample(time, time_usec, pid, tid, comm, func_file_line, raw_log_line))
+            samples.append( EventSample(time, time_usec, pid, tid, comm, func_file_line,
+                                        tf.extractfile(raw_log_filename), raw_log_seek))
     return samples
 
 #
@@ -854,17 +845,14 @@ def parse_paths(writer, state, paths, options):
                 if extension != ".tar":
                     writer.warn("warning: can only handle zipped tar files, not zipped '%s'-files; ignoring" % extension)
                     continue
-            tf = None
+            state.tf = None
             try:
                 writer.status("parsing '%s'" % path)
-                tf = tarfile.open(path, 'r:*')
-                for name in tf.getnames():
-                    state = _do_parse(writer, state, tf, name, tf.extractfile(name), options)
+                state.tf = tarfile.open(path, 'r:*')
+                for name in state.tf.getnames():
+                    state = _do_parse(writer, state, state.tf, name, state.tf.extractfile(name), options)
             except tarfile.ReadError as error:
                 raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
-            finally:
-                if tf != None:
-                    tf.close()
         else:
             state = parse_file(writer, state, path, options)
     return state

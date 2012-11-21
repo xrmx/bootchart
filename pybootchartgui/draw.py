@@ -846,7 +846,6 @@ def usec_to_csec(usec):
 def draw_process_events(ctx, proc, proc_tree, x, y):
 	ev_regex = re.compile(ctx.app_options.event_regex)
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
-		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
 		   for ev in proc.events]
 	if not ev_list:
 		return
@@ -863,13 +862,13 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 	for (ev, tx) in ev_list:
 		ctx.cr.set_source_rgba(*EVENT_COLOR)
 		W,H = 1,5
-		if ctx.SWEEP_CSEC and ev.raw_log_line:
+		if ctx.SWEEP_CSEC and ev.raw_log_seek:
 			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
 			if delta_csec >= 0 and delta_csec < width_csec:
 				# ctx.cr.set_source_rgba(*MAGENTA)
 				# W,H = 2,8
 				if ctx.SWEEP_render_serial == ctx.render_serial:
-					print ev.raw_log_line,
+					print ev.raw_log_line(),
 		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
 		ctx.cr.rel_line_to(W,-H)       # top
 		ctx.cr.rel_line_to(W, H)       # bottom-right

@@ -281,8 +281,8 @@ class PyBootchartShell(gtk.VBox):
 
         # Create actions
         actiongroup.add_actions((
-                ('Expand', gtk.STOCK_ADD, None, None, None, self.widget.on_expand),
-                ('Contract', gtk.STOCK_REMOVE, None, None, None, self.widget.on_contract),
+                ('Expand', gtk.STOCK_ORIENTATION_LANDSCAPE, None, None, None, self.widget.on_expand),
+                ('Contract', gtk.STOCK_ORIENTATION_PORTRAIT, None, None, None, self.widget.on_contract),
                 ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget.on_zoom_in),
                 ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget.on_zoom_out),
                 ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, None, self.widget.on_zoom_fit),

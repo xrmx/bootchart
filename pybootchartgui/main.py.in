@@ -29,13 +29,11 @@ def _mk_options_parser():
 	"""Make an options parser."""
 	usage = "%prog [options] PATH, ..., PATH"
 	version = "%prog v@VER@"
-	parser = optparse.OptionParser(usage, version=version)
+	parser = optparse.OptionParser(usage, version=version,
+				       description="PATH must point to a bootchart*.tgz",
+				       epilog=None)
 	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
 			  help="start in active mode")
-	parser.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
-			  help="image format (png, svg, pdf); default format png")
-	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
-			  help="output path (file or directory) where charts are stored")
 	parser.add_option("-n", "--prune", dest="prune", default="heavy",
 			  choices=["heavy", "light", "lightest"],
 			  help="prune the process tree: " +
@@ -44,25 +42,38 @@ def _mk_options_parser():
 			  "lightest")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")
-	parser.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,
-			  help="only display the boot time of the boot in text format (stdout)")	
-	parser.add_option("--very-quiet", action="store_true", dest="veryquiet", default=False,
-			  help="suppress all messages except errors")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,
 			  help="print all messages")
-	parser.add_option("--profile", action="store_true", dest="profile", default=False,
-			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
 	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
 			  help="show process ids in the bootchart as 'processname [pid]'")
-	parser.add_option("--show-all", action="store_true", dest="show_all", default=False,
+
+	pg_Bootchart2 = optparse.OptionGroup(parser,"Bootchart2-specific",
+			    "Options effective only for logs coming from the Bootchart2 binary-format collector")
+	pg_Bootchart2.add_option("--show-all", action="store_true", dest="show_all", default=False,
 			  help="show all process information in the bootchart as '/process/path/exe [pid] [args]'")
-	parser.add_option("--crop-after", dest="crop_after", metavar="PROCESS", default=None,
+	parser.add_option_group(pg_Bootchart2)
+
+	pg_Scripting = optparse.OptionGroup(parser,"Scripting support",
+			    "Options most useful in scripted processing of tgz batches")
+
+	pg_Scripting.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,
+			  help="only display the boot time of the boot in text format (stdout)")
+	pg_Scripting.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
+			  help="image format (png, svg, pdf); default format png")
+	pg_Scripting.add_option("--very-quiet", action="store_true", dest="veryquiet", default=False,
+			  help="suppress all messages except errors")
+	pg_Scripting.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
+			  help="output path (file or directory) where charts are stored")
+	pg_Scripting.add_option("--profile", action="store_true", dest="profile", default=False,
+			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
+	pg_Scripting.add_option("--crop-after", dest="crop_after", metavar="PROCESS", default=None,
 			  help="crop chart when idle after PROCESS is started")
-	parser.add_option("--annotate", action="append", dest="annotate", metavar="PROCESS", default=None,
+	pg_Scripting.add_option("--annotate", action="append", dest="annotate", metavar="PROCESS", default=None,
 			  help="annotate position where PROCESS is started; can be specified multiple times. " +
 			       "To create a single annotation when any one of a set of processes is started, use commas to separate the names")
-	parser.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
+	pg_Scripting.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
 			  help="filename to write annotation points to")
+	parser.add_option_group(pg_Scripting)
 	return parser
 
 class Writer:

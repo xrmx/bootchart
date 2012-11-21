@@ -96,7 +96,7 @@ class Trace:
         self._generate_sample_start_pseudo_events(options)
 
     def _generate_sample_start_pseudo_events(self, options):
-        es = EventSource(" ... sample start points", "", "")   # empty regex
+        es = EventSource(" ~ bootchartd sample start points", "", "")   # empty regex
         es.parsed = []
         es.enable = True
         init_pid = 1

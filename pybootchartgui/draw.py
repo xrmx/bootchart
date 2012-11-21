@@ -255,6 +255,7 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 					       chart_bounds[0], chart_bounds[1])
 		ctx.line_to(x, y)
 	if fill:
+		ctx.set_line_width(0.0)
 		ctx.stroke_preserve()
 		ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])

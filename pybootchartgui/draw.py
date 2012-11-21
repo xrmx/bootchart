@@ -582,10 +582,6 @@ def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.stroke()
 	ctx.set_dash([])
 
-# elide the bootchart collector - it is quite distorting
-def elide_bootchart(proc):
-	return proc.cmd == 'bootchartd' or proc.cmd == 'bootchart-colle'
-
 class CumlSample:
 	def __init__(self, proc):
 		self.cmd = proc.cmd
@@ -628,9 +624,6 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	else:
 		sample_value = 'io'
 	for proc in proc_tree.process_list:
-		if elide_bootchart(proc):
-			continue
-
 		for sample in proc.samples:
 			total_time += getattr(sample.cpu_sample, sample_value)
 			if not sample.time in time_hash:

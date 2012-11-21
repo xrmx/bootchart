@@ -431,17 +431,18 @@ def extents(ctx, xscale, trace):
 def render_charts(ctx, trace, curr_y, w, h):
 	proc_tree = ctx.proc_tree(trace)
 
-	# render bar legend
-	ctx.cr.set_font_size(LEGEND_FONT_SIZE)
+	if ctx.app_options.show_legends:
+		# render bar legend
+		ctx.cr.set_font_size(LEGEND_FONT_SIZE)
+		curr_y += 20
+		draw_legend_box(ctx.cr, "CPU (user+sys)", CPU_COLOR, 0, curr_y, C.leg_s)
+		draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, 120, curr_y, C.leg_s)
+		draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
+				    120 +90, curr_y, C.leg_s, C.leg_s)
+		draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
+				    120 +90 +140, curr_y, C.leg_s, C.leg_s)
 
-	draw_legend_box(ctx.cr, "CPU (user+sys)", CPU_COLOR, 0, curr_y+20, C.leg_s)
-	draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, 120, curr_y+20, C.leg_s)
-	draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
-			120 +90, curr_y+20, C.leg_s, C.leg_s)
-	draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
-			120 +90 +140, curr_y+20, C.leg_s, C.leg_s)
-
-	chart_rect = (0, curr_y+30, w, C.bar_h)
+	chart_rect = (0, curr_y+10, w, C.bar_h)
 	draw_box_ticks (ctx, chart_rect)
 	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 	# render I/O wait -- a backwards delta
@@ -463,31 +464,31 @@ def render_charts(ctx, trace, curr_y, w, h):
 		    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
 		    proc_tree, [0, 9], plot_scatter_positive_small)
 
-	curr_y = curr_y + 50 + C.bar_h
+	curr_y += 8 + C.bar_h
 
-	# render second chart
-	draw_legend_box(ctx.cr, "Disk utilization -- fraction of sample interval I/O queue was not empty",
-			IO_COLOR, 0, curr_y+20, C.leg_s)
-	if ctx.app_options.show_ops_not_bytes:
-		unit = "ops"
-	else:
-		unit = "bytes"
-	draw_legend_line(ctx.cr, "Disk writes -- " + unit + "/sample",
-			 DISK_WRITE_COLOR, 470, curr_y+20, C.leg_s)
-	draw_legend_line(ctx.cr, "Disk reads+writes -- " + unit + "/sample",
-			 DISK_TPUT_COLOR, 470+120*2, curr_y+20, C.leg_s)
-
-	curr_y += 5
+	if ctx.app_options.show_legends:
+		curr_y += 30
+		# render second chart
+		draw_legend_box(ctx.cr, "Disk utilization -- fraction of sample interval I/O queue was not empty",
+				IO_COLOR, 0, curr_y, C.leg_s)
+		if ctx.app_options.show_ops_not_bytes:
+			unit = "ops"
+		else:
+			unit = "bytes"
+		draw_legend_line(ctx.cr, "Disk writes -- " + unit + "/sample",
+				 DISK_WRITE_COLOR, 470, curr_y, C.leg_s)
+		draw_legend_line(ctx.cr, "Disk reads+writes -- " + unit + "/sample",
+				 DISK_TPUT_COLOR, 470+120*2, curr_y, C.leg_s)
 
 	# render disk throughput
 	max_sample = None
 
         # render I/O utilization
 	for partition in trace.disk_stats:
-		draw_text(ctx.cr, partition.name, TEXT_COLOR, 0, curr_y+30)
+		draw_text(ctx.cr, partition.name, TEXT_COLOR, 0, curr_y+18)
 
 		# utilization -- inherently normalized [0,1]
-		chart_rect = (0, curr_y+30+5, w, C.bar_h)
+		chart_rect = (0, curr_y+18+5, w, C.bar_h)
 		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
@@ -522,18 +523,20 @@ def render_charts(ctx, trace, curr_y, w, h):
 		# label = "%.1fMB/s" % round ((max_sample.tput) / DISK_BLOCK_SIZE)
 		# draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
-		curr_y = curr_y + 30 + C.bar_h
+		curr_y += 18+C.bar_h
 
 	# render mem usage
 	chart_rect = (0, curr_y+30, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
 	if mem_stats:
 		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
-		draw_legend_box(ctx.cr, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y+20, C.leg_s)
-		draw_legend_box(ctx.cr, "Used", MEM_USED_COLOR, 240, curr_y+20, C.leg_s)
-		draw_legend_box(ctx.cr, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y+20, C.leg_s)
-		draw_legend_line(ctx.cr, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
-				 MEM_SWAP_COLOR, 480, curr_y+20, C.leg_s)
+		if ctx.app_options.show_legends:
+			curr_y += 20
+			draw_legend_box(ctx.cr, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y, C.leg_s)
+			draw_legend_box(ctx.cr, "Used", MEM_USED_COLOR, 240, curr_y, C.leg_s)
+			draw_legend_box(ctx.cr, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y, C.leg_s)
+			draw_legend_line(ctx.cr, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
+					 MEM_SWAP_COLOR, 480, curr_y, C.leg_s)
 		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
@@ -658,22 +661,20 @@ def draw_sweep(ctx, sweep_csec, width_csec):
 	draw_vertical(ctx.cr, x)
 
 def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
-	header_size = 0
-	if not ctx.kernel_only:
+	if ctx.app_options.show_legends and not ctx.kernel_only:
+		curr_y += 30
 		draw_legend_diamond (ctx.cr, "Runnable",
-				 PROCS_RUNNING_COLOR, 10, curr_y + 45, C.leg_s*3/4, C.proc_h)
+				 PROCS_RUNNING_COLOR, 10, curr_y, C.leg_s*3/4, C.proc_h)
 		draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
-				 PROC_COLOR_D, 10+100, curr_y + 45, C.leg_s*3/4, C.proc_h)
+				 PROC_COLOR_D, 10+100, curr_y, C.leg_s*3/4, C.proc_h)
 		draw_legend_box (ctx.cr, "Running (%cpu)",
-				 PROC_COLOR_R, 10+100+180, curr_y + 45, C.leg_s)
+				 PROC_COLOR_R, 10+100+180, curr_y, C.leg_s)
 		draw_legend_box (ctx.cr, "Sleeping",
-				 PROC_COLOR_S, 10+100+180+130, curr_y + 45, C.leg_s)
+				 PROC_COLOR_S, 10+100+180+130, curr_y, C.leg_s)
 		draw_legend_box (ctx.cr, "Zombie",
-				 PROC_COLOR_Z, 10+100+180+130+90, curr_y + 45, C.leg_s)
-		header_size = 45
+				 PROC_COLOR_Z, 10+100+180+130+90, curr_y, C.leg_s)
+		curr_y -= 9
 
-	#chart_rect = [0, curr_y + header_size + 30,
-	#	      w, h - 2 * C.off_y - (curr_y + header_size + 15) + C.proc_h]
 	chart_rect = [-1, -1, -1, -1]
 	ctx.cr.set_font_size (PROC_TEXT_FONT_SIZE)
 
@@ -684,10 +685,10 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	#draw_sec_labels (ctx.cr, chart_rect, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
-	y = curr_y + 60
+	curr_y += 15
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y)
-		y = y + C.proc_h * proc_tree.num_nodes([root])
+		draw_processes_recursively(ctx, root, proc_tree, curr_y)
+		curr_y += C.proc_h * proc_tree.num_nodes([root])
 	if ctx.SWEEP_CSEC and ctx.SWEEP_render_serial == ctx.render_serial:
 		# mark end of this batch of events, for the benefit of post-processors
 		print

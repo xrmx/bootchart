@@ -154,6 +154,10 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.zoom_image(1.0)  # XX  replace with:   self.zoom_ratio = 1.0  \  self.x = 0  \  self.y = 0
         self.set_xscale(1.0)
 
+    def show_legends(self, button):
+        self.drawctx.app_options.show_legends = button.get_property ('active')
+        self.queue_draw()
+
     def show_thread_details(self, button):
         self.drawctx.app_options.show_all = button.get_property ('active')
         self.queue_draw()
@@ -365,6 +369,10 @@ class PyBootchartShell(gtk.VBox):
             button = gtk.CheckButton(name)
             button.set_focus_on_click(False)
             return button
+
+        button = gtk_CheckButton("show Legends")
+        button.connect ('toggled', self.widget.show_legends)
+        hbox.pack_start (button, False)
 
         if not drawctx.kernel_only:
             # Misc. drawctx

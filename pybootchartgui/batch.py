@@ -30,6 +30,8 @@ def render(writer, trace, app_options, filename):
     else:
         fmt = app_options.format
 
+    app_options.show_legends = True
+
     if not (fmt in handlers):
         writer.error ("Unknown format '%s'." % fmt)
         return 10

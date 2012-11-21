@@ -62,6 +62,9 @@ def _mk_options_parser():
 			  help="suppress informational messages")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,
 			  help="print all messages")
+	parser.add_option("--show-legends", action="store_true", dest="show_legends", default=False,
+			  help="show legend lines with keys to chart symbols")
+
         # disk stats
 	parser.add_option("-p", "--show-partitions", action="extend", dest="partitions", type="string", default=[],
 			  help="draw a disk stat chart for any block device partitions in this comma-separated list")

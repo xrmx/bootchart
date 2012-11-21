@@ -313,11 +313,7 @@ def extents(options, xscale, trace):
 	return (w, h)
 
 def clip_visible(clip, rect):
-	xmax = max (clip[0], rect[0])
-	ymax = max (clip[1], rect[1])
-	xmin = min (clip[0] + clip[2], rect[0] + rect[2])
-	ymin = min (clip[1] + clip[3], rect[1] + rect[3])
-	return (xmin > xmax and ymin > ymax)
+	return True
 
 def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	proc_tree = options.proc_tree(trace)
@@ -583,8 +579,6 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 	next_y = y + proc_h
 	for child in proc.child_list:
-		if next_y > clip[1] + clip[3]:
-			break
 		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])
@@ -593,10 +587,6 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 
 def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip):
-
-	if y > clip[1] + clip[3] or y + proc_h + 2 < clip[1]:
-		return
-
 	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
 
 	last_tx = -1
@@ -604,11 +594,6 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 		tx = rect[0] + round(((sample.time - proc_tree.start_time) * rect[2] / proc_tree.duration))
 
 		# samples are sorted chronologically
-		if tx < clip[0]:
-			continue
-		if tx > clip[0] + clip[2]:
-			break
-
 		tw = round(proc_tree.sample_period * rect[2] / float(proc_tree.duration))
 		if last_tx != -1 and abs(last_tx - tx) <= tw:
 			tw -= last_tx - tx

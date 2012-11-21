@@ -92,6 +92,11 @@ def _mk_options_parser():
 			  help="print time of each event, inside the box of the reporting process")
 	parser.add_option("--absolute-uptime-event-times", action="store_true", dest="absolute_uptime_event_times", default=False,
 			  help="print time of each event, inside the box of the reporting process")
+
+	parser.add_option("--dump-raw-event-context", action="store_true", dest="dump_raw_event_context", default=False,
+			  help="in addition to log lines for selected events, dump log lines as well," +
+                          " retaining original log sort order, which may not be temporally correct.")
+
 	parser.add_option("--synthesize-sample-start-events", action="store_true", dest="synthesize_sample_start_events",
 			  help="synthesize an event marking each boundary between sample periods -- " +
                           "helpful in analyzing collector timing issues")

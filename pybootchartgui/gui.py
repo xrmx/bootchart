@@ -177,6 +177,10 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.drawctx.app_options.absolute_uptime_event_times = button.get_property ('active')
         self.queue_draw()
 
+    def dump_raw_event_context(self, button):
+        self.drawctx.app_options.dump_raw_event_context = button.get_property ('active')
+        self.queue_draw()
+
     POS_INCREMENT = 100
 
     def on_key_press_event(self, widget, event):
@@ -204,11 +208,10 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.queue_draw()
         if event.button == 3:
             if not self.sweep_csec:
-                self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
-                               self.device_to_csec_user_y(event.x + 500, 0)[0]]
+                self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0], None]
             else:
                 self.sweep_csec = None
-            self.queue_draw()
+                self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False
         return False
@@ -219,6 +222,15 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousex = None
             self.prevmousey = None
             return True
+        if event.button == 3:
+            if self.sweep_csec:
+                self.sweep_csec[1] = self.device_to_csec_user_y(event.x, 0)[0]
+                # if no motion between click and release, draw a one-sided sweep window, and don't dump events
+                if self.sweep_csec[1] == self.sweep_csec[0]:
+                    self.sweep_csec[1] = self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]
+                else:
+                    self.drawctx.event_dump_list = []
+            self.queue_draw()
         return False
 
     def on_area_scroll_event(self, area, event):
@@ -250,6 +262,9 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.prevmousex = x
             self.prevmousey = y
             self.position_changed()
+        elif state & gtk.gdk.BUTTON3_MASK and self.sweep_csec:
+            self.sweep_csec[1] = self.device_to_csec_user_y(event.x, 0)[0]
+            self.queue_draw()
         return True
 
     def on_set_scroll_adjustments(self, area, hadj, vadj):
@@ -399,6 +414,11 @@ class PyBootchartShell(gtk.VBox):
         button = gtk_CheckButton("event Times Absolute")
         button.connect ('toggled', self.widget.absolute_uptime_event_times)
         button.set_active (drawctx.app_options.absolute_uptime_event_times)
+        hbox.pack_start (button, False)
+
+        button = gtk_CheckButton("dump raw event context")
+        button.connect ('toggled', self.widget.dump_raw_event_context)
+        button.set_active (drawctx.app_options.dump_raw_event_context)
         hbox.pack_start (button, False)
 
         self.pack_start(hbox, False)

@@ -219,14 +219,13 @@ class DrawContext:
 		self.charts = charts
 		self.kernel_only = kernel_only  # set iff collector daemon saved output of `dmesg`
 		self.SWEEP_CSEC = None
+		self.event_dump_list = None
 
 		self.cr = None                # Cairo rendering context
 		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
 		self.SEC_W = None
 
-		# per-rendering state, including recursive process tree traversal
-		self.SWEEP_render_serial = None
-		self.render_serial = 0
+		# per-rendering state
 		self.proc_above_was_hidden = False
 
 	def per_render_init(self, cr, time_origin_drawn, SEC_W):
@@ -568,15 +567,11 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	(w, h) = extents(ctx, xscale, trace)
 
 	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale))
-	ctx.event_dump_list = []
+	ctx.SWEEP_CSEC = sweep_csec
 
 	ctx.cr.set_line_width(1.0)
 	ctx.cr.select_font_face(FONT_NAME)
 	draw_fill_rect(ctx.cr, WHITE, (0, 0, max(w, C.MIN_IMG_W), h))
-
-	if sweep_csec and sweep_csec != ctx.SWEEP_CSEC:
-		ctx.SWEEP_render_serial = ctx.render_serial
-	ctx.SWEEP_CSEC = sweep_csec
 
 	ctx.cr.save()
 	late_init_transform(ctx.cr)
@@ -623,15 +618,14 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		draw_sweep(ctx, sweep_csec[0], sweep_csec[1] - sweep_csec[0])
 		#dump_pseudo_event(ctx, "start of event window, width " + int(width*1000) + "msec")
 
-	ctx.render_serial += 1
-
 	ctx.cr.restore()
 
-	if False:   # dump events only
-		ctx.event_dump_list.sort(key = lambda e: e.time_usec)
-		for ev in ctx.event_dump_list:
-			print ev.raw_log_line(),
-	else:   # dump all raw log lines between events, where "between" means merely textually,
+	if ctx.event_dump_list == None:
+		return
+
+	print  # blank, separator line
+	if ctx.app_options.dump_raw_event_context:
+	        # dump all raw log lines between events, where "between" means merely textually,
 		# irrespective of time.
 		ctx.event_dump_list.sort(key = lambda e: e.raw_log_seek)
 		if len(ctx.event_dump_list):
@@ -641,11 +635,12 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 			#for line in event0.raw_log_file.readline():
 			while event0.raw_log_file.tell() <= eventN.raw_log_seek:
 				print event0.raw_log_file.readline(),
+	else:   # dump events only
+		ctx.event_dump_list.sort(key = lambda ev: ev.time_usec)
+		for ev in ctx.event_dump_list:
+			print ev.time_usec, ".", ev.raw_log_line(),
 
-def sweep_window_width_sec(ctx):
-	'''about half the width of the visible part of the per-process bars'''
-	user_width = ctx.cr.device_to_user_distance(500,0)[0]
-	return float(user_width) / ctx.SEC_W
+	ctx.event_dump_list = None
 
 def draw_sweep(ctx, sweep_csec, width_csec):
 	def draw_shading(cr, rect):
@@ -703,11 +698,6 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	if ctx.proc_above_was_hidden:
 		draw_hidden_process_separator(ctx, curr_y)
 		ctx.proc_above_was_hidden = False
-
-	if ctx.SWEEP_CSEC and ctx.SWEEP_render_serial == ctx.render_serial:
-		# mark end of this batch of events, for the benefit of post-processors
-		print
-		sys.stdout.flush()
 
 def draw_header (ctx, headers, duration):
     toshow = [
@@ -873,8 +863,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		# align to time of first sample
 		time_origin_relative = ctx.time_origin_drawn + proc_tree.sample_period
 
-	width_csec = sweep_window_width_sec(ctx) * C.CSEC
-	# draw ticks, maybe dump log line
+	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
 		if re.search(ctx.highlight_event__func_file_line_RE, ev.func_file_line):
 			ctx.cr.set_source_rgba(*HIGHLIGHT_EVENT_COLOR)
@@ -882,12 +871,11 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 		else:
 			ctx.cr.set_source_rgba(*EVENT_COLOR)
 			W,H = 1,5
-		if ctx.SWEEP_CSEC and ev.raw_log_seek:
-			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
-			if delta_csec >= 0 and delta_csec < width_csec:
-				# don't dump synthetic events
-				if ev.raw_log_seek and ctx.SWEEP_render_serial == ctx.render_serial:
-					ctx.event_dump_list.append(ev)
+		# don't dump synthetic events
+		if ctx.event_dump_list != None and ctx.SWEEP_CSEC and ev.raw_log_seek:
+			ev_time_csec = float(ev.time_usec)/1000/10
+			if ev_time_csec >= ctx.SWEEP_CSEC[0] and ev_time_csec < ctx.SWEEP_CSEC[1]:
+				ctx.event_dump_list.append(ev)
 		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
 		ctx.cr.rel_line_to(W,-H)       # top
 		ctx.cr.rel_line_to(W, H)       # bottom-right

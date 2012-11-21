@@ -1,5 +1,7 @@
 ** Bugs:
 
+* Don't step on distro's /usr/bin/pybootchartgui -- use /usr/local/
+
 * FIXME: are we merging / glupping threads properly ?
 	+ how can sreadahead apparently be doing no I/O ? :-)
 

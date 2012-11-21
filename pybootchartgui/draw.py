@@ -751,15 +751,14 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 		cmdString = ''
 	else:
 		cmdString = proc.cmd
-	ipid = int(proc.pid)
-	itid = int(proc.tid)
-	if (ctx.app_options.show_pid or ctx.app_options.show_all) and ipid is not 0:
-		cmdString = " [" + str(ipid / 1000) + ":" + str(itid / 1000) + "]" + cmdString
-	if ctx.app_options.show_all:
-		if proc.args:
-			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"
-		else:
-			cmdString = cmdString
+	if (ctx.app_options.show_pid or ctx.app_options.show_all) and proc.pid is not 0:
+		prefix = " ["
+		if ctx.app_options.show_all:
+			prefix += str(proc.ppid / 1000) + ":"
+		prefix += str(proc.pid / 1000) + ":" + str(proc.tid / 1000) + "]"
+		cmdString = prefix + cmdString
+	if ctx.app_options.show_all and proc.args:
+		cmdString += " '" + "' '".join(proc.args) + "'"
 
 	ctx.draw_label_in_box( PROC_TEXT_COLOR, cmdString,
 			csec_to_xscaled(ctx, max(proc.start_time,ctx.time_origin_drawn)),

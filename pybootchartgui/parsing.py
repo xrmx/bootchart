@@ -278,8 +278,11 @@ def _parse_proc_ps_log(writer, file):
                 process = Process(writer, pid, cmd.strip('()'), ppid, min(time, stime))
                 processMap[pid] = process
 
-            if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None and ltime is not None:
-                userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
+            if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
+                if ltime is None:
+                    userCpuLoad, sysCpuLoad = 0, 0
+                else:
+                    userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
                 cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
                 process.samples.append(ProcessSample(time, state, cpuSample))
 

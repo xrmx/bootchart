@@ -296,22 +296,8 @@ def draw_sec_labels(ctx, rect, nsecs):
 				draw_text(ctx.cr, label, TEXT_COLOR, x, rect[1] - 2)
 				prev_x = x + label_w
 
-def draw_box_ticks(ctx, rect):
+def draw_box(ctx, rect):
 	draw_rect(ctx.cr, BORDER_COLOR, tuple(rect))
-	return
-
-	ctx.cr.set_line_cap(cairo.LINE_CAP_SQUARE)
-
-	for i in range(ctx.SEC_W, rect[2] + 1, ctx.SEC_W):
-		if ((i / ctx.SEC_W) % 5 == 0) :
-			ctx.cr.set_source_rgba(*TICK_COLOR_BOLD)
-		else :
-			ctx.cr.set_source_rgba(*TICK_COLOR)
-		ctx.cr.move_to(rect[0] + i, rect[1] + 1)
-		ctx.cr.line_to(rect[0] + i, rect[1] + rect[3] - 1)
-		ctx.cr.stroke()
-
-	ctx.cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
 def draw_annotations(ctx, proc_tree, times, rect):
     ctx.cr.set_line_cap(cairo.LINE_CAP_SQUARE)
@@ -443,7 +429,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 				    120 +90 +140, curr_y, C.leg_s, C.leg_s)
 
 	chart_rect = (0, curr_y+10, w, C.bar_h)
-	draw_box_ticks (ctx, chart_rect)
+	draw_box (ctx, chart_rect)
 	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 	# render I/O wait -- a backwards delta
 	draw_chart (ctx, IO_COLOR, True, chart_rect, \
@@ -489,7 +475,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (0, curr_y+18+5, w, C.bar_h)
-		draw_box_ticks (ctx, chart_rect)
+		draw_box (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
 		draw_chart (ctx, IO_COLOR, True, chart_rect,
@@ -537,7 +523,7 @@ def render_charts(ctx, trace, curr_y, w, h):
 			draw_legend_box(ctx.cr, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y, C.leg_s)
 			draw_legend_line(ctx.cr, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
 					 MEM_SWAP_COLOR, 480, curr_y, C.leg_s)
-		draw_box_ticks (ctx, chart_rect)
+		draw_box (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
@@ -1043,8 +1029,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 
 		below = row
 
-	# render grid-lines over the top
-	draw_box_ticks (ctx, chart_bounds)
+	draw_box (ctx, chart_bounds)
 
 	# render labels
 	for l in labels:

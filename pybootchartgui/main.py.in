@@ -36,8 +36,12 @@ def _mk_options_parser():
 			  help="image format (png, svg, pdf); default format png")
 	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
 			  help="output path (file or directory) where charts are stored")
-	parser.add_option("-n", "--no-prune", action="store_false", dest="prune", default=True,
-			  help="do not prune the process tree")
+	parser.add_option("-n", "--prune", dest="prune", default="heavy",
+			  choices=["heavy", "light", "lightest"],
+			  help="prune the process tree: " +
+			  "heavy, (default); " +
+			  "light, prune only idle processes from the tree; " +
+			  "lightest")
 	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
 			  help="suppress informational messages")
 	parser.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,

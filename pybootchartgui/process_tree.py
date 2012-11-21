@@ -38,7 +38,7 @@ class ProcessTree:
     EXPLODER_PROCESSES = set(['hwup'])
 
     def __init__(self, writer, kernel, psstats, sample_period,
-                 monitoredApp, prune, idle, taskstats,
+                 monitoredApp, option_prune, idle, taskstats,
                  accurate_parentage, for_testing = False):
         self.writer = writer
         self.process_tree = []
@@ -67,11 +67,17 @@ class ProcessTree:
         removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
         writer.status("merged %i logger processes" % removed)
 
-        if prune:
+        if option_prune != "lightest":
             p_processes = self.prune(self.process_tree, None)
-            p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
-            p_threads = self.merge_siblings(self.process_tree)
-            p_runs = self.merge_runs(self.process_tree)
+            if option_prune == "light":
+                p_exploders = 0
+                p_threads = 0
+                p_runs = 0
+            else:
+                p_exploders = self.merge_exploders(self.process_tree, self.EXPLODER_PROCESSES)
+                p_threads = self.merge_siblings(self.process_tree)
+                p_runs = self.merge_runs(self.process_tree)
+
             writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
 
         self.sort(self.process_tree)
@@ -160,11 +166,7 @@ class ProcessTree:
            processes and bootcharts' analysis tools.
         """
         def is_idle_background_process_without_children(p):
-            process_end = p.start_time + p.duration
             return not p.active and \
-                   process_end >= self.start_time + self.duration and \
-                   p.start_time > self.start_time and \
-                   p.duration > 0.9 * self.duration and \
                    self.num_nodes(p.child_list) == 0
 
         num_removed = 0
@@ -175,9 +177,6 @@ class ProcessTree:
 
                 prune = False
                 if is_idle_background_process_without_children(p):
-                    prune = True
-                elif p.duration <= 2 * self.sample_period:
-                    # short-lived process
                     prune = True
 
                 if prune:

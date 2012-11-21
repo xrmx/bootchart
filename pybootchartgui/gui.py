@@ -58,6 +58,8 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.hadj_changed_signal_id = None
         self.vadj_changed_signal_id = None
 
+        self.isotemporal_x = None
+
     def do_expose_event(self, event):
         cr = self.window.cairo_create()
 
@@ -70,12 +72,15 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.draw(cr, self.get_allocation())
         return False
 
+    def cr_set_up_transform(self, cr):
+        cr.scale(self.zoom_ratio, self.zoom_ratio)
+        cr.translate(-self.x, -self.y)
+
     def draw(self, cr, rect):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()
-        cr.scale(self.zoom_ratio, self.zoom_ratio)
-        cr.translate(-self.x, -self.y)
-        draw.render(cr, self.options, self.xscale, self.trace)
+        self.cr_set_up_transform(cr)
+        draw.render(cr, self.options, self.xscale, self.trace, self.isotemporal_x)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
@@ -149,16 +154,26 @@ class PyBootchartWidget(gtk.DrawingArea):
         return True
 
     def on_area_button_press(self, area, event):
-        if event.button == 2 or event.button == 1:
+        if event.button == 1:
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.FLEUR))
             self.prevmousex = event.x
             self.prevmousey = event.y
+        if event.button == 2:
+            cr = self.window.cairo_create()
+            uy = None
+            self.cr_set_up_transform(cr)
+            self.isotemporal_x, uy = cr.device_to_user(event.x, 0)
+            self.isotemporal_x = draw.user_to_time(self.isotemporal_x)
+            self.queue_draw()
+        if event.button == 3:
+            self.isotemporal_x = None
+            self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
             return False
         return False
 
     def on_area_button_release(self, area, event):
-        if event.button == 2 or event.button == 1:
+        if event.button == 1:
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.ARROW))
             self.prevmousex = None
             self.prevmousey = None
@@ -183,7 +198,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
     def on_area_motion_notify(self, area, event):
         state = event.state
-        if state & gtk.gdk.BUTTON2_MASK or state & gtk.gdk.BUTTON1_MASK:
+        if state & gtk.gdk.BUTTON1_MASK:
             x, y = int(event.x), int(event.y)
             if self.prevmousex==None or self.prevmousey==None:
                 return True

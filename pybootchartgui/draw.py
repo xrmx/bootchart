@@ -210,6 +210,15 @@ def draw_label_in_box_at_time(ctx, color, label, x, y, label_x):
 def time_in_hz_to_ideal_coord(t_hz):
 	return (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
 
+# Solve for t_hz:
+#   x = (t_hz-time_origin_drawn) * SEC_W / HZ + off_x
+#
+#   x - off_x = (t_hz-time_origin_drawn) * SEC_W / HZ
+#   (x - off_x) * HZ / SEC_W = t_hz-time_origin_drawn
+#
+def user_to_time(x):
+	return (x - off_x) * HZ / SEC_W + time_origin_drawn
+
 def draw_sec_labels(ctx, rect, nsecs):
 	ctx.set_font_size(AXIS_FONT_SIZE)
 	prev_x = 0
@@ -497,7 +506,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h):
 #
 # Render the chart.
 #
-def render(ctx, options, xscale, trace):
+def render(ctx, options, xscale, trace, isotemporal_x = None):
 	(w, h) = extents (options, xscale, trace)
 
 	proc_tree = options.proc_tree (trace)
@@ -548,6 +557,18 @@ def render(ctx, options, xscale, trace):
 		cuml_rect = (off_x, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
+
+	if isotemporal_x:
+		draw_isotemporal(ctx, isotemporal_x)
+
+def draw_isotemporal(ctx, isotemporal_x):
+	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
+	ctx.set_line_width(0.8)
+	ctx.set_dash([4, 2])
+	isotemporal_x = time_in_hz_to_ideal_coord(isotemporal_x)
+	ctx.move_to(isotemporal_x, 0)
+	ctx.line_to(isotemporal_x, CUML_HEIGHT)
+	ctx.stroke()
 
 def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h):
 	header_size = 0

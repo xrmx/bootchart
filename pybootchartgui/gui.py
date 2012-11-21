@@ -18,7 +18,7 @@ import gtk
 import gtk.gdk
 import gtk.keysyms
 from . import draw
-from .draw import RenderOptions
+from .draw import DrawContext
 
 class PyBootchartWidget(gtk.DrawingArea):
     __gsignals__ = {
@@ -28,11 +28,11 @@ class PyBootchartWidget(gtk.DrawingArea):
             'set-scroll-adjustments' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gtk.Adjustment, gtk.Adjustment))
     }
 
-    def __init__(self, trace, options, xscale):
+    def __init__(self, trace, drawctx, xscale):
         gtk.DrawingArea.__init__(self)
 
         self.trace = trace
-        self.options = options
+        self.drawctx = drawctx
 
         self.set_flags(gtk.CAN_FOCUS)
 
@@ -52,7 +52,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.xscale = xscale
         self.x, self.y = 0.0, 0.0
 
-        self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
+        self.chart_width, self.chart_height = draw.extents(self.drawctx, self.xscale, self.trace)
         self.hadj = None
         self.vadj = None
         self.hadj_changed_signal_id = None
@@ -73,41 +73,49 @@ class PyBootchartWidget(gtk.DrawingArea):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)
-        draw.render(cr, self.options, self.xscale, self.trace, self.sweep_csec)
+        draw.render(cr, self.drawctx, self.xscale, self.trace, self.sweep_csec)
 
     def position_changed(self):
         self.emit("position-changed", self.x, self.y)
 
     def device_to_csec_user_y(self, dx, dy):
             cr = self.window.cairo_create()
-            self.cr_set_up_transform(cr)
+            self.cr_set_up_transform(cr)   # depends on (self.x, self.y)
             ux, uy = cr.device_to_user(dx, dy)
-            self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
-            return draw.xscaled_to_csec(ux), uy     # XX  depends on state set by draw.extents()
+            #self.chart_width, self.chart_height = draw.extents(self.drawctx, self.xscale, self.trace)
+            return draw._xscaled_to_csec(ux,
+                                          draw._sec_w(self.xscale),
+                                          draw._time_origin_drawn(self.drawctx, self.trace)), \
+                   uy
 
     # back-transform center of widget to (time, chart_height) coords
     def current_center (self):
         (wx, wy, ww, wh) = self.get_allocation()
         return self.device_to_csec_user_y (ww/2, wh/2)
 
-    # Assuming a new zoom_ratio or xscale have been set, correspondingly
-    # set top-left corner displayed (self.x, self.y) so that
+    # Assuming all object attributes except self.x and self.y are now valid,
+    # and that a new zoom_ratio or xscale has been set, correspondingly
+    # set top-left user-space corner position (self.x, self.y) so that
     # (csec_x, user_y) will be at window center
-    def set_center (self, csec_x, user_y):
-        cur_csec, cur_user_y = self.current_center ()
-        cur_user_x = draw.csec_to_xscaled(cur_csec)
-        user_x = draw.csec_to_xscaled(csec_x)
-        self.x += (user_x - cur_user_x)
-        self.y += (user_y - cur_user_y)
+    def set_center (self, ctr_csec_x, ctr_user_y):
+        ctr_user_x = draw.C.off_x + draw._csec_to_xscaled(ctr_csec_x,
+                                       draw._time_origin_drawn(self.drawctx, self.trace),
+                                       draw._sec_w(self.xscale))
+        # XX Use cr.device_to_user_distance() here ?
+        # Subtract off from the center a vector to the top-left corner.
+        self.x = (ctr_user_x - float(self.get_allocation()[2])/self.zoom_ratio/2)
+        self.y = (ctr_user_y - float(self.get_allocation()[3])/self.zoom_ratio/2)
         self.position_changed()
 
     ZOOM_INCREMENT = 1.25
     # Zoom maintaining the content at window's current center untranslated.
     # "Center" is irrespective of any occlusion.
     def zoom_image (self, zoom_ratio):
-        old_x, old_y = self.current_center ()
+        old_csec, old_y = self.current_center ()
+
         self.zoom_ratio = zoom_ratio
-        self.set_center(old_x, old_y)
+
+        self.set_center(old_csec, old_y)
         self._set_scroll_adjustments (self.hadj, self.vadj)
         self.queue_draw()
 
@@ -118,10 +126,12 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.position_changed()
 
     def set_xscale(self, xscale):
-        old_x, old_y = self.current_center ()
+        old_csec, old_y = self.current_center ()
+
         self.xscale = xscale
-        self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
-        self.set_center(old_x, old_y)
+        self.chart_width, self.chart_height = draw.extents(self.drawctx, self.xscale, self.trace)
+
+        self.set_center(old_csec, old_y)
         self._set_scroll_adjustments (self.hadj, self.vadj)
         self.queue_draw()
 
@@ -145,19 +155,19 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.set_xscale(1.0)
 
     def show_thread_details(self, button):
-        self.options.app_options.show_all = button.get_property ('active')
+        self.drawctx.app_options.show_all = button.get_property ('active')
         self.queue_draw()
 
     def hide_events(self, button):
-        self.options.app_options.hide_events = not button.get_property ('active')
+        self.drawctx.app_options.hide_events = not button.get_property ('active')
         self.queue_draw()
 
     def print_event_times(self, button):
-        self.options.app_options.print_event_times = button.get_property ('active')
+        self.drawctx.app_options.print_event_times = button.get_property ('active')
         self.queue_draw()
 
     def absolute_uptime_event_times(self, button):
-        self.options.app_options.absolute_uptime_event_times = button.get_property ('active')
+        self.drawctx.app_options.absolute_uptime_event_times = button.get_property ('active')
         self.queue_draw()
 
     POS_INCREMENT = 100
@@ -258,6 +268,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         if value_changed:
             adj.value_changed()
 
+    # sets scroll bars to correct position and length -- no direct effect on image
     def _set_scroll_adjustments(self, hadj, vadj):
         if hadj == None:
             hadj = gtk.Adjustment(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -306,10 +317,10 @@ class PyBootchartShell(gtk.VBox):
             </toolbar>
     </ui>
     '''
-    def __init__(self, window, trace, options, xscale):
+    def __init__(self, window, trace, drawctx, xscale):
         gtk.VBox.__init__(self)
 
-        self.widget = PyBootchartWidget(trace, options, xscale)
+        self.widget = PyBootchartWidget(trace, drawctx, xscale)
 
         # Create a UIManager instance
         uimanager = self.uimanager = gtk.UIManager()
@@ -354,8 +365,8 @@ class PyBootchartShell(gtk.VBox):
             button.set_focus_on_click(False)
             return button
 
-        if not options.kernel_only:
-            # Misc. options
+        if not drawctx.kernel_only:
+            # Misc. drawctx
             button = gtk_CheckButton("thread details")
             button.connect ('toggled', self.widget.show_thread_details)
             hbox.pack_start (button, False)
@@ -367,12 +378,12 @@ class PyBootchartShell(gtk.VBox):
 
         button = gtk_CheckButton("event Time Labels")
         button.connect ('toggled', self.widget.print_event_times)
-        button.set_active (options.app_options.print_event_times)
+        button.set_active (drawctx.app_options.print_event_times)
         hbox.pack_start (button, False)
 
         button = gtk_CheckButton("event Times Absolute")
         button.connect ('toggled', self.widget.absolute_uptime_event_times)
-        button.set_active (options.app_options.absolute_uptime_event_times)
+        button.set_active (drawctx.app_options.absolute_uptime_event_times)
         hbox.pack_start (button, False)
 
         self.pack_start(hbox, False)
@@ -385,7 +396,7 @@ class PyBootchartShell(gtk.VBox):
 
 class PyBootchartWindow(gtk.Window):
 
-    def __init__(self, trace, app_options):
+    def __init__(self, app_options, trace):
         gtk.Window.__init__(self)
 
         window = self
@@ -398,23 +409,20 @@ class PyBootchartWindow(gtk.Window):
         tab_page.show()
         window.add(tab_page)
 
-        full_opts = RenderOptions(app_options)
-        full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
+        full_drawctx = DrawContext(app_options, trace)
+        full_tree = PyBootchartShell(window, trace, full_drawctx, 1.0)
         tab_page.append_page (full_tree, gtk.Label("Full tree"))
 
         if trace.kernel is not None and len (trace.kernel) > 2:
-            kernel_opts = RenderOptions(app_options)
-            kernel_opts.cumulative = False
-            kernel_opts.charts = False
-            kernel_opts.kernel_only = True
-            kernel_tree = PyBootchartShell(window, trace, kernel_opts, 5.0)
+            kernel_drawctx = DrawContext(app_options, trace, cumulative = False, charts = False, kernel_only = True)
+            kernel_tree = PyBootchartShell(window, trace, kernel_drawctx, 5.0)
             tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
 
         full_tree.grab_focus(self)
         self.show()
 
 
-def show(trace, options):
-    win = PyBootchartWindow(trace, options)
+def show(trace, app_options):
+    win = PyBootchartWindow(app_options, trace)
     win.connect('destroy', gtk.main_quit)
     gtk.main()

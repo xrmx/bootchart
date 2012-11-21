@@ -15,7 +15,7 @@
 
 import cairo
 from . import draw
-from .draw import RenderOptions
+from .draw import DrawContext
 
 def render(writer, trace, app_options, filename):
     handlers = {
@@ -35,12 +35,12 @@ def render(writer, trace, app_options, filename):
         return 10
 
     make_surface, write_surface = handlers[fmt]
-    options = RenderOptions (app_options)
-    (w, h) = draw.extents (options, 1.0, trace)
-    w = max (w, draw.MIN_IMG_W)
+    drawctx = DrawContext (app_options, trace)
+    (w, h) = draw.extents (drawctx, 1.0, trace)
+    w = max (w, draw.C.MIN_IMG_W)
     surface = make_surface (w, h)
-    ctx = cairo.Context (surface)
-    draw.render (ctx, options, 1.0, trace)
+    cr = cairo.Context (surface)
+    draw.render (cr, drawctx, 1.0, trace)
     write_surface (surface)
     writer.status ("bootchart written to '%s'" % filename)
 

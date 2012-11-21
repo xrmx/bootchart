@@ -20,21 +20,19 @@ import re
 import random
 import colorsys
 import traceback
+import collections
 
-# XX  Generalize this, to hold all global drawing state?
-class RenderOptions:
-	def __init__(self, app_options):
-		# should we render a cumulative CPU time chart
-		self.cumulative = True
-		self.charts = True
-		self.kernel_only = False
-		self.app_options = app_options
+# Constants: Put the more heavily used, non-derived constants in a named tuple, for immutability.
+# XX  The syntax is awkward, but more elegant alternatives have run-time overhead.
+#     http://stackoverflow.com/questions/4996815/ways-to-make-a-class-immutable-in-python
+DrawConsts = collections.namedtuple('XXtypename',
+            ['CSEC','bar_h','off_x','off_y','proc_h','leg_s','CUML_HEIGHT','MIN_IMG_W'])
+C = DrawConsts( 100,     55,     10,     10,      16,     11,         2000,        800)
+#                                                 height of a process, in user-space
 
-	def proc_tree (self, trace):
-		if self.kernel_only:
-			return trace.kernel_tree
-		else:
-			return trace.proc_tree
+# Derived constants
+#   XX  create another namedtuple for these
+meminfo_bar_h = 2 * C.bar_h
 
 # Process tree background color.
 BACK_COLOR = (1.0, 1.0, 1.0, 1.0)
@@ -149,170 +147,215 @@ STAT_TYPE_IO = 1
 def get_proc_state(flag):
 	return "RSDTZXW".find(flag) + 1
 
-def draw_text(ctx, text, color, x, y):
-	ctx.set_source_rgba(*color)
-	ctx.move_to(x, y)
-	ctx.show_text(text)
+def draw_text(cr, text, color, x, y):
+	cr.set_source_rgba(*color)
+	cr.move_to(x, y)
+	cr.show_text(text)
 
-def draw_fill_rect(ctx, color, rect):
-	ctx.set_source_rgba(*color)
-	ctx.rectangle(*rect)
-	ctx.fill()
+def draw_fill_rect(cr, color, rect):
+	cr.set_source_rgba(*color)
+	cr.rectangle(*rect)
+	cr.fill()
 
-def draw_rect(ctx, color, rect):
-	ctx.set_source_rgba(*color)
-	ctx.rectangle(*rect)
-	ctx.stroke()
+def draw_rect(cr, color, rect):
+	cr.set_source_rgba(*color)
+	cr.rectangle(*rect)
+	cr.stroke()
 
-def draw_diamond(ctx, x, y, w, h):
-	ctx.save()
-	ctx.set_line_width(0.0)
-	ctx.move_to(x-w/2, y)
-	ctx.line_to(x, y+h/2)
-	ctx.line_to(x+w/2, y)
-	ctx.line_to(x, y-h/2)
-	ctx.line_to(x-w/2, y)
-	ctx.fill()
-	ctx.restore()
+def draw_diamond(cr, x, y, w, h):
+	cr.save()
+	cr.set_line_width(0.0)
+	cr.move_to(x-w/2, y)
+	cr.line_to(x, y+h/2)
+	cr.line_to(x+w/2, y)
+	cr.line_to(x, y-h/2)
+	cr.line_to(x-w/2, y)
+	cr.fill()
+	cr.restore()
 
-def draw_legend_diamond(ctx, label, fill_color, x, y, w, h):
-	ctx.set_source_rgba(*fill_color)
-	draw_diamond(ctx, x, y-h/2, w, h)
-	draw_text(ctx, label, TEXT_COLOR, x + w + 5, y)
+def draw_legend_diamond(cr, label, fill_color, x, y, w, h):
+	cr.set_source_rgba(*fill_color)
+	draw_diamond(cr, x, y-h/2, w, h)
+	draw_text(cr, label, TEXT_COLOR, x + w + 5, y)
 
-def draw_legend_box(ctx, label, fill_color, x, y, s):
-	draw_fill_rect(ctx, fill_color, (x, y - s, s, s))
-	#draw_rect(ctx, PROC_BORDER_COLOR, (x, y - s, s, s))
-	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
+def draw_legend_box(cr, label, fill_color, x, y, s):
+	draw_fill_rect(cr, fill_color, (x, y - s, s, s))
+	#draw_rect(cr, PROC_BORDER_COLOR, (x, y - s, s, s))
+	draw_text(cr, label, TEXT_COLOR, x + s + 5, y)
 
-def draw_legend_line(ctx, label, fill_color, x, y, s):
-	draw_fill_rect(ctx, fill_color, (x, y - s/2, s + 1, 3))
-	ctx.fill()
-	draw_text(ctx, label, TEXT_COLOR, x + s + 5, y)
+def draw_legend_line(cr, label, fill_color, x, y, s):
+	draw_fill_rect(cr, fill_color, (x, y - s/2, s + 1, 3))
+	cr.fill()
+	draw_text(cr, label, TEXT_COLOR, x + s + 5, y)
 
-def draw_label_in_box(ctx, color, label, x, y, w, proc_h, minx, maxx):
-	# hack in a pair of left and right margins
-	extents = ctx.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
-	label = " " + label
+def draw_label_in_box_at_time(cr, color, label, y, label_x):
+	draw_text(cr, label, color, label_x, y)
+	return cr.text_extents(label)[2]
 
-	label_y_bearing = extents[1]
-	label_w = extents[2]
-	label_height = extents[3]
-	label_y_advance = extents[5]
 
-	y += proc_h
-	if OPTIONS.app_options.justify == JUSTIFY_LEFT:
-		label_x = x
+def _time_origin_drawn(ctx, trace):
+	if ctx.app_options.prehistory:
+		# XX  Would have to set to proc_tree.starttime for backwards compatibility
+		return 0
 	else:
-		label_x = x + w / 2 - label_w / 2   # CENTER
+		return trace.cpu_stats[0].time - in_chart_X_margin(ctx.proc_tree(trace))
 
-	if label_w + 10 > w:                # if wider than the process box
-		label_x = x + w + 5         # push outside to right
-	if label_x + label_w > maxx:        # if that's too far right
-		label_x = x - label_w - 5   # push outside to the left
-	if label_x < minx:
-		label_x = minx
-	# XX ugly magic constants, tuned by trial-and-error
-	draw_fill_rect(ctx, NOTEPAD_YELLLOW, (label_x, y-1, label_w, -(proc_h-2)))
-	draw_text(ctx, label, color, label_x, y-4)
+def _sec_w(xscale):
+	return xscale * 50 # width of a second, in user-space
 
-def draw_label_in_box_at_time(ctx, color, label, y, label_x):
-	draw_text(ctx, label, color, label_x, y)
-	return ctx.text_extents(label)[2]
+# XX  Migrating functions into the drawing object seems to be a loss: the
+# replacement of 'ctx' with 'self' is no help to the reader, and
+# additional text columns are lost to the necessary indentation
+class DrawContext:
+	'''set all drawing-related variables bindable at time of class PyBootchartWindow instantiation'''
+	def __init__(self, app_options, trace, cumulative = True, charts = True, kernel_only = False):
+		self.app_options = app_options
+		# should we render a cumulative CPU time chart
+		self.cumulative = cumulative  # Bootchart2 collector only
+		self.charts = charts
+		self.kernel_only = kernel_only  # set iff collector daemon saved output of `dmesg`
+		self.SWEEP_CSEC = None
+		self.SWEEP_render_serial = None
+		self.render_serial = 0
 
-def csec_to_xscaled(t_csec):
-	return (t_csec-time_origin_drawn) * SEC_W / CSEC
+		self.cr = None                # Cairo rendering context
+		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
+		self.SEC_W = None
 
-def csec_to_xscaled_distance(dist_csec):
-	return dist_csec * SEC_W / CSEC
+	def per_render_init(self, cr, time_origin_drawn, SEC_W):
+		self.cr = cr
+		self.time_origin_drawn = time_origin_drawn
+		self.SEC_W = SEC_W
+
+	def proc_tree (self, trace):
+		return trace.kernel_tree if self.kernel_only else trace.proc_tree
+
+	def draw_label_in_box(self, color, label, x, y, w, minx, maxx):
+		# hack in a pair of left and right margins
+		extents = self.cr.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
+		label = " " + label
+
+		label_y_bearing = extents[1]
+		label_w = extents[2]
+		label_height = extents[3]
+		label_y_advance = extents[5]
+
+		y += C.proc_h
+		if self.app_options.justify == JUSTIFY_LEFT:
+			label_x = x
+		else:
+			label_x = x + w / 2 - label_w / 2   # CENTER
+
+		if label_w + 10 > w:                # if wider than the process box
+			label_x = x + w + 5         # push outside to right
+		if label_x + label_w > maxx:        # if that's too far right
+			label_x = x - label_w - 5   # push outside to the left
+		if label_x < minx:
+			label_x = minx
+		# XX ugly magic constants, tuned by trial-and-error
+		draw_fill_rect(self.cr, NOTEPAD_YELLLOW, (label_x, y-1, label_w, -(C.proc_h-2)))
+		draw_text(self.cr, label, color, label_x, y-4)
+
+# XX  Should be "_csec_to_user"
+# Assume off_x translation is already applied, as it will be in drawing functions.
+def _csec_to_xscaled(t_csec, time_origin_drawn, sec_w):
+	return (t_csec-time_origin_drawn) * sec_w / C.CSEC
+
+def csec_to_xscaled(ctx, t_csec):
+	return _csec_to_xscaled(t_csec, ctx.time_origin_drawn, ctx.SEC_W)
 
 # Solve for t_csec:
-#   x = (t_csec-time_origin_drawn) * SEC_W / CSEC + off_x
+#   x = (t_csec-ctx.time_origin_drawn) * ctx.SEC_W / C.CSEC + C.off_x
 #
-#   x - off_x = (t_csec-time_origin_drawn) * SEC_W / CSEC
-#   (x - off_x) * CSEC / SEC_W = t_csec-time_origin_drawn
+#   x - C.off_x = (t_csec-ctx.time_origin_drawn) * ctx.SEC_W / C.CSEC
+#   (x - C.off_x) * C.CSEC / ctx.SEC_W = t_csec-ctx.time_origin_drawn
 #
-def xscaled_to_csec(x):
-	return (x - off_x) * CSEC / SEC_W + time_origin_drawn
+def xscaled_to_csec(ctx, x):
+	return _xscaled_to_csec(x, ctx.SEC_W, ctx.time_origin_drawn)
+
+# XX  Prefix with single underbar '_' -- double underbar '__' has special meaning to Python
+#     that precludes use in exported functions.
+def _xscaled_to_csec(x, sec_w, _time_origin_drawn):
+	return (x - C.off_x) * C.CSEC / sec_w + _time_origin_drawn
 
 def ctx_save__csec_to_xscaled(ctx):
-	ctx.save()
-	ctx.scale(float(SEC_W) / CSEC, 1.0)
-	ctx.translate(-time_origin_drawn, 0.0)
+	ctx.cr.save()
+	ctx.cr.scale(float(ctx.SEC_W) / C.CSEC, 1.0)
+	ctx.cr.translate(-ctx.time_origin_drawn, 0.0)
 
 def draw_sec_labels(ctx, rect, nsecs):
-	ctx.set_font_size(AXIS_FONT_SIZE)
+	ctx.cr.set_font_size(AXIS_FONT_SIZE)
 	prev_x = 0
-	for i in range(0, rect[2] + 1, SEC_W):
-		if ((i / SEC_W) % nsecs == 0) :
-			label = "%ds" % (i / SEC_W)
-			label_w = ctx.text_extents(label)[2]
+	for i in range(0, rect[2] + 1, ctx.SEC_W):
+		if ((i / ctx.SEC_W) % nsecs == 0) :
+			label = "%ds" % (i / ctx.SEC_W)
+			label_w = ctx.cr.text_extents(label)[2]
 			x = rect[0] + i - label_w/2
 			if x >= prev_x:
-				draw_text(ctx, label, TEXT_COLOR, x, rect[1] - 2)
+				draw_text(ctx.cr, label, TEXT_COLOR, x, rect[1] - 2)
 				prev_x = x + label_w
 
 def draw_box_ticks(ctx, rect):
-	draw_rect(ctx, BORDER_COLOR, tuple(rect))
+	draw_rect(ctx.cr, BORDER_COLOR, tuple(rect))
 	return
 
-	ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
+	ctx.cr.set_line_cap(cairo.LINE_CAP_SQUARE)
 
-	for i in range(SEC_W, rect[2] + 1, SEC_W):
-		if ((i / SEC_W) % 5 == 0) :
-			ctx.set_source_rgba(*TICK_COLOR_BOLD)
+	for i in range(ctx.SEC_W, rect[2] + 1, ctx.SEC_W):
+		if ((i / ctx.SEC_W) % 5 == 0) :
+			ctx.cr.set_source_rgba(*TICK_COLOR_BOLD)
 		else :
-			ctx.set_source_rgba(*TICK_COLOR)
-		ctx.move_to(rect[0] + i, rect[1] + 1)
-		ctx.line_to(rect[0] + i, rect[1] + rect[3] - 1)
-		ctx.stroke()
+			ctx.cr.set_source_rgba(*TICK_COLOR)
+		ctx.cr.move_to(rect[0] + i, rect[1] + 1)
+		ctx.cr.line_to(rect[0] + i, rect[1] + rect[3] - 1)
+		ctx.cr.stroke()
 
-	ctx.set_line_cap(cairo.LINE_CAP_BUTT)
+	ctx.cr.set_line_cap(cairo.LINE_CAP_BUTT)
 
 def draw_annotations(ctx, proc_tree, times, rect):
-    ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
-    ctx.set_source_rgba(*ANNOTATION_COLOR)
-    ctx.set_dash([4, 4])
+    ctx.cr.set_line_cap(cairo.LINE_CAP_SQUARE)
+    ctx.cr.set_source_rgba(*ANNOTATION_COLOR)
+    ctx.cr.set_dash([4, 4])
 
     for time in times:
         if time is not None:
-            x = csec_to_xscaled(time)
+            x = csec_to_xscaled(ctx, time)
 
-            ctx.move_to(x, rect[1] + 1)
-            ctx.line_to(x, rect[1] + rect[3] - 1)
-            ctx.stroke()
+            ctx.cr.move_to(x, rect[1] + 1)
+            ctx.cr.line_to(x, rect[1] + rect[3] - 1)
+            ctx.cr.stroke()
 
-    ctx.set_line_cap(cairo.LINE_CAP_BUTT)
-    ctx.set_dash([])
+    ctx.cr.set_line_cap(cairo.LINE_CAP_BUTT)
+    ctx.cr.set_dash([])
 
-def plot_line(ctx, point, x, y):
-	ctx.set_line_width(1.0)
-	ctx.line_to(x, y)       # rightward, and upward or downward
-
-# backward-looking
-def plot_square(ctx, point, x, y):
-	ctx.set_line_width(1.0)
-        ctx.line_to(ctx.get_current_point()[0], y)  # upward or downward
-        ctx.line_to(x, y)  # rightward
+def plot_line(cr, point, x, y):
+	cr.set_line_width(1.0)
+	cr.line_to(x, y)       # rightward, and upward or downward
 
 # backward-looking
-def plot_segment_positive(ctx, point, x, y):
-	ctx.move_to(ctx.get_current_point()[0], y)       # upward or downward
+def plot_square(cr, point, x, y):
+	cr.set_line_width(1.0)
+        cr.line_to(cr.get_current_point()[0], y)  # upward or downward
+        cr.line_to(x, y)  # rightward
+
+# backward-looking
+def plot_segment_positive(cr, point, x, y):
+	cr.move_to(cr.get_current_point()[0], y)       # upward or downward
 	if point[1] <= 0:           # zero-Y samples draw nothing
-		ctx.move_to(x, y)
+		cr.move_to(x, y)
 		return
-	ctx.set_line_width(1.5)
-	ctx.line_to(x, y)
+	cr.set_line_width(1.5)
+	cr.line_to(x, y)
 
-def plot_scatter_positive(ctx, point, x, y):
+def plot_scatter_positive(cr, point, x, y):
 	if point[1] <= 0:
 		return
-	draw_diamond(ctx, x, y, 3.6, 3.6)
+	draw_diamond(cr, x, y, 3.6, 3.6)
 
 # All charts assumed to be full-width
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
 	def transform_point_coords(point, y_base, yscale):
-		x = csec_to_xscaled(point[0])
+		x = csec_to_xscaled(ctx, point[0])
 		y = (point[1] - y_base) * -yscale + chart_bounds[1] + chart_bounds[3]
 		return x, y
 
@@ -329,96 +372,69 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot
 		yscale = float(chart_bounds[3]) / max_y
 		ybase = 0
 
-	ctx.set_source_rgba(*color)
+	ctx.cr.set_source_rgba(*color)
 
 	# move to the x of the missing first sample point
-	first = transform_point_coords ([time_origin_drawn + in_chart_X_margin(proc_tree), -9999],
+	first = transform_point_coords ([ctx.time_origin_drawn + in_chart_X_margin(proc_tree), -9999],
 					ybase, yscale)
-	ctx.move_to(first[0], first[1])
+	ctx.cr.move_to(first[0], first[1])
 
 	for point in data:
 		x, y = transform_point_coords (point, ybase, yscale)
-		plot_point_func(ctx, point, x, y)
+		plot_point_func(ctx.cr, point, x, y)
 
 	final = transform_point_coords (data[-1], ybase, yscale)
 
 	if fill:
-		ctx.set_line_width(0.0)
-		ctx.stroke_preserve()
-		ctx.line_to(final[0], chart_bounds[1]+chart_bounds[3])
-		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
-		ctx.line_to(first[0], first[1])
-		ctx.fill()
+		ctx.cr.set_line_width(0.0)
+		ctx.cr.stroke_preserve()
+		ctx.cr.line_to(final[0], chart_bounds[1]+chart_bounds[3])
+		ctx.cr.line_to(first[0], chart_bounds[1]+chart_bounds[3])
+		ctx.cr.line_to(first[0], first[1])
+		ctx.cr.fill()
 	else:
-		ctx.stroke()
-	ctx.set_line_width(1.0)
-
-# Constants
-# XX  put all of constants in a named tuple, for immutability
-CSEC = 100
-bar_h = 55
-meminfo_bar_h = 2 * bar_h
-# offsets
-off_x, off_y = 10, 10
-sec_w_base = 50 # the width of a second
-proc_h = 16 # the height of a process
-leg_s = 11
-MIN_IMG_W = 800
-CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
-
-# Variables
-OPTIONS = None
-
-SEC_W = None
-time_origin_drawn = None  # time of leftmost plotted data, as integer csecs
-
-SWEEP_CSEC = None
-SWEEP_render_serial = None
-render_serial = 0
-
-# window coords
+		ctx.cr.stroke()
+	ctx.cr.set_line_width(1.0)
 
 def in_chart_X_margin(proc_tree):
 	return proc_tree.sample_period
 
-# Called from gui.py and batch.py, before first call to render(),
-# and every time xscale changes.
+# A _pure_ function of its arguments -- writes to no global state nor object.
+# Called from gui.py and batch.py, before instantiation of
+# DrawContext and first call to render(), then every time xscale
+# changes.
 # Returned (w, h) maximum useful x, y user coordinates -- minimums are 0, 0.
 # (w) will get bigger if xscale does.
-def extents(options, xscale, trace):
-	global OPTIONS, time_origin_drawn
-	OPTIONS = options
+def extents(ctx, xscale, trace):
+	'''arg "options" is a RenderOptions object'''
+	proc_tree = ctx.proc_tree(trace)
 
-	proc_tree = options.proc_tree(trace)
-	if OPTIONS.app_options.prehistory:
-		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
-	else:
-		time_origin_drawn = trace.cpu_stats[0].time - in_chart_X_margin(proc_tree)
-	global SEC_W
-	SEC_W = xscale * sec_w_base
+	w = int (_csec_to_xscaled(trace.cpu_stats[-1].time + in_chart_X_margin(proc_tree),
+				   _time_origin_drawn(ctx, trace),
+				   _sec_w(xscale)) \
+		 + 2*C.off_x)
 
-	w = int (csec_to_xscaled(trace.cpu_stats[-1].time + in_chart_X_margin(proc_tree)) + 2*off_x)
-	h = proc_h * proc_tree.num_proc + 2 * off_y
-	if options.charts:
-		h += 110 + (2 + len(trace.disk_stats)) * (30 + bar_h) + 1 * (30 + meminfo_bar_h)
-	if proc_tree.taskstats and options.cumulative:
-		h += CUML_HEIGHT + 4 * off_y
-	return (w, h)  # includes off_x, off_y
+	h = C.proc_h * proc_tree.num_proc + 2 * C.off_y
+	if ctx.charts:
+		h += 110 + (2 + len(trace.disk_stats)) * (30 + C.bar_h) + 1 * (30 + meminfo_bar_h)
+	if proc_tree.taskstats and ctx.cumulative:
+		h += C.CUML_HEIGHT + 4 * C.off_y
+	return (w, h)  # includes C.off_x, C.off_y
 
-def render_charts(ctx, options, trace, curr_y, w, h):
-	proc_tree = options.proc_tree(trace)
+def render_charts(ctx, trace, curr_y, w, h):
+	proc_tree = ctx.proc_tree(trace)
 
 	# render bar legend
-	ctx.set_font_size(LEGEND_FONT_SIZE)
+	ctx.cr.set_font_size(LEGEND_FONT_SIZE)
 
-	draw_legend_box(ctx, "CPU (user+sys)", CPU_COLOR, 0, curr_y+20, leg_s)
-	draw_legend_box(ctx, "I/O (wait)", IO_COLOR, 120, curr_y+20, leg_s)
-	draw_legend_diamond(ctx, "Runnable threads", PROCS_RUNNING_COLOR,
-			120 +90, curr_y+20, leg_s, leg_s)
-	draw_legend_diamond(ctx, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
-			120 +90 +140, curr_y+20, leg_s, leg_s)
+	draw_legend_box(ctx.cr, "CPU (user+sys)", CPU_COLOR, 0, curr_y+20, C.leg_s)
+	draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, 120, curr_y+20, C.leg_s)
+	draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
+			120 +90, curr_y+20, C.leg_s, C.leg_s)
+	draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
+			120 +90 +140, curr_y+20, C.leg_s, C.leg_s)
 
-	chart_rect = (0, curr_y+30, w, bar_h)
+	chart_rect = (0, curr_y+30, w, C.bar_h)
 	draw_box_ticks (ctx, chart_rect)
 	draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 	# render I/O wait -- a backwards delta
@@ -440,19 +456,19 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 		    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
 		    proc_tree, [0, 9], plot_scatter_positive)
 
-	curr_y = curr_y + 50 + bar_h
+	curr_y = curr_y + 50 + C.bar_h
 
 	# render second chart
-	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
-			IO_COLOR, 0, curr_y+20, leg_s)
-	if OPTIONS.app_options.show_ops_not_bytes:
+	draw_legend_box(ctx.cr, "Disk utilization -- fraction of sample interval I/O queue was not empty",
+			IO_COLOR, 0, curr_y+20, C.leg_s)
+	if ctx.app_options.show_ops_not_bytes:
 		unit = "ops"
 	else:
 		unit = "bytes"
-	draw_legend_line(ctx, "Disk writes -- " + unit + "/sample",
-			 DISK_WRITE_COLOR, 470, curr_y+20, leg_s)
-	draw_legend_line(ctx, "Disk reads+writes -- " + unit + "/sample",
-			 DISK_TPUT_COLOR, 470+120*2, curr_y+20, leg_s)
+	draw_legend_line(ctx.cr, "Disk writes -- " + unit + "/sample",
+			 DISK_WRITE_COLOR, 470, curr_y+20, C.leg_s)
+	draw_legend_line(ctx.cr, "Disk reads+writes -- " + unit + "/sample",
+			 DISK_TPUT_COLOR, 470+120*2, curr_y+20, C.leg_s)
 
 	curr_y += 5
 
@@ -461,10 +477,10 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 
         # render I/O utilization
 	for partition in trace.disk_stats:
-		draw_text(ctx, partition.name, TEXT_COLOR, 0, curr_y+30)
+		draw_text(ctx.cr, partition.name, TEXT_COLOR, 0, curr_y+30)
 
 		# utilization -- inherently normalized [0,1]
-		chart_rect = (0, curr_y+30+5, w, bar_h)
+		chart_rect = (0, curr_y+30+5, w, C.bar_h)
 		draw_box_ticks (ctx, chart_rect)
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
@@ -499,20 +515,20 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 		# label = "%.1fMB/s" % round ((max_sample.tput) / DISK_BLOCK_SIZE)
 		# draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
 
-		curr_y = curr_y + 30 + bar_h
+		curr_y = curr_y + 30 + C.bar_h
 
 	# render mem usage
 	chart_rect = (0, curr_y+30, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
 	if mem_stats:
 		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
-		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Used", MEM_USED_COLOR, 240, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y+20, leg_s)
-		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
-				 MEM_SWAP_COLOR, 480, curr_y+20, leg_s)
-		draw_box_ticks(ctx, chart_rect)
-		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
+		draw_legend_box(ctx.cr, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, curr_y+20, C.leg_s)
+		draw_legend_box(ctx.cr, "Used", MEM_USED_COLOR, 240, curr_y+20, C.leg_s)
+		draw_legend_box(ctx.cr, "Buffers", MEM_BUFFERS_COLOR, 360, curr_y+20, C.leg_s)
+		draw_legend_line(ctx.cr, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
+				 MEM_SWAP_COLOR, 480, curr_y+20, C.leg_s)
+		draw_box_ticks (ctx, chart_rect)
+		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
 			   proc_tree, [0, mem_scale], plot_square)
@@ -530,40 +546,44 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 
 	return curr_y
 
+def late_init_transform(cr):
+	cr.translate(C.off_x, 0)  # current window-coord clip shrinks with loss of the C.off_x-wide strip on left
+
 #
-# Render the chart.
+# Render the chart.  Central method of this module.
 #
-def render(ctx, options, xscale, trace, sweep_csec = None):
+def render(cr, ctx, xscale, trace, sweep_csec = None):
         '''
-	"ctx" is the Cairo drawing context -- the transform matrix it carries already has
-	 panning translation and "zoom" scaling applied, but not the asymmetrical "xscale" arg.
-	"options" is a RenderOptions object.
+	"cr" is the Cairo drawing context -- the transform matrix it carries already has
+	 panning translation and "zoom" scaling applied.
+	 The asymmetrical "xscale" arg is not applied globally to "cr", because
+	 it would distort letterforms of text output.
+	"ctx" is a DrawContext object.
 	'''
 	#traceback.print_stack()
-	(w, h) = extents (options, xscale, trace)
+	(w, h) = extents(ctx, xscale, trace)
 
-	ctx.set_line_width(1.0)
-	ctx.select_font_face(FONT_NAME)
-	draw_fill_rect(ctx, WHITE, (0, 0, max(w, MIN_IMG_W), h))
+	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale))
 
-	global render_serial
-	if sweep_csec:
-		global SWEEP_CSEC, SWEEP_render_serial
-		if SWEEP_CSEC != sweep_csec:
-			SWEEP_render_serial = render_serial
-	SWEEP_CSEC = sweep_csec
+	ctx.cr.set_line_width(1.0)
+	ctx.cr.select_font_face(FONT_NAME)
+	draw_fill_rect(ctx.cr, WHITE, (0, 0, max(w, C.MIN_IMG_W), h))
 
-	ctx.save()
-	ctx.translate(off_x, 0)  # current window-coord clip shrinks with loss of the off_x-wide strip on left
+	if sweep_csec and sweep_csec != ctx.SWEEP_CSEC:
+		ctx.SWEEP_render_serial = ctx.render_serial
+	ctx.SWEEP_CSEC = sweep_csec
 
-	proc_tree = options.proc_tree (trace)
+	ctx.cr.save()
+	late_init_transform(ctx.cr)
+
+	proc_tree = ctx.proc_tree (trace)
 
 	# clip off left-hand side of process bars
-	ctx.new_path()
-	ctx.rectangle(0, 0, w, h)
-	ctx.clip()
+	ctx.cr.new_path()
+	ctx.cr.rectangle(0, 0, w, h)
+	ctx.cr.clip()
 
-	w -= 2*off_x
+	w -= 2*C.off_x
 
 	# draw the title and headers
 	if proc_tree.idle:
@@ -571,102 +591,102 @@ def render(ctx, options, xscale, trace, sweep_csec = None):
 	else:
 		duration = proc_tree.duration()
 
-	if not options.kernel_only:
+	if not ctx.kernel_only:
 		curr_y = draw_header (ctx, trace.headers, duration)
 	else:
-		curr_y = off_y;
+		curr_y = C.off_y;
 
-	if options.charts:
-		curr_y = render_charts (ctx, options, trace, curr_y, w, h)
+	if ctx.charts:
+		curr_y = render_charts (ctx, trace, curr_y, w, h)
 
 	# draw process boxes
 	proc_height = h
-	if proc_tree.taskstats and options.cumulative:
-		proc_height -= CUML_HEIGHT
+	if proc_tree.taskstats and ctx.cumulative:
+		proc_height -= C.CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, options, proc_tree, trace.times,
+	draw_process_bar_chart(ctx, proc_tree, trace.times,
 			       curr_y, w, proc_height)
 
 	curr_y = proc_height
 
 	# draw a cumulative CPU-time-per-process graph
-	if proc_tree.taskstats and options.cumulative:
-		cuml_rect = (0, curr_y + off_y, w, CUML_HEIGHT/2 - off_y * 2)
+	if proc_tree.taskstats and ctx.cumulative:
+		cuml_rect = (0, curr_y + C.off_y, w, C.CUML_HEIGHT/2 - C.off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_CPU)
 
 	# draw a cumulative I/O-time-per-process graph
-	if proc_tree.taskstats and options.cumulative:
-		cuml_rect = (0, curr_y + off_y * 100, w, CUML_HEIGHT/2 - off_y * 2)
+	if proc_tree.taskstats and ctx.cumulative:
+		cuml_rect = (0, curr_y + C.off_y * 100, w, C.CUML_HEIGHT/2 - C.off_y * 2)
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if sweep_csec:
 		width_sec = sweep_window_width_sec(ctx)
-		draw_sweep(ctx, sweep_csec, width_sec * CSEC)
+		draw_sweep(ctx, sweep_csec, width_sec * C.CSEC)
 		#dump_pseudo_event(ctx, "start of event window, width " + int(width*1000) + "msec")
 
-	render_serial += 1
+	ctx.render_serial += 1
 
-	ctx.restore()
+	ctx.cr.restore()
 
 def sweep_window_width_sec(ctx):
 	'''about half the width of the visible part of the per-process bars'''
-	user_width = ctx.device_to_user_distance(500,0)[0]
-	return float(user_width) / SEC_W
+	user_width = ctx.cr.device_to_user_distance(500,0)[0]
+	return float(user_width) / ctx.SEC_W
 
 def draw_sweep(ctx, sweep_csec, width_csec):
-	def draw_shading(ctx, rect):
-		ctx.set_source_rgba(0.0, 0.0, 0.0, 0.1)
-		ctx.set_line_width(0.0)
-		ctx.rectangle(rect)
-		ctx.fill()
-	def draw_vertical(ctx, x):
-		ctx.set_dash([1, 3])
-		ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
-		ctx.set_line_width(1.0)
-		ctx.move_to(x, 0)
-		ctx.line_to(x, CUML_HEIGHT)
-		ctx.stroke()
+	def draw_shading(cr, rect):
+		cr.set_source_rgba(0.0, 0.0, 0.0, 0.1)
+		cr.set_line_width(0.0)
+		cr.rectangle(rect)
+		cr.fill()
+	def draw_vertical(cr, x):
+		cr.set_dash([1, 3])
+		cr.set_source_rgba(0.0, 0.0, 0.0, 1.0)
+		cr.set_line_width(1.0)
+		cr.move_to(x, 0)
+		cr.line_to(x, C.CUML_HEIGHT)
+		cr.stroke()
 
-	x = csec_to_xscaled(sweep_csec)
-	draw_shading(ctx, (int(x),0,int(ctx.clip_extents()[0]-x),CUML_HEIGHT))
-	draw_vertical(ctx, x)
+	x = csec_to_xscaled(ctx, sweep_csec)
+	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[0]-x),C.CUML_HEIGHT))
+	draw_vertical(ctx.cr, x)
 
-	x = csec_to_xscaled(sweep_csec + width_csec)
-	draw_shading(ctx, (int(x),0,int(ctx.clip_extents()[2]-x),CUML_HEIGHT))
-	draw_vertical(ctx, x)
+	x = csec_to_xscaled(ctx, sweep_csec + width_csec)
+	draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[2]-x),C.CUML_HEIGHT))
+	draw_vertical(ctx.cr, x)
 
-def draw_process_bar_chart(ctx, options, proc_tree, times, curr_y, w, h):
+def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 	header_size = 0
-	if not options.kernel_only:
-		draw_legend_diamond (ctx, "Runnable",
-				 PROCS_RUNNING_COLOR, 10, curr_y + 45, leg_s*3/4, proc_h)
-		draw_legend_diamond (ctx, "Uninterruptible Syscall",
-				 PROC_COLOR_D, 10+100, curr_y + 45, leg_s*3/4, proc_h)
-		draw_legend_box (ctx, "Running (%cpu)",
-				 PROC_COLOR_R, 10+100+180, curr_y + 45, leg_s)
-		draw_legend_box (ctx, "Sleeping",
-				 PROC_COLOR_S, 10+100+180+130, curr_y + 45, leg_s)
-		draw_legend_box (ctx, "Zombie",
-				 PROC_COLOR_Z, 10+100+180+130+90, curr_y + 45, leg_s)
+	if not ctx.kernel_only:
+		draw_legend_diamond (ctx.cr, "Runnable",
+				 PROCS_RUNNING_COLOR, 10, curr_y + 45, C.leg_s*3/4, C.proc_h)
+		draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",
+				 PROC_COLOR_D, 10+100, curr_y + 45, C.leg_s*3/4, C.proc_h)
+		draw_legend_box (ctx.cr, "Running (%cpu)",
+				 PROC_COLOR_R, 10+100+180, curr_y + 45, C.leg_s)
+		draw_legend_box (ctx.cr, "Sleeping",
+				 PROC_COLOR_S, 10+100+180+130, curr_y + 45, C.leg_s)
+		draw_legend_box (ctx.cr, "Zombie",
+				 PROC_COLOR_Z, 10+100+180+130+90, curr_y + 45, C.leg_s)
 		header_size = 45
 
 	#chart_rect = [0, curr_y + header_size + 30,
-	#	      w, h - 2 * off_y - (curr_y + header_size + 15) + proc_h]
+	#	      w, h - 2 * C.off_y - (curr_y + header_size + 15) + C.proc_h]
 	chart_rect = [-1, -1, -1, -1]
-	ctx.set_font_size (PROC_TEXT_FONT_SIZE)
+	ctx.cr.set_font_size (PROC_TEXT_FONT_SIZE)
 
-	if SEC_W > 100:
+	if ctx.SEC_W > 100:
 		nsec = 1
 	else:
 		nsec = 5
-	#draw_sec_labels (ctx, chart_rect, nsec)
+	#draw_sec_labels (ctx.cr, chart_rect, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
 	y = curr_y + 60
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h)
-		y = y + proc_h * proc_tree.num_nodes([root])
-	if SWEEP_CSEC and SWEEP_render_serial == render_serial:
+		draw_processes_recursively(ctx, root, proc_tree, y)
+		y = y + C.proc_h * proc_tree.num_nodes([root])
+	if ctx.SWEEP_CSEC and ctx.SWEEP_render_serial == ctx.render_serial:
 		# mark end of this batch of events, for the benefit of post-processors
 		print
 		sys.stdout.flush()
@@ -679,81 +699,83 @@ def draw_header (ctx, headers, duration):
       ('system.kernel.options', 'kernel options', lambda s: s),
     ]
 
-    header_y = ctx.font_extents()[2] + 10
-    ctx.set_font_size(TITLE_FONT_SIZE)
-    draw_text(ctx, headers['title'], TEXT_COLOR, 0, header_y)
-    ctx.set_font_size(TEXT_FONT_SIZE)
+    cr = ctx.cr
+    header_y = cr.font_extents()[2] + 10
+    cr.set_font_size(TITLE_FONT_SIZE)
+    draw_text(cr, headers['title'], TEXT_COLOR, 0, header_y)
+    cr.set_font_size(TEXT_FONT_SIZE)
 
     for (headerkey, headertitle, mangle) in toshow:
-        header_y += ctx.font_extents()[2]
+        header_y += cr.font_extents()[2]
         if headerkey in headers:
             value = headers.get(headerkey)
         else:
             value = ""
         txt = headertitle + ': ' + mangle(value)
-        draw_text(ctx, txt, TEXT_COLOR, 0, header_y)
+        draw_text(cr, txt, TEXT_COLOR, 0, header_y)
 
 #     dur = duration / 100.0
 #     txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
 #     if headers.get('system.maxpid') is not None:
 #         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
 #
-#    header_y += ctx.font_extents()[2]
-#    draw_text (ctx, txt, TEXT_COLOR, 0, header_y)
+#    header_y += cr.font_extents()[2]
+#    draw_text (cr, txt, TEXT_COLOR, 0, header_y)
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h):
-	xmin, ymin = ctx.device_to_user(0, 0)   # work around numeric overflow at high xscale factors
-	x = max(xmin, csec_to_xscaled(proc.start_time))
-	w = max(xmin, csec_to_xscaled(proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
+def draw_processes_recursively(ctx, proc, proc_tree, y):
+	xmin, ymin = ctx.cr.device_to_user(0, 0)   # work around numeric overflow at high xscale factors
+	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
+	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x  # XX parser fudges duration upward
 
-	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h)
+	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w)
 
 	# Do not draw right-hand vertical border -- process exit never exactly known
-	ctx.set_source_rgba(*PROC_BORDER_COLOR)
-	ctx.set_line_width(1.0)
-	ctx.move_to(x+w, y)
-	ctx.rel_line_to(-w, 0)
-	ctx.rel_line_to(0, proc_h)
-	ctx.rel_line_to(w, 0)
-	ctx.stroke()
+	ctx.cr.set_source_rgba(*PROC_BORDER_COLOR)
+	ctx.cr.set_line_width(1.0)
+	ctx.cr.move_to(x+w, y)
+	ctx.cr.rel_line_to(-w, 0)
+	ctx.cr.rel_line_to(0, C.proc_h)
+	ctx.cr.rel_line_to(w, 0)
+	ctx.cr.stroke()
 
-	draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h)
+	draw_process_state_colors(ctx, proc, proc_tree, x, y, w)
 
-	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);
-	# user can work around this by toggling off the event ticks.
-	if not OPTIONS.app_options.hide_events:
-		draw_process_events(ctx, proc, proc_tree, x, y, proc_h)
+	# Event ticks step on the rectangle painted by draw_process_state_colors(),
+	# e.g. for non-interruptible wait.
+	# User can work around this by toggling off the event ticks.
+	if not ctx.app_options.hide_events:
+		draw_process_events(ctx, proc, proc_tree, x, y)
 
 	ipid = int(proc.pid)
-	if proc_tree.taskstats and OPTIONS.app_options.show_all:
+	if proc_tree.taskstats and ctx.app_options.show_all:
 		cmdString = ''
 	else:
 		cmdString = proc.cmd
-	if (OPTIONS.app_options.show_pid or OPTIONS.app_options.show_all) and ipid is not 0:
+	if (ctx.app_options.show_pid or ctx.app_options.show_all) and ipid is not 0:
 		cmdString = cmdString + " [" + str(ipid / 1000) + "]"
-	if OPTIONS.app_options.show_all:
+	if ctx.app_options.show_all:
 		if proc.args:
 			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"
 		else:
 			cmdString = cmdString
 
-	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString,
-			csec_to_xscaled(proc.start_time), y,
-			w, proc_h,
-			max(0, xmin), ctx.clip_extents()[2])
+	ctx.draw_label_in_box(PROC_TEXT_COLOR, cmdString,
+			csec_to_xscaled(ctx, proc.start_time), y,
+			w,
+			max(0, xmin), ctx.cr.clip_extents()[2])
 
-	next_y = y + proc_h
+	next_y = y + C.proc_h
 	for child in proc.child_list:
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h)
-		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
-		next_y = next_y + proc_h * proc_tree.num_nodes([child])
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y)
+		draw_process_connecting_lines(ctx, x, y, child_x, child_y)
+		next_y = next_y + C.proc_h * proc_tree.num_nodes([child])
 
 	return x, y
 
-def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h):
-	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
+def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
+	draw_fill_rect(ctx.cr, PROC_COLOR_S, (x, y, w, C.proc_h))
 	if len(proc.samples) <= 0:
 		return
 	# cases:
@@ -766,101 +788,101 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h):
 		alpha = min(sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)  # XX rationale?
  		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
 		# XXX  correct color for non-uniform sample intervals
-		draw_fill_rect(ctx, cpu_color, (last_time, y, sample.time - last_time, proc_h))
+		draw_fill_rect(ctx.cr, cpu_color, (last_time, y, sample.time - last_time, C.proc_h))
 		last_time = sample.time
-	ctx.restore()
+	ctx.cr.restore()
 
 def usec_to_csec(usec):
 	'''would drop precision without the float() cast'''
 	return float(usec) / 1000 / 10
 
-def draw_process_events(ctx, proc, proc_tree, x, y, proc_h):
-	ev_regex = re.compile(OPTIONS.app_options.event_regex)
-	ev_list = [(ev, csec_to_xscaled(usec_to_csec(ev.time_usec)))
+def draw_process_events(ctx, proc, proc_tree, x, y):
+	ev_regex = re.compile(ctx.app_options.event_regex)
+	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
 		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
 		   for ev in proc.events]
 	if not ev_list:
 		return
-	if SWEEP_CSEC:
-		time_origin_relative = SWEEP_CSEC
-	elif OPTIONS.app_options.absolute_uptime_event_times:
+	if ctx.SWEEP_CSEC:
+		time_origin_relative = ctx.SWEEP_CSEC
+	elif ctx.app_options.absolute_uptime_event_times:
 		time_origin_relative = 0
 	else:
 		# align to time of first sample
-		time_origin_relative = time_origin_drawn + proc_tree.sample_period
+		time_origin_relative = ctx.time_origin_drawn + proc_tree.sample_period
 
-	width_csec = sweep_window_width_sec(ctx) * CSEC
+	width_csec = sweep_window_width_sec(ctx) * C.CSEC
 	# draw ticks, maybe dump log line
 	for (ev, tx) in ev_list:
-		ctx.set_source_rgba(*EVENT_COLOR)
+		ctx.cr.set_source_rgba(*EVENT_COLOR)
 		W,H = 1,5
-		if SWEEP_CSEC and ev.raw_log_line:
+		if ctx.SWEEP_CSEC and ev.raw_log_line:
 			delta_csec = float(ev.time_usec)/1000/10 - time_origin_relative
 			if delta_csec >= 0 and delta_csec < width_csec:
-				# ctx.set_source_rgba(*MAGENTA)
+				# ctx.cr.set_source_rgba(*MAGENTA)
 				# W,H = 2,8
-				if SWEEP_render_serial == render_serial:
+				if ctx.SWEEP_render_serial == ctx.render_serial:
 					print ev.raw_log_line,
-		ctx.move_to(tx-W, y+proc_h) # bottom-left
-		ctx.rel_line_to(W,-H)       # top
-		ctx.rel_line_to(W, H)       # bottom-right
-		ctx.close_path()
-		ctx.fill()
+		ctx.cr.move_to(tx-W, y+C.proc_h) # bottom-left
+		ctx.cr.rel_line_to(W,-H)       # top
+		ctx.cr.rel_line_to(W, H)       # bottom-right
+		ctx.cr.close_path()
+		ctx.cr.fill()
 
 	# draw numbers
-	if not OPTIONS.app_options.print_event_times:
+	if not ctx.app_options.print_event_times:
 		return
-	ctx.set_source_rgba(*EVENT_COLOR)
-	spacing = ctx.text_extents("00")[2]
+	ctx.cr.set_source_rgba(*EVENT_COLOR)
+	spacing = ctx.cr.text_extents("00")[2]
 	last_x_touched = 0
 	last_label_str = None
 	for (ev, tx) in ev_list:
 		if tx < last_x_touched + spacing:
 			continue
 		delta = float(ev.time_usec)/1000/10 - time_origin_relative
-		if SWEEP_CSEC:
-			if abs(delta) < CSEC:
+		if ctx.SWEEP_CSEC:
+			if abs(delta) < C.CSEC:
 				label_str = '{0:3d}'.format(int(delta*10))
 			else:
-				label_str = '{0:.{prec}f}'.format(float(delta)/CSEC,
-								  prec=min(3, max(1, abs(int(3*CSEC/delta)))))
+				label_str = '{0:.{prec}f}'.format(float(delta)/C.CSEC,
+								  prec=min(3, max(1, abs(int(3*C.CSEC/delta)))))
 		else:
 			# format independent of delta
-			label_str = '{0:.{prec}f}'.format(float(delta)/CSEC,
-							  prec=min(3, max(0, int(SEC_W/100))))
+			label_str = '{0:.{prec}f}'.format(float(delta)/C.CSEC,
+							  prec=min(3, max(0, int(ctx.SEC_W/100))))
 		if label_str != last_label_str:
 			last_x_touched = tx + draw_label_in_box_at_time(
-				ctx, PROC_TEXT_COLOR,
+				ctx.cr, PROC_TEXT_COLOR,
 				label_str,
-				y + proc_h - 4, tx)
+				y + C.proc_h - 4, tx)
 			last_label_str = label_str
 
-def draw_process_state_colors(ctx, proc, proc_tree, x, y, w, proc_h):
+def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):
 	last_tx = -1
 	for sample in proc.samples :
-		tx = csec_to_xscaled(sample.time)
+		tx = csec_to_xscaled(ctx, sample.time)
 		state = get_proc_state( sample.state )
 		if state == STATE_WAITING or state == STATE_RUNNING:
 			color = STATE_COLORS[state]
-			ctx.set_source_rgba(*color)
-			draw_diamond(ctx, tx, y + proc_h/2, 2.5, proc_h)
+			ctx.cr.set_source_rgba(*color)
+			draw_diamond(ctx.cr, tx, y + C.proc_h/2, 2.5, C.proc_h)
 
-def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
-	ctx.set_source_rgba(*DEP_COLOR)
-	ctx.set_dash([2, 2])
+def draw_process_connecting_lines(ctx, px, py, x, y):
+	ctx.cr.set_source_rgba(*DEP_COLOR)
+	ctx.cr.set_dash([2, 2])
 	if abs(px - x) < 3:
 		dep_off_x = 3
-		dep_off_y = proc_h / 4
-		ctx.move_to(x, y + proc_h / 2)
-		ctx.line_to(px - dep_off_x, y + proc_h / 2)
-		ctx.line_to(px - dep_off_x, py - dep_off_y)
-		ctx.line_to(px, py - dep_off_y)
+		dep_off_y = C.proc_h / 4
+		ctx.cr.move_to(x, y + C.proc_h / 2)
+		ctx.cr.line_to(px - dep_off_x, y + C.proc_h / 2)
+		ctx.cr.line_to(px - dep_off_x, py - dep_off_y)
+		ctx.cr.line_to(px, py - dep_off_y)
 	else:
-		ctx.move_to(x, y + proc_h / 2)
-		ctx.line_to(px, y + proc_h / 2)
-		ctx.line_to(px, py)
-	ctx.stroke()
-	ctx.set_dash([])
+		ctx.cr.move_to(x, y + C.proc_h / 2)
+		ctx.cr.line_to(px, y + C.proc_h / 2)
+		ctx.cr.line_to(px, py)
+	ctx.cr.stroke()
+	ctx.cr.set_dash([])
 
 class CumlSample:
 	def __init__(self, proc):
@@ -936,7 +958,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 	# same colors each time we render
 	random.seed (0)
 
-	ctx.set_line_width(1)
+	ctx.cr.set_line_width(1)
 
 	legends = []
 	labels = []
@@ -957,7 +979,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 		y = last_below = below[last_time]
 		last_cuml = cuml = 0.0
 
-		ctx.set_source_rgba(*cs.get_color())
+		ctx.cr.set_source_rgba(*cs.get_color())
 		for time in times:
 			render_seg = False
 
@@ -983,9 +1005,9 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 			if render_seg:
 				w = math.ceil ((time - last_time) * chart_bounds[2] / proc_tree.duration()) + 1
 				x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration())
-				ctx.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
-				ctx.fill()
-#				ctx.stroke()
+				ctx.cr.rectangle (x, below[last_time] - last_cuml, w, last_cuml)
+				ctx.cr.fill()
+#				ctx.cr.stroke()
 				last_time = time
 				y = below [time] - cuml
 
@@ -994,14 +1016,14 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 		# render the last segment
 		x = chart_bounds[0] + round((last_time - proc_tree.start_time) * chart_bounds[2] / proc_tree.duration())
 		y = below[last_time] - cuml
-		ctx.rectangle (x, y, chart_bounds[2] - x, cuml)
-		ctx.fill()
-#		ctx.stroke()
+		ctx.cr.rectangle (x, y, chart_bounds[2] - x, cuml)
+		ctx.cr.fill()
+#		ctx.cr.stroke()
 
 		# render legend if it will fit
 		if cuml > 8:
 			label = cs.cmd
-			extnts = ctx.text_extents(label)
+			extnts = ctx.cr.text_extents(label)
 			label_w = extnts[2]
 			label_h = extnts[3]
 #			print "Text extents %g by %g" % (label_w, label_h)
@@ -1016,18 +1038,18 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 		below = row
 
 	# render grid-lines over the top
-	draw_box_ticks(ctx, chart_bounds)
+	draw_box_ticks (ctx, chart_bounds)
 
 	# render labels
 	for l in labels:
-		draw_text(ctx, l[0], TEXT_COLOR, l[1], l[2])
+		draw_text(ctx.cr, l[0], TEXT_COLOR, l[1], l[2])
 
 	# Render legends
 	font_height = 20
 	label_width = 300
 	LEGENDS_PER_COL = 15
 	LEGENDS_TOTAL = 45
-	ctx.set_font_size (TITLE_FONT_SIZE)
+	ctx.cr.set_font_size (TITLE_FONT_SIZE)
 	dur_secs = duration / 100
 	cpu_secs = total_time / 1000000000
 
@@ -1040,19 +1062,19 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, stat_type):
 		label = "Cumulative I/O usage, by process; total I/O: " \
 			" %.5g(s) time: %.3g(s)" % (cpu_secs, dur_secs)
 
-	draw_text(ctx, label, TEXT_COLOR, chart_bounds[0],
+	draw_text(ctx.cr, label, TEXT_COLOR, chart_bounds[0],
 		  chart_bounds[1] + font_height)
 
 	i = 0
 	legends.sort(lambda a, b: cmp (b[1], a[1]))
-	ctx.set_font_size(TEXT_FONT_SIZE)
+	ctx.cr.set_font_size(TEXT_FONT_SIZE)
 	for t in legends:
 		cs = t[0]
 		time = t[1]
 		x = chart_bounds[0] + int (i/LEGENDS_PER_COL) * label_width
 		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
 		str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
-		draw_legend_box(ctx, str, cs.color, x, y, leg_s)
+		draw_legend_box(ctx.cr, str, cs.color, x, y, C.leg_s)
 		i = i + 1
 		if i >= LEGENDS_TOTAL:
 			break

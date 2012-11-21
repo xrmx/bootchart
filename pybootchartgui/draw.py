@@ -21,8 +21,8 @@ import random
 import colorsys
 import traceback
 
+# XX  Generalize this, to hold all global drawing state?
 class RenderOptions:
-
 	def __init__(self, app_options):
 		# should we render a cumulative CPU time chart
 		self.cumulative = True
@@ -191,7 +191,7 @@ def draw_legend_line(ctx, label, fill_color, x, y, s):
 
 def draw_label_in_box(ctx, color, label, x, y, w, minx, maxx):
 	label_w = ctx.text_extents(label)[2]
-	if OPTIONS.justify == JUSTIFY_LEFT:
+	if OPTIONS.app_options.justify == JUSTIFY_LEFT:
 		label_x = x
 	else:
 		label_x = x + w / 2 - label_w / 2   # CENTER
@@ -350,10 +350,16 @@ proc_h = 16 # the height of a process
 leg_s = 11
 MIN_IMG_W = 800
 CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
+
+# Variables
 OPTIONS = None
 
 SEC_W = None
 time_origin_drawn = None  # time of leftmost plotted data
+
+SWEEP_CSEC = None
+SWEEP_render_serial = None
+render_serial = 0
 
 # window coords
 
@@ -366,10 +372,10 @@ def in_chart_X_margin(proc_tree):
 # (w) will get bigger if xscale does.
 def extents(options, xscale, trace):
 	global OPTIONS, time_origin_drawn
-	OPTIONS = options.app_options
+	OPTIONS = options
 
 	proc_tree = options.proc_tree(trace)
-	if OPTIONS.prehistory:
+	if OPTIONS.app_options.prehistory:
 		time_origin_drawn = 0  # XX  Would have to be process_tree.starttime for backwards compatibility
 	else:
 		time_origin_drawn = trace.cpu_stats[0].time - in_chart_X_margin(proc_tree)
@@ -424,7 +430,7 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 	# render second chart
 	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
 			IO_COLOR, 0, curr_y+20, leg_s)
-	if OPTIONS.show_ops_not_bytes:
+	if OPTIONS.app_options.show_ops_not_bytes:
 		unit = "ops"
 	else:
 		unit = "bytes"
@@ -509,15 +515,15 @@ def render_charts(ctx, options, trace, curr_y, w, h):
 
 	return curr_y
 
-SWEEP_CSEC = None
-SWEEP_render_serial = None
-
 #
 # Render the chart.
 #
-# "ctx" is the Cairo drawing context.  ctx transform already has panning translation
-# and "zoom" scaling applied, but not the asymmetrical xscale arg.
 def render(ctx, options, xscale, trace, sweep_csec = None):
+        '''
+	"ctx" is the Cairo drawing context -- the transform matrix it carries already has
+	 panning translation and "zoom" scaling applied, but not the asymmetrical "xscale" arg.
+	"options" is a RenderOptions object.
+	'''
 	#traceback.print_stack()
 	(w, h) = extents (options, xscale, trace)
 
@@ -583,8 +589,6 @@ def render(ctx, options, xscale, trace, sweep_csec = None):
 	render_serial += 1
 
 	ctx.restore()
-
-render_serial = 0
 
 def draw_sweep(ctx, sweep_csec):
 	ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
@@ -683,17 +687,17 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect) :
 
 	# Event ticks step on the rectangle painted by draw_process_state_colors() (e.g. for non-interruptible wait);
 	# user can work around this by toggling off the event ticks.
-	if not OPTIONS.hide_events:
+	if not OPTIONS.app_options.hide_events:
 		draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect)
 
 	ipid = int(proc.pid)
-	if proc_tree.taskstats and OPTIONS.show_all:
+	if proc_tree.taskstats and OPTIONS.app_options.show_all:
 		cmdString = ''
 	else:
 		cmdString = proc.cmd
-	if (OPTIONS.show_pid or OPTIONS.show_all) and ipid is not 0:
+	if (OPTIONS.app_options.show_pid or OPTIONS.app_options.show_all) and ipid is not 0:
 		cmdString = cmdString + " [" + str(ipid / 1000) + "]"
-	if OPTIONS.show_all:
+	if OPTIONS.app_options.show_all:
 		if proc.args:
 			cmdString = cmdString + " '" + "' '".join(proc.args) + "'"
 		else:
@@ -733,7 +737,7 @@ def usec_to_csec(usec):
 	return float(usec) / 1000 / 10
 
 def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
-	ev_regex = re.compile(OPTIONS.event_regex)
+	ev_regex = re.compile(OPTIONS.app_options.event_regex)
 	ev_list = [(ev, csec_to_xscaled(usec_to_csec(ev.time_usec)))
 		   if ((not ev.raw_log_line) or ev_regex.match(ev.raw_log_line)) else None
 		   for ev in proc.events]
@@ -765,7 +769,7 @@ def draw_process_events(ctx, proc, proc_tree, x, y, proc_h, rect):
 		ctx.fill()
 
 	# draw numbers
-	if not OPTIONS.print_event_times:
+	if not OPTIONS.app_options.print_event_times:
 		return
 	ctx.set_source_rgba(*EVENT_COLOR)
 	spacing = ctx.text_extents("00")[2]

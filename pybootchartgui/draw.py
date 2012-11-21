@@ -294,9 +294,9 @@ def plot_scatter_positive(ctx, point, x, y):
 
 # All charts assumed to be full-width
 def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot_point_func):
-	def transform_point_coords(point, y_base, yscale, y_trans):
+	def transform_point_coords(point, y_base, yscale):
 		x = csec_to_xscaled(point[0])
-		y = (point[1] - y_base) * -yscale + y_trans + chart_bounds[3]
+		y = (point[1] - y_base) * -yscale + chart_bounds[1] + chart_bounds[3]
 		return x, y
 
 	max_y = max (y for (x, y) in data)
@@ -316,14 +316,14 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range, plot
 
 	# move to the x of the missing first sample point
 	first = transform_point_coords ([time_origin_drawn + in_chart_X_margin(proc_tree), -9999],
-					ybase, yscale, chart_bounds[1])
+					ybase, yscale)
 	ctx.move_to(first[0], first[1])
 
 	for point in data:
-		x, y = transform_point_coords (point, ybase, yscale, chart_bounds[1])
+		x, y = transform_point_coords (point, ybase, yscale)
 		plot_point_func(ctx, point, x, y)
 
-	final = transform_point_coords (data[-1], ybase, yscale, chart_bounds[1])
+	final = transform_point_coords (data[-1], ybase, yscale)
 
 	if fill:
 		ctx.set_line_width(0.0)

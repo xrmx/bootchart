@@ -62,21 +62,14 @@ class PyBootchartWidget(gtk.DrawingArea):
 
     def do_expose_event(self, event):    # XX called on mouse entering or leaving window -- can these be disabled?
         cr = self.window.cairo_create()
-
-        # set a clip region for the expose event
-        cr.rectangle(
-                event.area.x, event.area.y,
-                event.area.width, event.area.height
-        )
-        cr.clip()
-        self.draw(cr, self.get_allocation())   # XX  get_allocation()  can yield a sub-rectangle of  cr.clip_extents()
+        self.draw(cr)
         return False
 
     def cr_set_up_transform(self, cr):
         cr.scale(self.zoom_ratio, self.zoom_ratio)
         cr.translate(-self.x, -self.y)
 
-    def draw(self, cr, rect):
+    def draw(self, cr):
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.paint()                               # fill whole DrawingArea with white
         self.cr_set_up_transform(cr)

@@ -84,7 +84,7 @@ MEM_SWAP_COLOR = DISK_TPUT_COLOR
 # Process border color.
 PROC_BORDER_COLOR = (0.71, 0.71, 0.71, 1.0)
 # Waiting process color.
-PROC_COLOR_D = (0.76, 0.48, 0.48, 0.5)
+PROC_COLOR_D = (0.76, 0.45, 0.35, 1.0)
 # Running process color.
 PROC_COLOR_R = CPU_COLOR   # (0.40, 0.50, 0.80, 1.0)  # should look similar to CPU_COLOR
 # Sleeping process color.
@@ -130,7 +130,7 @@ STATE_WAITING   = 3
 STATE_STOPPED   = 4
 STATE_ZOMBIE    = 5
 
-STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_R, PROC_COLOR_S, PROC_COLOR_D, \
+STATE_COLORS = [(0, 0, 0, 0), PROC_COLOR_S, PROC_COLOR_S, PROC_COLOR_D, \
 		PROC_COLOR_T, PROC_COLOR_Z, PROC_COLOR_X, PROC_COLOR_W]
 
 JUSTIFY_LEFT = "left"
@@ -614,13 +614,13 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 		last_tx = tx + tw
 		state = get_proc_state( sample.state )
 
-		color = STATE_COLORS[state]
-		if state == STATE_RUNNING or state == STATE_SLEEPING:
-			alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
-			color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
-#			print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
+		alpha = min (sample.cpu_sample.user + sample.cpu_sample.sys, 1.0)
+		cpu_color = tuple(list(PROC_COLOR_R[0:3]) + [alpha])
+#		print "render time %d [ tx %d tw %d ], sample state %s color %s alpha %g" % (sample.time, tx, tw, state, color, alpha)
+		draw_fill_rect(ctx, cpu_color, (tx, y, tw, proc_h * 7 / 8))
 
-		draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
+		color = STATE_COLORS[state]
+		draw_fill_rect(ctx, color, (tx, y + proc_h * 7 / 8, tw, proc_h / 8))
 
 def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.set_source_rgba(*DEP_COLOR)

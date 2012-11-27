@@ -32,6 +32,9 @@ class PyBootchartWidget(gtk.DrawingArea):
     def __init__(self, trace, drawctx, xscale):
         gtk.DrawingArea.__init__(self)
 
+        # large values cause toolbar to morph into a dropdown
+        self.MAX_STATUS_LABEL_CHARS = 50     # XX  gross hack
+
         self.trace = trace
         self.drawctx = drawctx
 
@@ -44,6 +47,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.connect("motion-notify-event", self.on_area_motion_notify)
         self.connect("scroll-event", self.on_area_scroll_event)
         self.connect('key-press-event', self.on_key_press_event)
+        self.connect('key-release-event', self.on_key_release_event)
 
         self.connect('set-scroll-adjustments', self.on_set_scroll_adjustments)
         self.connect("size-allocate", self.on_allocation_size_changed)
@@ -213,11 +217,15 @@ class PyBootchartWidget(gtk.DrawingArea):
 
     POS_INCREMENT = 100
 
+    def _set_italic_label(self, text):
+        self.status_label.set_markup("<span style='italic'>{0:s}</span>".format(text))
+
     # file:///usr/share/doc/libgtk2.0-doc/gtk/GtkWidget.html says:
     #     Returns :
     #        TRUE to stop other handlers from being invoked for the event.
     #        FALSE to propagate the event further
     def on_key_press_event(self, widget, event):
+        # print str(event)
         if event.keyval == gtk.keysyms.Left:
             self.x -= self.POS_INCREMENT/self.zoom_ratio
         elif event.keyval == gtk.keysyms.Right:
@@ -226,10 +234,18 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.y -= self.POS_INCREMENT/self.zoom_ratio
         elif event.keyval == gtk.keysyms.Down:
             self.y += self.POS_INCREMENT/self.zoom_ratio
+        elif event.keyval == gtk.keysyms.Control_L or event.keyval == gtk.keysyms.Control_R:
+            self._set_italic_label("time dilation w/ mouse wheel")
+        elif event.keyval == gtk.keysyms.Alt_L or event.keyval == gtk.keysyms.Alt_R:
+            self._set_italic_label("zoom w/ mouse wheel")
         else:
             return False
         #self.queue_draw()
         self.position_changed()
+        return True
+
+    def on_key_release_event(self, widget, event):
+        self._set_italic_label("")
         return True
 
     def on_area_button_press(self, area, event):
@@ -237,16 +253,20 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.hide_process_y = []
 
         if event.button == 1:
+            self._set_italic_label("pan across chart")
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.FLEUR))
             self.prevmousex = event.x
             self.prevmousey = event.y
         elif event.button == 2 and len(self.hide_process_y) == 0:
+            self._set_italic_label("hide/unhide threads/processes")
             self.hide_process_y.append( self.device_to_csec_user_y(event.x, event.y)[1])
         elif event.button == 3:
             if not self.sweep_csec:
+                self._set_italic_label("dump events within time range to stdout")
                 self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
                                    self.device_to_csec_user_y(self.trace.end_time, 0)[0]]
             else:
+                self._set_italic_label("")
                 self.sweep_csec = None
             self.queue_draw()
         if event.type not in (gtk.gdk.BUTTON_PRESS, gtk.gdk.BUTTON_RELEASE):
@@ -254,6 +274,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         return True
 
     def on_area_button_release(self, area, event):
+        self.status_label.set_markup("")
         if event.button == 1:
             area.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.ARROW))
             self.prevmousex = None
@@ -566,20 +587,27 @@ class PyBootchartShell(gtk.VBox):
 
         uimanager.insert_action_group(actiongroup, 0)
 
+
         # toolbar / h-box
         hbox = gtk.HBox(False, 0)
+        hbox.set_homogeneous(False)
 
-        # Create a Toolbar
         toolbar = uimanager.get_widget('/ToolBar')
-        hbox.pack_start(toolbar, True)
+        toolbar.set_style(gtk.TOOLBAR_ICONS)            # !? no effect
+        toolbar.set_icon_size(gtk.ICON_SIZE_SMALL_TOOLBAR)            # !? no effect
+        toolbar.set_orientation(gtk.ORIENTATION_HORIZONTAL)
+        #toolbar.set_alignment(0.0, 0.5)
+        hbox.pack_start(toolbar, expand=True, fill=True)     # if expand== False, a dropdown menu appears
 
         menubar = uimanager.get_widget("/MenuBar")
-        hbox.pack_start(menubar, True)
+        #menubar.set_alignment(0.0, 0.5)
+        hbox.pack_start(menubar, expand=False)
 
-        # force all the real widgets to the left
-        #  XX Why doesn't this force the others all the way to the left?
-        empty_menubar = gtk.MenuBar()
-        hbox.pack_start(empty_menubar, True, True)
+        self.widget.status_label = gtk.Label("")
+        self.widget.status_label.set_width_chars(self.widget.MAX_STATUS_LABEL_CHARS)
+        self.widget.status_label.set_single_line_mode(True)
+        self.widget.status_label.set_alignment(0.98, 0.5)
+        hbox.pack_end(self.widget.status_label, expand=False, fill=True, padding=2)
 
         self.pack_start(hbox, False)
 

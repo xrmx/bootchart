@@ -992,7 +992,10 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 		prefix = " ["
 		if ctx.app_options.show_all:
 			prefix += str(proc.ppid / 1000) + ":"
-		prefix += str(proc.pid / 1000) + ":" + str(proc.tid / 1000) + "]"
+		prefix += str(proc.pid / 1000)
+		if ctx.trace.ps_threads_stats:
+			prefix += ":" + str(proc.tid / 1000)
+		prefix += "]"
 		cmdString = prefix + cmdString
 	if ctx.app_options.show_all and proc.args:
 		cmdString += " '" + "' '".join(proc.args) + "'"

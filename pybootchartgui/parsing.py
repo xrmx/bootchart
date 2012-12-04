@@ -292,40 +292,40 @@ def _handle_sample(options, trace, processMap, ltime, time,
     assert(type(c_sys) is IntType)
 
     if tid in processMap:
-        process = processMap[tid]
-        process.set_cmd(cmd)
+        proc = processMap[tid]
+        proc.set_cmd(cmd)
     else:
         if time < starttime:
             # large values signify a collector problem, e.g. resource starvation
             writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                           (time, starttime, time-starttime, tid/1000))
 
-        process = Process(pid, tid, cmd, ppid, starttime)
+        proc = Process(pid, tid, cmd, ppid, starttime)
         if ltime:      # process is starting during profiling run
-            process.user_cpu_ticks[0] = 0
-            process.sys_cpu_ticks [0] = 0
-            process.delayacct_blkio_ticks [0] = 0
+            proc.user_cpu_ticks[0] = 0
+            proc.sys_cpu_ticks [0] = 0
+            proc.delayacct_blkio_ticks [0] = 0
             ltime = starttime
         else:
-            process.user_cpu_ticks[0] = userCpu
-            process.sys_cpu_ticks [0] = sysCpu
-            process.delayacct_blkio_ticks [0] = delayacct_blkio_ticks
+            proc.user_cpu_ticks[0] = userCpu
+            proc.sys_cpu_ticks [0] = sysCpu
+            proc.delayacct_blkio_ticks [0] = delayacct_blkio_ticks
             ltime = -100000   #  XX  hacky way of forcing reported load toward zero
-        process.user_cpu_ticks[-1] =        process.user_cpu_ticks[0]
-        process.sys_cpu_ticks [-1] =        process.sys_cpu_ticks [0]
-        process.delayacct_blkio_ticks[-1] = process.delayacct_blkio_ticks[0]
-        processMap[tid] = process      # insert new process into the dict
+        proc.user_cpu_ticks[-1] =        proc.user_cpu_ticks[0]
+        proc.sys_cpu_ticks [-1] =        proc.sys_cpu_ticks [0]
+        proc.delayacct_blkio_ticks[-1] = proc.delayacct_blkio_ticks[0]
+        processMap[tid] = proc      # insert new process into the dict
 
-    userCpuLoad, sysCpuLoad, delayacctBlkioLoad = process.calc_load(userCpu, sysCpu, delayacct_blkio_ticks,
+    userCpuLoad, sysCpuLoad, delayacctBlkioLoad = proc.calc_load(userCpu, sysCpu, delayacct_blkio_ticks,
                                                                     max(1, time - ltime), num_cpus)
 
     cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, c_user, c_sys, delayacctBlkioLoad, 0.0)
-    process.samples.append(ProcessSample(time, state, cpuSample))
+    proc.samples.append(ProcessSample(time, state, cpuSample))
 
     # per-tid store for use by a later phase of parsing of samples gathered at this 'time'
-    process.user_cpu_ticks[-1] = userCpu
-    process.sys_cpu_ticks[-1] = sysCpu
-    process.delayacct_blkio_ticks[-1] = delayacct_blkio_ticks
+    proc.user_cpu_ticks[-1] = userCpu
+    proc.sys_cpu_ticks[-1] = sysCpu
+    proc.delayacct_blkio_ticks[-1] = delayacct_blkio_ticks
 
     if state == "R" and kstkeip != 0 and kstkeip != 0xffffffff:
             _save_PC_sample(trace, options.event_source[" ~ current PC, if thread Runnable"],

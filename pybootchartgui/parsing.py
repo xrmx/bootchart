@@ -287,14 +287,14 @@ def _handle_sample(processMap, ltime, time,
 
     if tid in processMap:
         process = processMap[tid]
-        process.cmd = cmd.strip('()') # XX  loses name changes prior to the final sample
+        process.set_cmd(cmd)
     else:
         if time < starttime:
             # large values signify a collector problem, e.g. resource starvation
             writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                           (time, starttime, time-starttime, tid/1000))
 
-        process = Process(pid, tid, cmd.strip('()'), ppid, starttime)
+        process = Process(pid, tid, cmd, ppid, starttime)
         if ltime:      # process is starting during profiling run
             process.user_cpu_ticks[0] = 0
             process.sys_cpu_ticks [0] = 0

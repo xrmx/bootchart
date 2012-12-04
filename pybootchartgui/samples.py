@@ -19,6 +19,9 @@ import re
 
 from . import writer
 
+# To understand this, see comment "Fedora hack"
+PID_SCALE = 1000
+
 class EventSource:
     """ Extract (EventSample)s from some disjoint subset of the available log entries """
     def __init__(self, label, filename, regex):
@@ -181,10 +184,10 @@ class Process:
     def __init__(self, pid, tid, cmd, ppid, start_time):
         self.pid = pid
         self.tid = tid
-        self.cmd = cmd
-        self.exe = cmd
+        self.exe = cmd  # may be overwritten, later
         self.args = []
         self.ppid = ppid
+        self.set_cmd(cmd)  # XX  depends on self.ppid
         self.start_time = start_time
         self.duration = 0
         self.samples = []        # list of ProcessCPUSample
@@ -256,3 +259,11 @@ class Process:
     def get_end_time(self):
         return self.start_time + self.duration
 
+    def set_cmd(self, cmd):
+        cmd = cmd.strip('()')
+        # In case the collector writes the executable's pathname into the 'comm' field
+        # of /proc/[pid]/stat, strip off all but the basename, to preserve screen space
+        # -- but some kernel threads are named like so 'ksoftirqd/0'.  Hack around
+        # this by carving out an exception for all children of 'kthreadd'
+        kthreadd_pid = 2 * PID_SCALE
+        self.cmd = cmd.split('/')[-1] if self.ppid != kthreadd_pid else cmd

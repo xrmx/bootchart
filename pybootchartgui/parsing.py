@@ -103,7 +103,7 @@ class Trace:
     def _generate_sample_start_pseudo_events(self, options):
         es = EventSource(" ~ bootchartd sample start points", "", "")   # empty regex
         es.parsed = []
-        es.enable = True
+        es.enable = False
         init_pid = 1
         for cpu in self.cpu_stats:
             # assign to the init process's bar, for lack of any better
@@ -426,17 +426,14 @@ def _distribute_belatedly_reported_delayacct_blkio_ticks(processMap):
                 io_acc = s.cpu_sample.io + s.cpu_sample.user + s.cpu_sample.sys - 1.0
                 s.cpu_sample.io -= io_acc
 
-def _init_pseudo_EventSource_for_PC_samples(name):
-    es = EventSource(name, "", "")   # empty regex
-    es.enable = False
-    es.parsed = []
-    return es
-
 def _init_pseudo_EventSources_for_PC_samples(options):
-    for label in [" ~ current PC, if thread Runnable",
-                  " ~ current PC, if thread in non-interruptible D-wait",
-                  " ~ kernel function wchan, if thread in non-interruptible D-wait"]:
-        es = _init_pseudo_EventSource_for_PC_samples(label)
+    for label, enable in [
+        (" ~ current PC, if thread Runnable", False),
+        (" ~ current PC, if thread in non-interruptible D-wait", False),
+        (" ~ kernel function wchan, if thread in non-interruptible D-wait", True)]:
+        es = EventSource(label, "", "")   # empty regex
+        es.enable = enable
+        es.parsed = []
         options.event_source[label] = es   # XX  options.event_source must be used because the Trace object is not yet instantiated
 
 def _parse_proc_ps_log(options, trace, file, num_cpus):

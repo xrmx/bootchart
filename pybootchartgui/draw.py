@@ -22,7 +22,7 @@ import colorsys
 import collections
 import traceback # debug
 
-from samples import IOStat, EventSample, PID_SCALE, LWP_OFFSET
+from samples import IOStat, EventSample, PID_SCALE, LWP_OFFSET, KTHREADD_PID
 from . import writer
 
 # Constants: Put the more heavily used, non-derived constants in a named tuple, for immutability.
@@ -1043,7 +1043,12 @@ def draw_processes_recursively(ctx, proc, proc_tree, y):
 				ctx.proc_above_was_hidden = False
 			return x, y + C.proc_h*(1 if n_highlighted_events <= 0 else 2)
 
-	x, child_y = draw_process_and_separator(ctx, proc, proc_tree, y)
+	# Hide proc_ps_stat.log "processes" for the kernel-daemon children of kthreadd, provided that
+	# corresponding lwp entries are available from proc_ps_thread.log
+	if proc.ppid / PID_SCALE != KTHREADD_PID or not proc.lwp_list:
+		x, child_y = draw_process_and_separator(ctx, proc, proc_tree, y)
+	else:
+		x, child_y = 0, y
 
 	if proc.lwp_list is not None:
 		for lwp in proc.lwp_list:

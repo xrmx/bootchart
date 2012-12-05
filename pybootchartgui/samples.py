@@ -23,6 +23,8 @@ from . import writer
 PID_SCALE = 1000
 LWP_OFFSET = 1
 
+KTHREADD_PID = 2
+
 class EventSource:
     """ Extract (EventSample)s from some disjoint subset of the available log entries """
     def __init__(self, label, filename, regex):

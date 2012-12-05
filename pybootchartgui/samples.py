@@ -21,6 +21,7 @@ from . import writer
 
 # To understand this, see comment "Fedora hack"
 PID_SCALE = 1000
+LWP_OFFSET = 1
 
 class EventSource:
     """ Extract (EventSample)s from some disjoint subset of the available log entries """
@@ -181,9 +182,11 @@ class ProcessStats:
         writer.info ("process list size: %d" % len (self.process_map.values()))
 
 class Process:
-    def __init__(self, pid, tid, cmd, ppid, start_time):
+    def __init__(self, pid, tid, lwp, cmd, ppid, start_time):
         self.pid = pid
         self.tid = tid
+        assert(type(lwp) is BooleanType)
+        self.lwp_list = None if lwp else []
         self.exe = cmd  # may be overwritten, later
         self.args = []
         self.ppid = ppid
@@ -210,6 +213,10 @@ class Process:
 
         # dynamic, view-dependent per-process state boolean
         self.draw = True
+
+    # Is this an LWP a/k/a pthread?
+    def lwp(self):
+        return self.lwp_list == None
 
     def cpu_tick_count_during_run(self):
         ''' total CPU clock ticks reported for this process during the profiling run'''
@@ -251,8 +258,11 @@ class Process:
     def set_parent(self, processMap):
         if self.ppid != None:
             self.parent = processMap.get (self.ppid)
+            # FIXME: support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
+            if self.parent == None:
+                self.parent = processMap.get (self.ppid + LWP_OFFSET)
             if self.parent == None and self.pid / 1000 > 1 and \
-                not (self.ppid == 2000 or self.pid == 2000): # kernel threads: ppid=2
+                not (self.ppid/PID_SCALE == 2 or self.pid/PID_SCALE == 2): # kernel threads: ppid=2
                 writer.warn("Missing CONFIG_PROC_EVENTS: no parent for pid '%i' ('%s') with ppid '%i'" \
                                 % (self.pid,self.cmd,self.ppid))
 

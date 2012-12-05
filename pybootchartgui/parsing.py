@@ -50,12 +50,16 @@ class Trace:
         self.parent_map = None
         self.mem_stats = None
 
-        # Read in all files, parse each into a time-ordered list
+        # Read in all files, parse each into a time-ordered list, init many of the attributes above
         parse_paths (self, options.paths, options)
 
-        # support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
+        # FIXME: support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
         if not self.ps_stats:
             self.ps_stats = self.ps_threads_stats
+        elif self.ps_threads_stats:
+            for (k,v) in self.ps_threads_stats.process_map.iteritems():
+                self.ps_stats.process_map[k] = v
+            self.ps_threads_stats = True
 
         if not self.valid():
             raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
@@ -285,7 +289,7 @@ def _save_PC_sample(trace, es, time, pid, tid, comm, addr):
 #   2.1  thread continues    (tid in processMap)
 #   2.2  thread starts
 def _handle_sample(options, trace, processMap, ltime, time,
-                   pid, tid, cmd, state, ppid, userCpu, sysCpu,
+                   pid, tid, lwp, cmd, state, ppid, userCpu, sysCpu,
                    kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                    num_cpus):
     assert(type(c_user) is IntType)
@@ -300,7 +304,7 @@ def _handle_sample(options, trace, processMap, ltime, time,
             writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                           (time, starttime, time-starttime, tid/1000))
 
-        proc = Process(pid, tid, cmd, ppid, starttime)
+        proc = Process(pid, tid, lwp, cmd, ppid, starttime)
         if ltime:      # process is starting during profiling run
             proc.user_cpu_ticks[0] = 0
             proc.sys_cpu_ticks [0] = 0
@@ -468,7 +472,7 @@ def _parse_proc_ps_log(options, trace, file, num_cpus):
             pid *= 1000
             ppid *= 1000
             processMap = _handle_sample(options, trace, processMap, ltime, time,
-                                        pid, pid, cmd, state, ppid,
+                                        pid, pid, False, cmd, state, ppid,
                                         userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         num_cpus)
         if ltime:
@@ -533,13 +537,13 @@ def _parse_proc_ps_threads_log(options, trace, file):
             assert(type(c_sys) is IntType)
             starttime = int(tokens[13+offset])
 
-            # magic fixed point-ness ...
-            pid *= 1000
-            tid *= 1000
+            # force sorting later than whole-process records from proc_ps.log
+            pid = pid * PID_SCALE + LWP_OFFSET
+            tid = tid * PID_SCALE + LWP_OFFSET
             ppid *= 1000
 
             processMap = _handle_sample(options, trace, processMap, ltime, time,
-                                        pid, tid, cmd, state, ppid,
+                                        pid, tid, True, cmd, state, ppid,
                                         userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         1)
         ltime = time
@@ -568,7 +572,7 @@ def _parse_taskstats_log(file):
     for time, lines in timed_blocks:
         # we have no 'starttime' from taskstats, so prep 'init'
         if ltime is None:
-            process = Process(1, '[init]', 0, 0)
+            process = Process(1, '[init]', False, 0, 0)
             processMap[1000] = process
             ltime = time
 #                       continue
@@ -601,7 +605,7 @@ def _parse_taskstats_log(file):
                 else:
                     process.cmd = cmd;
             else:
-                process = Process(pid, pid, cmd, ppid, time)
+                process = Process(pid, pid, False, cmd, ppid, time)
                 processMap[pid] = process
 
             delta_cpu_ns = (float) (cpu_ns - process.last_cpu_ns)
@@ -784,7 +788,7 @@ def _parse_dmesg(file):
     processMap = {}
     idx = 0
     inc = 1.0 / 1000000
-    kernel = Process(idx, idx, "k-boot", 0, 0.1)
+    kernel = Process(idx, idx, False, "k-boot", 0, 0.1)
     processMap['k-boot'] = kernel
     base_ts = False
     max_ts = 0
@@ -831,7 +835,7 @@ def _parse_dmesg(file):
 #                               print "match: '%s' ('%g') at '%s'" % (func, ppid, time_ms)
             name = func.split ('+', 1) [0]
             idx += inc
-            processMap[func] = Process(ppid + idx, ppid + idx, name, ppid, time_ms / 10)
+            processMap[func] = Process(ppid + idx, ppid + idx, False, name, ppid, time_ms / 10)
         elif type == "initcall":
 #                       print "finished: '%s' at '%s'" % (func, time_ms)
             if func in processMap:

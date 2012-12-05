@@ -16,6 +16,7 @@
 MAX_PID=100000
 
 from . import writer
+from samples import PID_SCALE, LWP_OFFSET
 
 def sort_func(proc):
     return long(proc.pid) / 1000 * MAX_PID + proc.tid / 1000
@@ -57,6 +58,14 @@ class ProcessTree:
             process_list = kernel + ps_stats.process_map.values()
         self.process_list = sorted(process_list, key = sort_func)
         self.sample_period = sample_period
+
+        # LWPs get appended to a list in their ps_stats Process
+        for proc in self.process_list:
+            if proc.lwp():
+                ps_stats.process_map[proc.pid / PID_SCALE * PID_SCALE].lwp_list.append(proc)
+        for proc in self.process_list:
+            if not proc.lwp():
+                proc.lwp_list.sort(key = sort_func)
 
         self.build()
         if not accurate_parentage:

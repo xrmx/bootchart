@@ -22,7 +22,7 @@ import colorsys
 import collections
 import traceback # debug
 
-from samples import IOStat, EventSample
+from samples import IOStat, EventSample, PID_SCALE, LWP_OFFSET
 from . import writer
 
 # Constants: Put the more heavily used, non-derived constants in a named tuple, for immutability.
@@ -47,6 +47,7 @@ WHITE = (1.0, 1.0, 1.0, 1.0)
 BLACK = (0.0, 0.0, 0.0, 1.0)
 DARK_GREY = (0.1, 0.1, 0.1)
 NOTEPAD_YELLOW = (0.95, 0.95, 0.8, 1.0)
+NOTEPAD_PINK = (1.0, 0.90, 1.0, 1.0)
 PURPLE = (0.6, 0.1, 0.6, 1.0)
 RED = (1.0, 0.0, 0.0)
 MAGENTA = (0.7, 0.0, 0.7, 1.0)
@@ -265,26 +266,26 @@ class DrawContext:
 		self.event_interval_1_RE = copy_if_enabled( self.app_options.event_interval_color, 1)
 
 		if trace.ps_threads_stats:
-			ps_s = trace.ps_threads_stats
-			key_fn = lambda ev: ev.tid * 1000
+			key_fn = lambda ev: ev.tid * PID_SCALE + LWP_OFFSET
 		else:
-			ps_s = trace.ps_stats
-			key_fn = lambda ev: ev.pid * 1000
+			key_fn = lambda ev: ev.pid * PID_SCALE
+
+		p_map = trace.ps_stats.process_map
 
 		# Copy events selected by currently enabled EventSources to per-process lists
-	        for proc in ps_s.process_map.values():
+	        for proc in p_map.values():
 			proc.events = []
 	        for ep in filter(lambda ep: ep.enable, ctx.app_options.event_source.itervalues()):
 			for ev in ep.parsed:
 				key = key_fn(ev)
-				if key in ps_s.process_map:
-					ps_s.process_map[key].events.append(ev)
+				if key in p_map:
+					p_map[key].events.append(ev)
 				else:
 					writer.warn("no samples of /proc/%d/task/%d/stat found -- event lost:\n\t%s" %
 						    (ev.pid, ev.tid, ev.raw_log_line))
 
 		# Strip out from per-process lists any events not selected by a regexp.
-	        for proc in ps_s.process_map.values():
+	        for proc in p_map.values():
 			enabled_events = []
 			for ev in proc.events:
 				# Separate attrs, because they may be drawn differently
@@ -334,7 +335,7 @@ class DrawContext:
 	def proc_tree (self, trace):
 		return trace.kernel_tree if self.kernel_only else trace.proc_tree
 
-	def draw_process_label_in_box(self, color, label,
+	def draw_process_label_in_box(self, color, bg_color, label,
 			      x, y, w, minx, maxx):
 		# hack in a pair of left and right margins
 		extents = self.cr.text_extents("j" + label + "k")   # XX  "j", "k" were found by tedious trial-and-error
@@ -353,7 +354,7 @@ class DrawContext:
 		if label_x < minx:
 			label_x = minx
 		# XX ugly magic constants, tuned by trial-and-error
-		draw_fill_rect(self.cr, NOTEPAD_YELLOW, (label_x, y-1, label_w, -(C.proc_h-2)))
+		draw_fill_rect(self.cr, bg_color, (label_x, y-1, label_w, -(C.proc_h-2)))
 		draw_text(self.cr, label, color, label_x, y-4)
 
 # XX  Should be "_csec_to_user"
@@ -888,7 +889,8 @@ def draw_process_bar_chart(ctx, proc_tree, times, curr_y, w, h):
 
 	curr_y += 15
 	for root in proc_tree.process_tree:
-		curr_y = draw_processes_recursively(ctx, root, proc_tree, curr_y)[1]
+		if not root.lwp():
+			curr_y = draw_processes_recursively(ctx, root, proc_tree, curr_y)[1]
 	if ctx.proc_above_was_hidden:
 		draw_hidden_process_separator(ctx, curr_y)
 		ctx.proc_above_was_hidden = False
@@ -976,7 +978,8 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 	# Do not draw right-hand vertical border -- process exit never exactly known
 	draw_visible_process_separator(ctx, proc, x, y, w)
 
-	draw_process_state_colors(ctx, proc, proc_tree, x, y, w)
+	if proc.lwp() or not ctx.trace.ps_threads_stats:
+		draw_process_state_colors(ctx, proc, proc_tree, x, y, w)
 
 	# Event ticks step on the rectangle painted by draw_process_state_colors(),
 	# e.g. for non-interruptible wait.
@@ -993,52 +996,65 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 		if ctx.app_options.show_all:
 			prefix += str(proc.ppid / 1000) + ":"
 		prefix += str(proc.pid / 1000)
-		if ctx.trace.ps_threads_stats:
+		if proc.lwp():
 			prefix += ":" + str(proc.tid / 1000)
 		prefix += "]"
 		cmdString = prefix + cmdString
 	if ctx.app_options.show_all and proc.args:
 		cmdString += " '" + "' '".join(proc.args) + "'"
 
-	ctx.draw_process_label_in_box( PROC_TEXT_COLOR, cmdString,
-			csec_to_xscaled(ctx, max(proc.start_time,ctx.time_origin_drawn)),
-			y,
-			w,
-			ctx.cr.device_to_user(0, 0)[0],
-			ctx.cr.clip_extents()[2])
+	ctx.draw_process_label_in_box( PROC_TEXT_COLOR,
+				       NOTEPAD_YELLOW if proc.lwp() else NOTEPAD_PINK,
+				       cmdString,
+				       csec_to_xscaled(ctx, max(proc.start_time,ctx.time_origin_drawn)),
+				       y,
+				       w,
+				       ctx.cr.device_to_user(0, 0)[0],
+				       ctx.cr.clip_extents()[2])
 	return n_highlighted_events
 
 def draw_processes_recursively(ctx, proc, proc_tree, y):
 	xmin = ctx.cr.device_to_user(0, 0)[0]   # work around numeric overflow at high xscale factors
 	xmin = max(xmin, 0)
-	x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
-	w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x
 
-	if ctx.hide_process_y and y+C.proc_h > ctx.hide_process_y[0] and proc.draw:
-		proc.draw = False
-		ctx.hide_process_y[1] -= C.proc_h
-		if y > (ctx.hide_process_y[1]) / C.proc_h * C.proc_h:
-			ctx.hide_process_y = None
+	def draw_process_and_separator(ctx, proc, proc_tree, y):
+		x = max(xmin, csec_to_xscaled(ctx, proc.start_time))
+		w = max(xmin, csec_to_xscaled(ctx, proc.start_time + proc.duration)) - x
+		if ctx.hide_process_y and y+C.proc_h > ctx.hide_process_y[0] and proc.draw:
+			proc.draw = False
+			ctx.hide_process_y[1] -= C.proc_h
+			if y > (ctx.hide_process_y[1]) / C.proc_h * C.proc_h:
+				ctx.hide_process_y = None
 
-	elif ctx.unhide_process_y and y+C.proc_h*3/4 > ctx.unhide_process_y:
-		if proc.draw:    # found end of run of hidden processes
-			ctx.unhide_process_y = None
+		elif ctx.unhide_process_y and y+C.proc_h*3/4 > ctx.unhide_process_y:
+			if proc.draw:    # found end of run of hidden processes
+				ctx.unhide_process_y = None
+			else:
+				proc.draw = True
+				ctx.unhide_process_y += C.proc_h
+
+		if not proc.draw:
+			ctx.proc_above_was_hidden = True
+			return x, y
 		else:
-			proc.draw = True
-			ctx.unhide_process_y += C.proc_h
+			n_highlighted_events = draw_process(ctx, proc, proc_tree, x, y+USER_HALF, w)
+			if ctx.proc_above_was_hidden:
+				draw_hidden_process_separator(ctx, y+USER_HALF)
+				ctx.proc_above_was_hidden = False
+			return x, y + C.proc_h*(1 if n_highlighted_events <= 0 else 2)
 
-	if not proc.draw:
-		ctx.proc_above_was_hidden = True
-		child_y = y
-	else:
-		n_highlighted_events = draw_process(ctx, proc, proc_tree, x, y+USER_HALF, w)
-		if ctx.proc_above_was_hidden:
-			draw_hidden_process_separator(ctx, y+USER_HALF)
-			ctx.proc_above_was_hidden = False
-		child_y = y + C.proc_h*(1 if n_highlighted_events <= 0 else 2)
+	x, child_y = draw_process_and_separator(ctx, proc, proc_tree, y)
+
+	if proc.lwp_list is not None:
+		for lwp in proc.lwp_list:
+			x, child_y = draw_process_and_separator(ctx, lwp, proc_tree, child_y)
 
 	elder_sibling_y = None
 	for child in proc.child_list:
+		# Processes draw their "own" LWPs, contrary to formal parentage relationship
+		if child.lwp_list is None:
+			continue
+
 		child_x, next_y = draw_processes_recursively(ctx, child, proc_tree, child_y)
 		if proc.draw and child.draw:
 			# draw upward from child to elder sibling or parent (proc)

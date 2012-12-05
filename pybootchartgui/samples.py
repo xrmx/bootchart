@@ -279,3 +279,6 @@ class Process:
         # this by carving out an exception for all children of 'kthreadd'
         kthreadd_pid = 2 * PID_SCALE
         self.cmd = cmd.split('/')[-1] if self.ppid != kthreadd_pid else cmd
+
+    def set_nice(self, nice):
+        self.nice = nice

@@ -998,6 +998,7 @@ def draw_process(ctx, proc, proc_tree, x, y, w):
 		prefix += str(proc.pid / 1000)
 		if proc.lwp():
 			prefix += ":" + str(proc.tid / 1000)
+			prefix += ":" + str(proc.nice)
 		prefix += "]"
 		cmdString = prefix + cmdString
 	if ctx.app_options.show_all and proc.args:

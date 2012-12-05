@@ -289,7 +289,7 @@ def _save_PC_sample(trace, es, time, pid, tid, comm, addr):
 #   2.1  thread continues    (tid in processMap)
 #   2.2  thread starts
 def _handle_sample(options, trace, processMap, ltime, time,
-                   pid, tid, lwp, cmd, state, ppid, userCpu, sysCpu,
+                   pid, tid, lwp, nice, cmd, state, ppid, userCpu, sysCpu,
                    kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                    num_cpus):
     assert(type(c_user) is IntType)
@@ -297,7 +297,6 @@ def _handle_sample(options, trace, processMap, ltime, time,
 
     if tid in processMap:
         proc = processMap[tid]
-        proc.set_cmd(cmd)
     else:
         if time < starttime:
             # large values signify a collector problem, e.g. resource starvation
@@ -319,6 +318,9 @@ def _handle_sample(options, trace, processMap, ltime, time,
         proc.sys_cpu_ticks [-1] =        proc.sys_cpu_ticks [0]
         proc.delayacct_blkio_ticks[-1] = proc.delayacct_blkio_ticks[0]
         processMap[tid] = proc      # insert new process into the dict
+
+    proc.set_cmd(cmd)           # over-write values from earlier samples
+    proc.set_nice(nice)         # over-write values from earlier samples
 
     userCpuLoad, sysCpuLoad, delayacctBlkioLoad = proc.calc_load(userCpu, sysCpu, delayacct_blkio_ticks,
                                                                     max(1, time - ltime), num_cpus)
@@ -460,6 +462,7 @@ def _parse_proc_ps_log(options, trace, file, num_cpus):
             pid, cmd, state, ppid = int(tokens[0]), ' '.join(tokens[1:2+offset]), tokens[2+offset], int(tokens[3+offset])
             userCpu, sysCpu = int(tokens[13+offset]), int(tokens[14+offset]),
             c_user, c_sys = int(tokens[15+offset]), int(tokens[16+offset])
+            nice = int(tokens[18+offset])
             starttime = int(tokens[21+offset])
             kstkeip = int(tokens[29+offset])
             wchan = int(tokens[34+offset])
@@ -469,7 +472,7 @@ def _parse_proc_ps_log(options, trace, file, num_cpus):
             pid *= 1000
             ppid *= 1000
             processMap = _handle_sample(options, trace, processMap, ltime, time,
-                                        pid, pid, False, cmd, state, ppid,
+                                        pid, pid, False, nice, cmd, state, ppid,
                                         userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         num_cpus)
         if ltime:
@@ -526,6 +529,7 @@ def _parse_proc_ps_threads_log(options, trace, file):
             pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
             userCpu, sysCpu = int(tokens[7+offset]), int(tokens[8+offset])
             c_user, c_sys = int(tokens[9+offset]), int(tokens[10+offset])
+            nice = int(tokens[12+offset])
             kstkeip = int(tokens[14+offset])
             wchan = int(tokens[15+offset])
             delayacct_blkio_ticks = int(tokens[17+offset]) if len(tokens) == 18+offset else 0
@@ -540,7 +544,7 @@ def _parse_proc_ps_threads_log(options, trace, file):
             ppid *= 1000
 
             processMap = _handle_sample(options, trace, processMap, ltime, time,
-                                        pid, tid, True, cmd, state, ppid,
+                                        pid, tid, True, nice, cmd, state, ppid,
                                         userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         1)
         ltime = time

@@ -325,6 +325,78 @@ def _parse_proc_ps_log(options, writer, file):
 
     return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
 
+def _parse_proc_ps_threads_log(options, writer, file):
+    """
+     *    0* pid -- inserted here from value in /proc/*pid*/task/.  Not to be found in /proc/*pid*/task/*tid*/stat.
+     *              Not the same as pgrp, session, or tpgid.  Refer to collector daemon source code for details.
+     *    1  tid
+     *    2  comm
+     *    3  state
+     *    4  ppid
+     *    5  flags
+     *    6  majflt
+     *    7  utime
+     *    8  stime
+     *    9  cutime
+     *   10  cstime
+     *   11  priority
+     *   12  nice
+     *   13  time_in_jiffies_the_process_started_after_system_boot
+     *   14  current_EIP_instruction_pointer
+     *   15  wchan
+     *   16  scheduling_policy
+    """
+    processMap = {}
+    ltime = 0
+    timed_blocks = _parse_timed_blocks(file)
+    for time, lines in timed_blocks:
+        for line in lines:
+            if line is '': continue
+            tokens = line.split(' ')
+            if len(tokens) < 17:
+                writer.status("misformatted line at time {0:d}:\n\t{1:s}".format(time,line))
+                continue
+
+            offset = [index for index, token in enumerate(tokens[2:]) if (len(token) > 0 and token[-1] == ')')][0]
+            pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
+            userCpu, sysCpu, starttime = int(tokens[7+offset]), int(tokens[8+offset]), int(tokens[13+offset])
+
+            # magic fixed point-ness ...
+            tid *= 1000
+            pid *= 1000
+            ppid *= 1000
+            if tid in processMap:
+                process = processMap[tid]
+                process.cmd = cmd.strip('()') # why rename after latest name??
+            else:
+                if time < starttime:
+                    # large values signify a collector problem, e.g. resource starvation
+                    writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
+                                  (time, starttime, time-starttime, tid/1000))
+
+                process = Process(writer, tid, cmd.strip('()'), ppid, starttime)
+                processMap[pid] = process
+
+            if process.last_user_cpu_time is not None and process.last_sys_cpu_time is not None:
+                if ltime is None:
+                    userCpuLoad, sysCpuLoad = 0, 0
+                else:
+                    userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
+                cpuSample = CPUSample('null', userCpuLoad, sysCpuLoad, 0.0, 0.0)
+                process.samples.append(ProcessSample(time, state, cpuSample))
+
+            process.last_user_cpu_time = userCpu
+            process.last_sys_cpu_time = sysCpu
+        ltime = time
+
+    if len (timed_blocks) < 2:
+        return None
+
+    startTime = timed_blocks[0][0]
+    avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
+
+    return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
+
 def _parse_taskstats_log(writer, file):
     """
      * See bootchart-collector.c for details.
@@ -761,6 +833,8 @@ def _do_parse(writer, state, tf, name, file, options):
         state.parent_map = _parse_paternity_log(writer, file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
         state.ps_stats = _parse_proc_ps_log(options, writer, file)
+    elif name == "proc_ps_threads.log":
+        state.ps_stats = _parse_proc_ps_threads_log(options, writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(writer, file)
     elif name == "events-7.log":   # 7 is number of fields -- a crude versioning scheme

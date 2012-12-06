@@ -301,7 +301,7 @@ def _handle_sample(options, trace, processMap, ltime, time,
     else:
         if time < starttime:
             # large values signify a collector problem, e.g. resource starvation
-            writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
+            writer.info("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                           (time, starttime, time-starttime, tid/1000))
 
         proc = Process(pid, tid, lwp, cmd, ppid, starttime)

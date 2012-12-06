@@ -281,7 +281,7 @@ class DrawContext:
 				if key in p_map:
 					p_map[key].events.append(ev)
 				else:
-					writer.warn("no samples of /proc/%d/task/%d/stat found -- event lost:\n\t%s" %
+					writer.info("no samples of /proc/%d/task/%d/stat found -- event lost:\n\t%s" %
 						    (ev.pid, ev.tid, ev.raw_log_line))
 
 		# Strip out from per-process lists any events not selected by a regexp.

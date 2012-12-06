@@ -260,9 +260,6 @@ class Process:
     def set_parent(self, processMap):
         if self.ppid != None:
             self.parent = processMap.get (self.ppid)
-            # FIXME: support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
-            if self.parent == None:
-                self.parent = processMap.get (self.ppid + LWP_OFFSET)
             if self.parent == None and self.pid / 1000 > 1 and \
                 not (self.ppid/PID_SCALE == 2 or self.pid/PID_SCALE == 2): # kernel threads: ppid=2
                 writer.warn("Missing CONFIG_PROC_EVENTS: no parent for pid '%i' ('%s') with ppid '%i'" \

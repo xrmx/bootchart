@@ -53,10 +53,8 @@ class Trace:
         # Read in all files, parse each into a time-ordered list, init many of the attributes above
         parse_paths (self, options.paths, options)
 
-        # FIXME: support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
-        if not self.ps_stats:
-            self.ps_stats = self.ps_threads_stats
-        elif self.ps_threads_stats:
+        assert self.ps_stats, "data sets that contain no proc_ps.log, only proc_ps_threads.log are now deprecated"
+        if self.ps_threads_stats:
             for (k,v) in self.ps_threads_stats.process_map.iteritems():
                 self.ps_stats.process_map[k] = v
             self.ps_threads_stats = True

@@ -208,7 +208,6 @@ def draw_label_at_time(cr, color, label, y, label_x):
 	draw_text(cr, label, color, label_x, y)
 	return cr.text_extents(label)[2] # return width
 
-# FIXME:  Name assumes cr includes time->user transform
 # y is at process bar boundary above
 def draw_label_on_bg(cr, bg_color, color, label, y, label_x):
 	TOP_MARGIN=3  # user-space
@@ -649,7 +648,6 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		proc_height -= C.CUML_HEIGHT
 
 	curr_y += ctx.M_HEIGHT
-	sweep_text_box_y = []  # [curr_y+ctx.M_HEIGHT]
 
 	# curr_y points to the *top* of the first per-process line
 	if hide_process_y and hide_process_y[0] > (curr_y - C.proc_h/4):
@@ -676,8 +674,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, STAT_TYPE_IO)
 
 	if ctx.SWEEP_CSEC:
-		sweep_text_box_y.append(curr_y+ctx.M_HEIGHT)
-		draw_sweep(ctx, sweep_text_box_y)
+		draw_sweep(ctx)
 
 	ctx.cr.restore()
 
@@ -703,14 +700,14 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 
 	ctx.event_dump_list = None
 
-def draw_sweep(ctx, sweep_text_box_y):
+def draw_sweep(ctx):
 	def draw_shading(cr, rect):
 		# alpha value of the rgba strikes a compromise between appearance on screen, and in printed screenshot
 		cr.set_source_rgba(0.0, 0.0, 0.0, 0.08)
 		cr.set_line_width(0.0)
 		cr.rectangle(rect)
 		cr.fill()
-	def draw_vertical(ctx, time, x, sweep_text_box_y):
+	def draw_vertical(ctx, time, x):
 		cr = ctx.cr
 		cr.set_dash([1, 3])
 		cr.set_source_rgba(0.0, 0.0, 0.0, 1.0)
@@ -718,17 +715,19 @@ def draw_sweep(ctx, sweep_text_box_y):
 		cr.move_to(x, 0)
 		cr.line_to(x, height)
 		cr.stroke()
-		for y in sweep_text_box_y:
-			draw_label_at_time(ctx.cr, BLACK,
-				format_label_time(ctx, time - ctx.time_origin_relative),
-				y+ctx.M_HEIGHT,	x+ctx.n_WIDTH/2)
 
 	height = int(ctx.cr.device_to_user(0,2000)[1])
-	for i_time in [0,1]:
+	for i_time, label_offset in enumerate([-ctx.cr.text_extents("_0.0")[2], 0]):
 		time = ctx.SWEEP_CSEC[i_time]
 		x = csec_to_xscaled(ctx, time)
 		draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[i_time*2]-x),height))
-		draw_vertical(ctx, time, x, sweep_text_box_y)
+		draw_vertical(ctx, time, x)
+		draw_label_on_bg(ctx.cr, NOTEPAD_YELLOW, BLACK,
+				 "0.0" if
+				 i_time==0 else
+				 "{0:.6f}".format((time - ctx.time_origin_relative)/C.CSEC),
+				 ctx.cr.device_to_user(0, 0)[1],
+				 x + label_offset + ctx.n_WIDTH/2)
 
 def draw_process_bar_chart_legends(ctx, curr_y):
 	curr_y += 30

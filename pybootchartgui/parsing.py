@@ -440,12 +440,17 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
         return disk_stats
 
     def get_relevant_tokens(lines, regex):
-        def is_relevant_line(linetokens, regex):
-            if len(linetokens) != 14:
-                return False
-            return regex.match(linetokens[2])
-        return [linetokens for linetokens in map (lambda x: x.split(),lines)
-                if is_relevant_line(linetokens, regex)]
+        return [
+            linetokens
+            for linetokens in map (lambda x: x.split(),lines)
+            	if len(linetokens) == 14 and regex.match(linetokens[2])
+            ]
+
+    def add_tokens_to_sample(sample, tokens):
+        disk_name, rsect, wsect, io_ticks = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])
+
+        sample.add_diskdata([rsect, wsect, io_ticks])
+        return disk_name
 
     # matched not against whole line, but field only
     disk_regex_re = re.compile('^([hsv]d.|mtdblock\d|mmcblk\d|cciss/c\d+d\d+.*)$')
@@ -453,11 +458,10 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
     disk_stat_samples = []
     for time, lines in _parse_timed_blocks(file):
         sample = DiskStatSample(time)
-        relevant_tokens = get_relevant_tokens( lines, disk_regex_re)
+        relevant_tokens = get_relevant_tokens(lines, disk_regex_re)
 
         for tokens in relevant_tokens:
-            disk, rsect, wsect, io_ticks = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])
-            sample.add_diskdata([rsect, wsect, io_ticks])
+            add_tokens_to_sample(sample,tokens)
 
         disk_stat_samples.append(sample)
 
@@ -470,15 +474,14 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
                 file.seek(0)
                 disk_stat_samples = []
                 this_partition_regex_re = re.compile('^' + part + '.*$')
+                disk_name = ''
 
                 # for every timed_block
                 disk_stat_samples = []
                 for time, lines in _parse_timed_blocks(file):
                     sample = DiskStatSample(time)
-                    relevant_tokens = get_relevant_tokens( lines, this_partition_regex_re)
-                    token = relevant_tokens[0]
-                    disk_name, rsect, wsect, io_ticks = token[2], int(token[5]), int(token[9]), int(token[12])
-                    sample.add_diskdata([rsect, wsect, io_ticks])
+                    relevant_tokens = get_relevant_tokens(lines, this_partition_regex_re)
+                    disk_name = add_tokens_to_sample(sample,relevant_tokens[0]) # [0] assumes 'part' matched only a single line
                     disk_stat_samples.append(sample)
 
                 if options.partition_labels:

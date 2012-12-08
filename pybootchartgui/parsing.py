@@ -35,7 +35,7 @@ from . import writer
 # Parsing produces as its end result a 'Trace'
 
 class Trace:
-    def __init__(self, paths, options):
+    def __init__(self, options):
         self.headers = None
         self.disk_stats = None
         self.ps_stats = None
@@ -50,7 +50,7 @@ class Trace:
         self.mem_stats = None
 
         # Read in all files, parse each into a time-ordered list
-        parse_paths (self, paths, options)
+        parse_paths (self, options.paths, options)
 
         # support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
         if not self.ps_stats:

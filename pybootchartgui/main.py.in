@@ -20,11 +20,10 @@ from __future__ import print_function
 
 import sys
 import os
-import optparse
+import argparse
 import string
 
 from copy import copy
-from optparse import Option, OptionValueError
 
 from . import parsing
 from . import batch
@@ -32,125 +31,129 @@ from . import writer
 from .samples import EventSource, EventColor
 
 def _mk_options_parser():
-	"""Make an options parser."""
-	usage = "%prog [options] PATH"
-	version = "%prog v@VER@"
-	parser = optparse.OptionParser(usage=usage, version=version,
-				       description="PATH must point to a bootchart*.tgz",
-				       epilog=None)
-	parser.add_option("--absolute-uptime-event-times", action="store_true", default=False,
-                          dest="absolute_uptime_event_times",
-			  help="event times shown are relative to system boot, rather than beginning of sampling")
-	parser.add_option("-H", "--hide-low-CPU", dest="hide_low_CPU", type="int", default=0, metavar="CSEC",
-			  help="Hide any thread consuming less than CSEC of CPU time, unless it otherwise shows itself to be of interest." +
-                          "  Hiding means the thread is not shown on initial rendering, but can be shown by a mouse click." +
-			  "  A value of 0 may be specified, meaning the special case of showing threads that report 0 CSECs" +
-			  " consumed, but are known to have executed due to having been born, died, or reported some" +
-			  " state other than 'S' when sampled by the collector." +
-			  "  A negative value causes all threads to be shown.")
-	parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False,
-			  help="suppress informational messages")
-	parser.add_option("-v", "--verbose", action="count", dest="verbose", default=0,
-			  help="Print debugging messages.  Issuing twice will print yet more messages.")
-	parser.add_option("--show-legends", action="store_true", dest="show_legends", default=False,
-			  help="show legend text offering keys to chart symbols")
-	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
-			  help="show process ids in the bootchart as 'processname [pid]'")
-	parser.add_option("--show-all", action="store_true", dest="show_all", default=False,
-			  help="show all process information in the bootchart as '/process/path/exe [pid] [args]'")
-	parser.add_option("-j", "--justify", dest="justify", default="left", choices=["left", "center"],
-			  help="relocate the text within process bars (left, center)")
+	usage = "%(prog)s [options] PATH"
+	parser = argparse.ArgumentParser(usage=usage,
+					 description="PATH must point to a bootchart*.tgz",
+					 epilog=None)
+
+	parser.add_argument('--version', action='version', version="%(prog)s v@VER@")
+	parser.add_argument("--absolute-uptime-event-times", action="store_true", default=False,
+		dest="absolute_uptime_event_times",
+		help="event times shown are relative to system boot, rather than beginning of sampling")
+	parser.add_argument("-H", "--hide-low-CPU", dest="hide_low_CPU", type=int, default=0, metavar="CSEC",
+		help="Hide any thread consuming less than CSEC of CPU time," +
+		" unless it otherwise shows itself to be of interest." +
+		"  Hiding means the thread is not shown on initial rendering, but can be shown by a mouse click." +
+		"  A value of 0 may be specified, meaning the special case of showing threads that report 0 CSECs" +
+		" consumed, but are known to have executed due to having been born, died, or reported some" +
+		" state other than 'S' when sampled by the collector." +
+		"  A negative value causes all threads to be shown.")
+	parser.add_argument("-q", "--quiet", action="store_true", dest="quiet", default=False,
+		help="suppress informational messages")
+	parser.add_argument("-v", "--verbose", action="count", dest="verbose", default=0,
+		help="Print debugging messages.  Issuing twice will print yet more messages.")
+	parser.add_argument("--show-legends", action="store_true", dest="show_legends", default=False,
+		help="show legend text offering keys to chart symbols")
+	parser.add_argument("--show-pid", action="store_true", dest="show_pid", default=False,
+		help="show process ids in the bootchart as 'processname [pid]'")
+	parser.add_argument("--show-all", action="store_true", dest="show_all", default=False,
+		help="show all process information in the bootchart as '/process/path/exe [pid] [args]'")
+	parser.add_argument("-j", "--justify", dest="justify", default="left", choices=["left", "center"],
+		help="relocate the text within process bars (left, center)")
 
         # disk stats
-	pg_IO = optparse.OptionGroup(parser,"I/O-specific",
-			    "Options specific to graphing of I/O activity, as gathered from /proc/diskstats")
-	pg_IO.add_option("--partition", action="append", dest="partitions", type="string", default=[],
-			  metavar="PARTITION",
-			  help="draw a disk stat chart for any block device partition whose basename matches PARTITION")
-	pg_IO.add_option("--relabel-partition", action="append", dest="partition_labels", default=[],
-			  help="list of per-partition strings, each replacing the raw per-partition device name" +
-                          "in the corresponding position")
-	pg_IO.add_option("--show-ops-not-bytes", action="store_true", dest="show_ops_not_bytes", default=False,
-			  help="chart number of I/O operations handed to driver, rather than bytes transferred per sample")
+	pg_IO = parser.add_argument_group("I/O-specific",
+		"Options specific to graphing of I/O activity, as gathered from /proc/diskstats")
+	pg_IO.add_argument("--partition", action="append", dest="partitions", default=[],
+		metavar="PARTITION",
+		help="draw a disk stat chart for any block device partition whose basename matches PARTITION")
+	pg_IO.add_argument("--relabel-partition", action="append", dest="partition_labels", default=[],
+		help="list of per-partition strings, each replacing the raw per-partition device name" +
+		"in the corresponding position")
+	pg_IO.add_argument("--show-ops-not-bytes", action="store_true", dest="show_ops_not_bytes", default=False,
+		help="chart number of I/O operations handed to driver, rather than bytes transferred per sample")
 
-	parser.add_option_group(pg_IO)
+	parser.add_argument_group(pg_IO)
 
 	# event plotting
-	pg_Events = optparse.OptionGroup(parser, "Event-specific",
-					 "Options specific to plotting of instantaneous, asynchronous events, as gathered from" +
-					 " target-specific logs." +
-					 "  A few internally generated pseudo-events are also available." +
-					 "  N.B.: The '_' character is unusable in label strings, as the PyGTK toolkit silently discards it.")
-	pg_Events.add_option("--hide-events", action="store_true", dest="hide_events", default=False,
-			  help="hide all event-related info, even the small black triangles of unhighlighted events.")
-	pg_Events.add_option("--no-print-event-times", action="store_false", default=True, dest="print_event_times",
-			  help="suppress printing time of each event, inside the box of the reporting process")
-
 	parser.set_defaults(event_source = {})
-	pg_Events.add_option("--event-source", metavar="label filename regex",
-			     action="callback", callback=handle_event_source_option, type="string", nargs=3,
-			     help="Filename should contain event records, one per line of text." +
-			     " Regex should contain assigments using (?P<var>) syntax to initialize variables" +
-			     " CLOCK_REALTIME_usec, pid, tid, and comm.")
-	pg_Events.add_option("--dump-raw-event-context", action="store_true", dest="dump_raw_event_context", default=False,
-			  help="in addition to log lines for selected events, dump log lines as well," +
-                          " retaining original log sort order, which may not be temporally correct.")
+	pg_Events = parser.add_argument_group( "Event-specific",
+		"Options specific to plotting of instantaneous, asynchronous events, as gathered from" +
+		" target-specific logs." +
+		"  A few internally generated pseudo-events are also available." +
+		"  N.B.: The '_' character is unusable in label strings, as the PyGTK toolkit silently discards it.")
+	pg_Events.add_argument("--hide-events", action="store_true", dest="hide_events", default=False,
+		help="hide all event-related info, even the small black triangles of unhighlighted events.")
+	pg_Events.add_argument("--no-print-event-times", action="store_false", default=True, dest="print_event_times",
+		help="suppress printing time of each event, inside the box of the reporting process")
+	pg_Events.add_argument("--event-source", metavar=("label", "filename", "regex"),
+		action=handle_event_source_option, nargs=3,
+		help="Filename should contain event records, one per line of text." +
+		" Regex should contain assigments using (?P<var>) syntax to initialize variables" +
+		" CLOCK_REALTIME_usec, pid, tid, and comm.")
+	pg_Events.add_argument("--dump-raw-event-context", action="store_true", dest="dump_raw_event_context", default=False,
+		help="in addition to log lines for selected events, dump log lines as well," +
+		" retaining original log sort order, which may not be temporally correct.")
 
-	pg_Events.add_option("--no-synthesize-sample-start-events", action="store_false", default=True,
-                          dest="synthesize_sample_start_events",
-			  help="disable synthesis of an event marking each boundary between sample periods." +
-                          "These are helpful in analyzing collector timing issues.")
-	parser.add_option_group(pg_Events)
+	pg_Events.add_argument("--no-synthesize-sample-start-events", action="store_false", default=True,
+		dest="synthesize_sample_start_events",
+		help="disable synthesis of an event marking each boundary between sample periods." +
+                "These are helpful in analyzing collector timing issues.")
+	parser.add_argument_group(pg_Events)
 
-	pg_EventHighlighting = optparse.OptionGroup(parser, "Event Highlighting",
+	pg_EventHighlighting = parser.add_argument_group( "Event Highlighting",
 						    "Select events to be highlighted in color, and annotated" +
 						    " with text specific to the event, space permitting.")
 	parser.set_defaults(event_color = [])
-	pg_EventHighlighting.add_option("-e", "--events", metavar="label regex", nargs=2, type="string",
-			     action="callback", callback=handle_event_color,
-			     help="Highlight events matching regex." +
-			     "  Regex syntax is similar to grep 'extended' REs." +
-			     "  To match FOO or BAR anywhere on the log line, use 'FOO|BAR'." +
-			     " (file:///usr/share/doc/python/html/library/re.htm)")
+	pg_EventHighlighting.add_argument("-e", "--events", metavar=("label", "regex"), nargs=2,
+		action=handle_event_color,
+		help="Highlight events matching regex." +
+		"  Regex syntax is similar to grep 'extended' REs." +
+		"  To match FOO or BAR anywhere on the log line, use 'FOO|BAR'." +
+		" (file:///usr/share/doc/python/html/library/re.htm)")
 	parser.set_defaults(event_interval_color = [])
-	pg_EventHighlighting.add_option("--events-interval", metavar="label regex_start regex_end", nargs=3, type="string",
-			     action="callback", callback=handle_event_interval_color,
-			     help="In addition to highlighting the events matching the two regex arguments," +
-			     " highlight the interval of time between them.")
-	pg_EventHighlighting.add_option('-d', "--events-disable", metavar="label",
-			  action="callback", callback=handle_events_disable, type="string", nargs=1,
-			  help="Disable event-parsing regex matching (label) -- its checkbox on the Ev-Color menu will be cleared." +
-			  "  Must appear after the option that specified (label).")
-	parser.add_option_group(pg_EventHighlighting)
+	pg_EventHighlighting.add_argument("--events-interval", metavar=("label", "regex_start", "regex_end"), nargs=3,
+		action=handle_event_interval_color,
+		help="In addition to highlighting the events matching the two regex arguments," +
+		" highlight the interval of time between them.")
+	pg_EventHighlighting.add_argument('-d', "--events-disable", metavar=("label"),
+		action=handle_events_disable, nargs=1,
+		help="Disable event-parsing regex matching (label) -- its checkbox on the Ev-Color menu will be cleared." +
+		"  Must appear after the option that specified (label).")
+	parser.add_argument_group(pg_EventHighlighting)
 
-	pg_Scripting = optparse.OptionGroup(parser,"Scripting support",
-			    "Options most useful in scripted processing of tgz batches")
+	pg_Scripting = parser.add_argument_group("Scripting support",
+		"Options most useful in scripted processing of tgz batches")
 
-	pg_Scripting.add_option("--batch", action="store_false", dest="interactive", default=True,
-			  help="print a bootchart image, rather than starting the interactive GUI")
-	pg_Scripting.add_option("--merge", dest="merge", default=False,
-			  help="Prune the process tree of all activity from dull children: " +
-                          "stats are added to parent, child process is lost in drawing of chart.")
-	pg_Scripting.add_option("--prehistory", action="store_true", dest="prehistory", default=False,
-			  help="extend process bars to the recorded start time of each, even if before any samples were collected")
-	pg_Scripting.add_option("-t", "--boot-time", action="store_true", dest="boottime", default=False,
-			  help="only display the boot time of the boot in text format (stdout)")
-	pg_Scripting.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
-			  help="image format (png, svg, pdf); default format png")
-	pg_Scripting.add_option("--very-quiet", action="store_true", dest="veryquiet", default=False,
-			  help="suppress all messages except errors")
-	pg_Scripting.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
-			  help="output path (file or directory) where charts are stored")
-	pg_Scripting.add_option("--profile", action="store_true", dest="profile", default=False,
-			  help="profile rendering of chart (only useful when in batch mode indicated by -f)")
-	pg_Scripting.add_option("--crop-after", dest="crop_after", metavar="PROCESS", default=None,
-			  help="crop chart when idle after PROCESS is started")
-	pg_Scripting.add_option("--annotate", action="append", dest="annotate", metavar="PROCESS", default=None,
-			  help="annotate position where PROCESS is started; can be specified multiple times. " +
-			       "To create a single annotation when any one of a set of processes is started, use commas to separate the names")
-	pg_Scripting.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
-			  help="filename to write annotation points to")
-	parser.add_option_group(pg_Scripting)
+	pg_Scripting.add_argument("--batch", action="store_false", dest="interactive", default=True,
+		help="print a bootchart image, rather than starting the interactive GUI")
+	pg_Scripting.add_argument("--merge", dest="merge", default=False,
+		help="Prune the process tree of all activity from dull children: " +
+		"stats are added to parent, child process is lost in drawing of chart.")
+	pg_Scripting.add_argument("--prehistory", action="store_true", dest="prehistory", default=False,
+		help="extend process bars to the recorded start time of each, even if before any samples were collected")
+	pg_Scripting.add_argument("-t", "--boot-time", action="store_true", dest="boottime", default=False,
+		help="only display the boot time of the boot in text format (stdout)")
+	pg_Scripting.add_argument("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
+		help="image format (png, svg, pdf); default format png")
+	pg_Scripting.add_argument("--very-quiet", action="store_true", dest="veryquiet", default=False,
+		help="suppress all messages except errors")
+	pg_Scripting.add_argument("-o", "--output", dest="output", metavar=("PATH"), default=None,
+		help="output path (file or directory) where charts are stored")
+	pg_Scripting.add_argument("--profile", action="store_true", dest="profile", default=False,
+		help="profile rendering of chart (only useful when in batch mode indicated by -f)")
+	pg_Scripting.add_argument("--crop-after", dest="crop_after", metavar=("PROCESS"), default=None,
+		help="crop chart when idle after PROCESS is started")
+	pg_Scripting.add_argument("--annotate", action="append", dest="annotate", metavar=("PROCESS"), default=None,
+		help="annotate position where PROCESS is started; can be specified multiple times. " +
+		"To create a single annotation when any one of a set of processes is started," +
+		" use commas to separate the names")
+	pg_Scripting.add_argument("--annotate-file", dest="annotate_file", metavar=("FILENAME"), default=None,
+		help="filename to write annotation points to")
+	parser.add_argument_group(pg_Scripting)
+
+	parser.add_argument(dest="paths", action="append",
+		help="bootchart.tgz")
 
 	return parser
 
@@ -176,27 +179,31 @@ def _get_filename(paths, options):
 			fname = os.path.split(fname)[-1]
 	return os.path.join (dname, fname + "." + options.format)
 
-def handle_event_source_option(option, opt_str, value, parser):
-	# XX  superfluous: note that pdb `print value[1]` will double-print '\' characters
-	#    fix = string.replace(value[1], r"\\", "\x5c")
-	es = EventSource(value[0], value[1], value[2])
-	parser.values.event_source[es.label] = es
+class handle_event_source_option(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		# XX  superfluous: note that pdb `print values[1]` will double-print '\' characters
+		#    fix = string.replace(values[1], r"\\", "\x5c")
+		es = EventSource(values[0], values[1], values[2])
+		namespace.event_source[es.label] = es
 
-def handle_event_color(option, opt_str, value, parser):
-	ec = EventColor(value[0], value[1], None, True)
-	parser.values.event_color.append(ec)
+class handle_event_color(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		ec = EventColor(values[0], values[1], None, True)
+		namespace.event_color.append(ec)
 
-def handle_event_interval_color(option, opt_str, value, parser):
-	ec = EventColor(value[0], value[1], value[2], True)
-	parser.values.event_interval_color.append(ec)
+class handle_event_interval_color(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		ec = EventColor(values[0], values[1], values[2], True)
+		namespace.event_interval_color.append(ec)
 
-def handle_events_disable(option, opt_str, value, parser):
-	for ec in parser.values.event_color + parser.values.event_interval_color:
-		if ec.label == value:
-			ec.enable = False
-			return
-	raise parsing.ParseError("Event-Color label {1:s} not found\n\t{0:s}".format(
-			opt_str, value))
+class handle_events_disable(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		for ec in namespace.event_color + namespace.event_interval_color:
+			if ec.label == values[0]:
+				ec.enable = False
+				return
+		raise parsing.ParseError("Event-Color label {1:s} not found\n\t{0:s}".format(
+			opt_str, values[0]))
 
 def main(argv=None):
 	try:
@@ -204,14 +211,13 @@ def main(argv=None):
 			argv = sys.argv[1:]
 	
 		parser = _mk_options_parser()
-		options, args = parser.parse_args(
+
+		# XX 'argparse' documentation prefers to name the variable 'args' not 'options'
+		options = parser.parse_args(
 			['--events', 'PC samples', '\A(0x[0-9a-f]+|\w+\+0x[0-9a-f]+)\Z'] + argv)
 		writer.init(options)
 
-		if len(args) == 0:
-			raise parsing.ParseError("\n\tNo path to a bootchart.tgz found on command line")
-
-		res = parsing.Trace(args, options)
+		res = parsing.Trace(options)
 
 		if options.interactive:
 			from . import gui
@@ -237,7 +243,7 @@ def main(argv=None):
 							print(file=f)
 				finally:
 					f.close()
-			filename = _get_filename(args, options)
+			filename = options.filename
 			def render():
 				batch.render(res, options, filename)
 			if options.profile:

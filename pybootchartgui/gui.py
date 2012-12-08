@@ -557,29 +557,36 @@ class PyBootchartShell(gtk.VBox):
             ("Event_Color", None, "Ev-Color", None, ""),
         ])
 
-        # Stdout, Help dropdowns
+        # Stdout dropdown
+        # FIXME: Support of raw log dump of multiple log files is hard -- disable for now.
+        if False:
+            uimanager.add_ui_from_string( '''
+            <ui>
+                <menubar name="MenuBar">
+                    <menu action="Stdout">
+                        <menuitem action="dump raw"/>
+                    </menu>
+                </menubar>
+            </ui>
+            ''')
+            actiongroup.add_toggle_actions([
+                ('dump raw', None, "dump raw log lines, with context", None, None,
+                 self.widget.dump_raw_event_context, drawctx.app_options.dump_raw_event_context),
+            ])
+            actiongroup.add_actions([
+                ("Stdout", None, "Stdout", None, ""),
+            ])
+
+        # Help dropdown
         uimanager.add_ui_from_string( '''
         <ui>
             <menubar name="MenuBar">
-                <menu action="Stdout">
-                    <menuitem action="dump raw"/>
-                </menu>
                 <menu action="Help">
                     <menuitem action="show legends"/>
                 </menu>
             </menubar>
         </ui>
         ''')
-        # Stdout dropdown
-        actiongroup.add_toggle_actions([
-            ('dump raw', None, "dump raw log lines, with context", None, None,
-             self.widget.dump_raw_event_context, drawctx.app_options.dump_raw_event_context),
-        ])
-        actiongroup.add_actions([
-            ("Stdout", None, "Stdout", None, ""),
-        ])
-
-        # Help dropdown
         actiongroup.add_toggle_actions([
             ('show legends', None, "show legends", None, None,
              self.widget.show_legends, drawctx.app_options.show_legends),

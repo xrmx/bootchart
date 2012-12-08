@@ -797,13 +797,20 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		return
 
 	print  # blank, separator line
-	if ctx.app_options.dump_raw_event_context:
+	# FIXME: Support of raw log dump of multiple log files is hard -- disable for now.
+	if ctx.app_options.dump_raw_event_context and False:
 	        # dump all raw log lines between events, where "between" means merely textually,
 		# irrespective of time.
 		ctx.event_dump_list.sort(key = lambda e: e.raw_log_seek)
 		if len(ctx.event_dump_list):
-			event0 = ctx.event_dump_list[0]
-			if event0.raw_log_seek:
+			# find first and last events of the list that contain a valid raw_log_seek
+			for event0 in ctx.event_dump_list:
+				if event0.raw_log_seek:
+					break
+			for eventN in reversed(ctx.event_dump_list):
+				if eventN.raw_log_seek:
+					break
+			if event0.raw_log_seek and eventN.raw_log_seek:
 				event0.raw_log_file.seek(event0.raw_log_seek)
 				eventN = ctx.event_dump_list[-1]
 				# for line in event0.raw_log_file.readline():

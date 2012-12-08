@@ -187,7 +187,7 @@ class PyBootchartWidget(gtk.DrawingArea):
 
     def event_source_toggle(self, action):
         # turn second char of the string into an int
-        self.drawctx.app_options.event_source[int(action.get_name()[1])].enable = action.get_active()
+        self.drawctx.app_options.event_source[action.get_name()].enable = action.get_active()
         self.drawctx.ps_event_lists_valid = False
         self.queue_draw()
 
@@ -496,8 +496,8 @@ class PyBootchartShell(gtk.VBox):
             <menubar name="MenuBar">
                 <menu action="Event_Source">
         '''
-        def add_es(index, es, callback):
-            action_name = "p{0:d}".format(index)  # callback will extract a list index from this name string
+        def add_es(es, callback):
+            action_name = es.label #"p{0:d}".format(index)  # callback will extract a list index from this name string
                                                   # XX Supports 10 logs, max
             actiongroup.add_toggle_actions([
                 (action_name, None,
@@ -509,8 +509,8 @@ class PyBootchartShell(gtk.VBox):
                     <menuitem action="{0:s}"/>
             '''.format(action_name)
 
-        for index, es in enumerate(drawctx.app_options.event_source):
-            ui_Event_Source += add_es(index, es, "event_source_toggle")
+        for es in drawctx.app_options.event_source.itervalues():
+            ui_Event_Source += add_es(es, "event_source_toggle")
         ui_Event_Source += '''
                 </menu>
             </menubar>

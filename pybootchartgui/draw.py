@@ -274,7 +274,7 @@ class DrawContext:
 		# Copy events selected by currently enabled EventSources to per-process lists
 	        for proc in ps_s.process_map.values():
 			proc.events = []
-	        for ep in filter(lambda ep: ep.enable, ctx.app_options.event_source):
+	        for ep in filter(lambda ep: ep.enable, ctx.app_options.event_source.itervalues()):
 			for ev in ep.parsed:
 				key = key_fn(ev)
 				if key in ps_s.process_map:

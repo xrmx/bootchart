@@ -106,7 +106,7 @@ class Trace:
                              init_pid, init_pid,
                              "comm", None, None, "")
             es.parsed.append(ev)
-        options.event_source.append(es)
+        options.event_source[es.label] = es
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \
@@ -956,7 +956,7 @@ def _do_parse(state, tf, name, file, options):
     elif hasattr(options, "event_source"):
         boot_t = state.headers.get("boot_time_as_usecs_since_epoch")
         assert boot_t, NotImplementedError
-        for es in options.event_source:
+        for es in options.event_source.itervalues():
             if name == es.filename:
                 parser = parse_raw_log
                 es.parsed = parser(state, long(boot_t), file, es.regex)
@@ -1015,7 +1015,7 @@ def parse_paths(state, paths, options):
         else:
             state = parse_file(state, path, options)
 
-        for es in options.event_source:
+        for es in options.event_source.itervalues():
             if es.parsed == None:
                 raise ParseError("\n\tevents file found on command line but not in tarball: {0}\n".format(es.filename))
     return state

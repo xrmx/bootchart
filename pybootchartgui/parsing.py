@@ -902,7 +902,7 @@ def parse_raw_log(state, boot_time_as_usecs_since_epoch, log_file, fields_re):
             except IndexError:
                 comm = ""
 
-            raw_log_seek = log_file.tell()
+            raw_log_seek = log_file.tell() - len(line)
 
             boot_relative_usec = get_boot_relative_usec(
                 state, boot_time_as_usecs_since_epoch, time_usec)

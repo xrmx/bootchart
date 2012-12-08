@@ -572,14 +572,14 @@ class PyBootchartShell(gtk.VBox):
         ''')
         # Stdout dropdown
         actiongroup.add_toggle_actions([
-            ('dump raw', None, "dump raw context lines from log along with events", None, None,
+            ('dump raw', None, "dump raw log lines, with context", None, None,
              self.widget.dump_raw_event_context, drawctx.app_options.dump_raw_event_context),
         ])
         actiongroup.add_actions([
             ("Stdout", None, "Stdout", None, ""),
         ])
 
-        # Stdout dropdown
+        # Help dropdown
         actiongroup.add_toggle_actions([
             ('show legends', None, "show legends", None, None,
              self.widget.show_legends, drawctx.app_options.show_legends),

@@ -62,7 +62,11 @@ class ProcessTree:
         # LWPs get appended to a list in their ps_stats Process
         for proc in self.process_list:
             if proc.lwp():
-                ps_stats.process_map[proc.pid / PID_SCALE * PID_SCALE].lwp_list.append(proc)
+                try:
+                    ps_stats.process_map[proc.pid / PID_SCALE * PID_SCALE].lwp_list.append(proc)
+                except KeyError:
+                    writer.info("LWP (thread) {0:d} dropped - no matching process found\n".format(proc.tid))
+                    self.process_list.remove(proc)
         for proc in self.process_list:
             if not proc.lwp():
                 proc.lwp_list.sort(key = sort_func)

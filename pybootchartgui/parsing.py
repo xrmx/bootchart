@@ -488,7 +488,7 @@ def _parse_proc_ps_log(options, trace, file, num_cpus):
 
     return ProcessStats (processMap, len (timed_blocks), avgSampleLength)
 
-def _parse_proc_ps_threads_log(options, trace, file):
+def _parse_proc_ps_threads_log(options, trace, file, lwp):
     """
      *    0* pid -- inserted here from value in /proc/*pid*/task/.  Not to be found in /proc/*pid*/task/*tid*/stat.
      *              Not the same as pgrp, session, or tpgid.  Refer to collector daemon source code for details.
@@ -536,13 +536,17 @@ def _parse_proc_ps_threads_log(options, trace, file):
             assert(type(c_sys) is IntType)
             starttime = int(tokens[13+offset])
 
-            # force sorting later than whole-process records from proc_ps.log
-            pid = pid * PID_SCALE + LWP_OFFSET
-            tid = tid * PID_SCALE + LWP_OFFSET
+            pid *= PID_SCALE
+            tid *= PID_SCALE
+            if lwp:
+                # force sorting later than whole-process records from /proc/PID/stat
+                pid += LWP_OFFSET
+                tid += LWP_OFFSET
+
             ppid *= 1000
 
             processMap = _handle_sample(options, trace, processMap, ltime, time,
-                                        pid, tid, True, nice, cmd, state, ppid,
+                                        pid, tid, lwp, nice, cmd, state, ppid,
                                         userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         1)
         ltime = time
@@ -989,8 +993,10 @@ def _do_parse(state, tf, name, file, options):
         state.parent_map = _parse_paternity_log(file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
         state.ps_stats = _parse_proc_ps_log(options, state, file, state.num_cpus)
+    elif name == "proc_ps_compact.log":
+        state.ps_stats = _parse_proc_ps_threads_log(options, state, file, False)
     elif name == "proc_ps_threads.log" or  name == "proc_ps_threads-2.log" :
-        state.ps_threads_stats = _parse_proc_ps_threads_log(options, state, file)
+        state.ps_threads_stats = _parse_proc_ps_threads_log(options, state, file, True)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(file)
     elif hasattr(options, "event_source"):

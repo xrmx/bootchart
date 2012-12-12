@@ -14,35 +14,108 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 from types import *
+import collections
+import re
+
+from . import writer
+
+class EventSource:
+    """ Extract (EventSample)s from some disjoint subset of the available log entries """
+    def __init__(self, label, filename, regex):
+        self.label = label    # descriptive name for GUI
+        self.filename = filename
+        self.regex = regex
+        self.parsed = None  # list of EventSamples parsed from filename
+        self.enable = None  # initially set to True iff at least one sample was parsed; maintained by gui.py thereafter
 
 class EventSample:
-    def __init__(self, time, time_usec, pid, tid, comm, match, raw_log_file, raw_log_seek):
-        self.time = time
+    def dump_format(self):
+        return "{0:10f} {1:5d} {2:5d} {3} {4}".format( \
+            float(self.time_usec)/1000/1000, self.pid, self.tid, self.comm, self.raw_log_line.rstrip())
+
+    def __init__(self, time_usec, pid, tid, comm, raw_log_file, raw_log_seek, raw_log_line):
         self.time_usec = time_usec
         self.pid = pid
         self.tid = tid
         self.comm = comm
-        self.match = match
-        self.raw_log_file = raw_log_file  # a File object
+        self.raw_log_file = raw_log_file
         self.raw_log_seek = raw_log_seek
+        self.raw_log_line = raw_log_line
+        if pid != 1:
+            writer.debug(self.dump_format())
 
-    def raw_log_line(self):
-        def _readline(file, raw_log_seek):
-            if not file:
-                return
-            file.seek(raw_log_seek)
-            line = file.readline()
-            return line
-        return _readline(self.raw_log_file, self.raw_log_seek)
+class EventColor:
+    def __init__(self, label, regex0, regex1, enable):
+        self.label = label
+        self.color_regex = []
+        self.color_regex.append(re.compile(regex0))
+        if regex1 is not None:
+            self.color_regex.append(re.compile(regex1))
+        self.enable = enable
 
+#  See Documentation/iostats.txt.
+IOStat_field_names = ['major', 'minor', 'name',
+                      'nreads',  'nreads_merged',  'nsectors_read',  'nread_time_msec',
+                      'nwrites', 'nwrites_merged', 'nsectors_write', 'nwrite_time_msec',
+                      'nio_in_progress',                                 # not an accumulator
+                      'io_msec', 'io_weighted_msec']
+IOStat = collections.namedtuple('typename_IOStat', IOStat_field_names)
 
+# wrapper necessary to produce desired 'int' rather than 'string' types
+def IOStat_make(fields_as_list):
+    return IOStat._make(fields_as_list[:3] + [int(a) for a in fields_as_list[3:]])
 
-class DiskStatSample:
-    def __init__(self, time):
+def IOStat_op(sa, sb, f):
+    la = list(sa.iostat)
+    lb = list(sb.iostat)
+    preamble = [sa.iostat.major, sa.iostat.minor, sa.iostat.name]
+    return IOStat._make(preamble +
+                        [f(int(a),int(b)) for a, b in zip(la[3:], lb[3:])])
+
+def IOStat_diff(sa, sb):
+    return IOStat_op(sa, sb, lambda a,b: a - b)
+def IOStat_sum(sa, sb):
+    return IOStat_op(sa, sb, lambda a,b: a + b)
+def IOStat_max2(sa, sb):
+    return IOStat_op(sa, sb, lambda a,b: max(a, b))
+
+class PartitionSample:
+    def __init__(self, time, IOStat):
         self.time = time
-        self.diskdata = [0, 0, 0]
-    def add_diskdata(self, new_diskdata):
-        self.diskdata = [ a + b for a, b in zip(self.diskdata, new_diskdata) ]
+        self.iostat = IOStat
+
+class PartitionDelta:
+    def __init__(self, time, IOStat, util, nio_in_progress):
+        self.util = util                              # computed, not a simple delta
+        self.nio_in_progress = int(nio_in_progress)   # an instantaneous count, not a delta
+        self.s = PartitionSample(time, IOStat)
+
+class PartitionDeltas:
+    def __init__(self, partSamples, numCpu, name, label):
+        assert( type(partSamples) is list)
+
+        self.name = name
+        self.label = label      # to be drawn for this PartitionSamples object, in a label on the chart
+        self.numCpu = numCpu
+        self.hide = True
+        self.part_deltas = []
+
+        COALESCE_THRESHOLD = 1 # XX needs synchronization with other graphs
+        partSamples_coalesced = [(partSamples[0])]
+        for sample in partSamples:
+            if sample.time - partSamples_coalesced[-1].time < COALESCE_THRESHOLD:
+                continue
+            partSamples_coalesced.append(sample)
+
+        for sample1, sample2 in zip(partSamples_coalesced[:-1], partSamples_coalesced[1:]):
+            interval = sample2.time - sample1.time
+            diff = IOStat_diff(sample2, sample1)
+            util = float(diff.io_msec) / 10 / interval / numCpu
+            self.part_deltas.append( PartitionDelta(sample2.time, diff,
+                                                    util, sample2.iostat.nio_in_progress))
+
+        # Very short intervals amplify round-off under division by time delta, so coalesce now.
+        # XX  scaling issue for high-efficiency collector!
 
 class SystemCPUSample:
     def __init__(self, time, user, sys, io, procs_running, procs_blocked):
@@ -97,18 +170,15 @@ class MemSample:
 
 class ProcessStats:
     """stats over the collection of all processes, all samples"""
-    def __init__(self, writer, process_map, sample_count, sample_period, start_time, end_time):
+    def __init__(self, process_map, sample_count, sample_period):
         self.process_map = process_map
         self.sample_count = sample_count
         self.sample_period = sample_period
-        self.start_time = start_time   # time at which the first sample was collected
-        self.end_time = end_time
         writer.info ("%d samples, avg. sample length %f" % (self.sample_count, self.sample_period))
         writer.info ("process list size: %d" % len (self.process_map.values()))
 
 class Process:
-    def __init__(self, writer, pid, tid, cmd, ppid, start_time):
-        self.writer = writer
+    def __init__(self, pid, tid, cmd, ppid, start_time):
         self.pid = pid
         self.tid = tid
         self.cmd = cmd
@@ -119,11 +189,13 @@ class Process:
         self.duration = 0
         self.samples = []        # list of ProcessCPUSample
         self.events = []         # time-ordered list of EventSample
+        self.event_interval_0_tx = None
         self.parent = None
         self.child_list = []
 
         self.user_cpu_ticks = [None, 0]    # [first, last]
         self.sys_cpu_ticks = [None, 0]
+        self.delayacct_blkio_ticks = [None, 0]
 
         # For transient use as an accumulator during early parsing -- when
         # concurrent samples of all threads can be accessed O(1).
@@ -143,8 +215,8 @@ class Process:
 
     # split this process' run - triggered by a name change
     #  XX  called only if taskstats.log is provided (bootchart2 daemon)
-    def split(self, writer, pid, cmd, ppid, start_time):
-        split = Process (writer, pid, cmd, ppid, start_time)
+    def split(self, pid, cmd, ppid, start_time):
+        split = Process (pid, cmd, ppid, start_time)
 
         split.last_cpu_ns = self.last_cpu_ns
         split.last_blkio_delay_ns = self.last_blkio_delay_ns
@@ -163,39 +235,24 @@ class Process:
             # self.duration is the _minimum_ known duration of the thread
             self.duration = lastSample.time - self.start_time
 
-        # XX  add in page faults, including "minor"
-        self.activeCount = sum( [1 for sample in self.samples if sample.state != 'S'])
+        self.sleepingCount =  sum([1 for sample in self.samples if sample.state == 'S'])
 
-    def calc_load(self, userCpu, sysCpu, interval):
+    def calc_load(self, userCpu, sysCpu, delayacct_blkio_ticks, interval, num_cpus):
+        downscale = interval * num_cpus
         # all args in units of clock ticks
-        userCpuLoad = float(userCpu - self.user_cpu_ticks[-1]) / interval
-        sysCpuLoad = float(sysCpu - self.sys_cpu_ticks[-1]) / interval
-        return (userCpuLoad, sysCpuLoad)
+        userCpuLoad = float(userCpu - self.user_cpu_ticks[-1]) / downscale
+        sysCpuLoad = float(sysCpu - self.sys_cpu_ticks[-1]) / downscale
+        delayacctBlkioLoad = float(delayacct_blkio_ticks - self.delayacct_blkio_ticks[-1]) / downscale
+        return (userCpuLoad, sysCpuLoad, delayacctBlkioLoad)
 
     def set_parent(self, processMap):
         if self.ppid != None:
             self.parent = processMap.get (self.ppid)
             if self.parent == None and self.pid / 1000 > 1 and \
                 not (self.ppid == 2000 or self.pid == 2000): # kernel threads: ppid=2
-                self.writer.warn("Missing CONFIG_PROC_EVENTS: no parent for pid '%i' ('%s') with ppid '%i'" \
-                                 % (self.pid,self.cmd,self.ppid))
+                writer.warn("Missing CONFIG_PROC_EVENTS: no parent for pid '%i' ('%s') with ppid '%i'" \
+                                % (self.pid,self.cmd,self.ppid))
 
     def get_end_time(self):
         return self.start_time + self.duration
 
-# To understand 'io_ticks', see the kernel's part_round_stats_single() and part_round_stats()
-class DiskSample:
-    def __init__(self, time, read, write, io_ticks):
-        self.time = time
-        self.read = read    # sectors, a delta relative to the preceding time
-        self.write = write  #     ~
-        self.util = io_ticks    # a delta, units of msec
-        self.tput = read + write
-
-class DiskSamples:
-    def __init__(self, name, samples):
-        self.name = name
-        self.samples = samples
-#
-#    def __str__(self):
-#        return "\t".join([str(self.time), str(self.read), str(self.write), str(self.util)])

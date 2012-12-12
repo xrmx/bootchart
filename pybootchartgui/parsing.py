@@ -20,24 +20,28 @@ import os
 import string
 import re
 import tarfile
+import struct
 from time import clock
+import collections
 from collections import defaultdict
 from functools import reduce
 from types import *
 
+from .draw import usec_to_csec, csec_to_usec
 from .samples import *
 from .process_tree import ProcessTree
+from . import writer
 
 # Parsing produces as its end result a 'Trace'
 
 class Trace:
-    def __init__(self, writer, paths, options):
+    def __init__(self, paths, options):
         self.headers = None
         self.disk_stats = None
         self.ps_stats = None
+        self.ps_threads_stats = None
         self.taskstats = None
-        self.cpu_stats = None
-        self.events = None
+        self.cpu_stats = None   # from /proc/stat
         self.cmdline = None
         self.kernel = None
         self.kernel_tree = None
@@ -46,18 +50,23 @@ class Trace:
         self.mem_stats = None
 
         # Read in all files, parse each into a time-ordered list
-        parse_paths (writer, self, paths, options)
+        parse_paths (self, paths, options)
+
+        # support deprecated data sets that contain no proc_ps.log, only proc_ps_threads.log
+        if not self.ps_stats:
+            self.ps_stats = self.ps_threads_stats
+
         if not self.valid():
             raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
 
         # Turn that parsed information into something more useful
         # link processes into a tree of pointers, calculate statistics
-        self.adorn_process_map(writer, options)
+        self.adorn_process_map(options)
 
         # Crop the chart to the end of the first idle period after the given
         # process
         if options.crop_after:
-            idle = self.crop (writer, options.crop_after)
+            idle = self.crop (options.crop_after)
         else:
             idle = None
 
@@ -73,22 +82,37 @@ class Trace:
                     else:
                         self.times.append(None)
 
-        self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
+        self.proc_tree = ProcessTree(self.kernel, self.ps_stats,
                                      self.ps_stats.sample_period,
                                      self.headers.get("profile.process"),
                                      options, idle, self.taskstats,
                                      self.parent_map is not None)
 
         if self.kernel is not None:
-            self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
+            self.kernel_tree = ProcessTree(self.kernel, None, 0,
                                            self.headers.get("profile.process"),
                                            options, None, None, True)
+
+        self._generate_sample_start_pseudo_events(options)
+
+    def _generate_sample_start_pseudo_events(self, options):
+        es = EventSource(" ... sample start points", "", "")   # empty regex
+        es.parsed = []
+        es.enable = True
+        init_pid = 1
+        for cpu in self.cpu_stats:
+            # assign to the init process's bar, for lack of any better
+            ev = EventSample(csec_to_usec(cpu.time),
+                             init_pid, init_pid,
+                             "comm", None, None, "")
+            es.parsed.append(ev)
+        options.event_source.append(es)
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \
                self.ps_stats != None and self.cpu_stats != None
 
-    def adorn_process_map(self, writer, options):
+    def adorn_process_map(self, options):
 
         def find_parent_id_for(pid):
             if pid is 0:
@@ -119,28 +143,6 @@ class Trace:
 #                else:
 #                    print "proc %d '%s' not in cmdline" % (rpid, proc.exe)
 
-        if options.synthesize_sample_start_events:
-            init_pid = 1
-            key = init_pid * 1000
-            proc = self.ps_stats.process_map[key]
-            for cpu in self.cpu_stats:
-                # assign to the init process's bar, for lack of any better
-                ev = EventSample(cpu.time, cpu.time*10*1000, init_pid, init_pid,
-                                 "comm", "match", None, None)
-                proc.events.append(ev)
-
-        # merge in events
-        if self.events is not None:
-            for ev in self.events:
-                if ev.time > self.ps_stats.end_time:
-                    continue
-                key = int(ev.tid) * 1000
-                if key in self.ps_stats.process_map:
-                    self.ps_stats.process_map[key].events.append(ev)
-                else:
-                    writer.warn("no samples of /proc/%d/task/%d/proc found -- event lost:\n\t%s" %
-                                (ev.pid, ev.tid, ev.raw_log_line()))
-
         # re-parent any stray orphans if we can
         if self.parent_map is not None:   # requires either "kernel_pacct" or "paternity.log"
             for process in self.ps_stats.process_map.values():
@@ -157,7 +159,7 @@ class Trace:
         for process in self.ps_stats.process_map.values():
             process.calc_stats (self.ps_stats.sample_period)
 
-    def crop(self, writer, crop_after):
+    def crop(self, crop_after):
 
         def is_idle_at(util, start, j):
             k = j + 1
@@ -216,7 +218,7 @@ class Trace:
                     and self.disk_stats[-1].time > crop_at:
             self.disk_stats.pop()
 
-        self.ps_stats.end_time = crop_at
+        self.end_time = crop_at
 
         cropped_map = {}
         for key, value in self.ps_stats.process_map.items():
@@ -277,8 +279,9 @@ def _parse_timed_blocks(file):
 #   2. run continuing
 #   2.1  thread continues    (tid in processMap)
 #   2.2  thread starts
-def _handle_sample(processMap, writer, ltime, time,
-                   pid, tid, cmd, state, ppid, userCpu, sysCpu, c_user, c_sys, starttime):
+def _handle_sample(processMap, ltime, time,
+                   pid, tid, cmd, state, ppid, userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+                   num_cpus):
     assert(type(c_user) is IntType)
     assert(type(c_sys) is IntType)
 
@@ -291,25 +294,32 @@ def _handle_sample(processMap, writer, ltime, time,
             writer.status("time (%dcs) < starttime (%dcs), diff %d -- TID %d" %
                           (time, starttime, time-starttime, tid/1000))
 
-        process = Process(writer, pid, tid, cmd.strip('()'), ppid, starttime)
+        process = Process(pid, tid, cmd.strip('()'), ppid, starttime)
         if ltime:      # process is starting during profiling run
             process.user_cpu_ticks[0] = 0
             process.sys_cpu_ticks [0] = 0
+            process.delayacct_blkio_ticks [0] = 0
             ltime = starttime
         else:
             process.user_cpu_ticks[0] = userCpu
             process.sys_cpu_ticks [0] = sysCpu
+            process.delayacct_blkio_ticks [0] = delayacct_blkio_ticks
             ltime = -100000   #  XX  hacky way of forcing reported load toward zero
+        process.user_cpu_ticks[-1] =        process.user_cpu_ticks[0]
+        process.sys_cpu_ticks [-1] =        process.sys_cpu_ticks [0]
+        process.delayacct_blkio_ticks[-1] = process.delayacct_blkio_ticks[0]
         processMap[tid] = process      # insert new process into the dict
 
-    userCpuLoad, sysCpuLoad = process.calc_load(userCpu, sysCpu, max(1, time - ltime))
+    userCpuLoad, sysCpuLoad, delayacctBlkioLoad = process.calc_load(userCpu, sysCpu, delayacct_blkio_ticks,
+                                                                    max(1, time - ltime), num_cpus)
 
-    cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, c_user, c_sys, 0.0, 0.0)
+    cpuSample = ProcessCPUSample('null', userCpuLoad, sysCpuLoad, c_user, c_sys, delayacctBlkioLoad, 0.0)
     process.samples.append(ProcessSample(time, state, cpuSample))
 
     # per-tid store for use by a later phase of parsing of samples gathered at this 'time'
     process.user_cpu_ticks[-1] = userCpu
     process.sys_cpu_ticks[-1] = sysCpu
+    process.delayacct_blkio_ticks[-1] = delayacct_blkio_ticks
     return processMap
 
 # Consider this case: a process P and three waited-for children C1, C2, C3.
@@ -386,7 +396,17 @@ def compute_lost_child_times(processMap, ltime, time):
             print "compute_lost_child_times()", time, p_p.pid/1000, \
                   parent_c_tick_delta, p_p.missing_child_ticks, lost_child_ticks, interval #, p_p.samples[-1].lost_child
 
-def _parse_proc_ps_log(options, writer, file):
+def _distribute_belatedly_reported_delayacct_blkio_ticks(processMap):
+    for p in processMap.itervalues():
+        io_acc = 0.0
+        for s in p.samples[-1:0:-1]:
+            s.cpu_sample.io += io_acc
+            io_acc = 0.0
+            if s.cpu_sample.io + s.cpu_sample.user + s.cpu_sample.sys > 1.0:
+                io_acc = s.cpu_sample.io + s.cpu_sample.user + s.cpu_sample.sys - 1.0
+                s.cpu_sample.io -= io_acc
+
+def _parse_proc_ps_log(options, file, num_cpus):
     """
      * See proc(5) for details.
      *
@@ -409,13 +429,15 @@ def _parse_proc_ps_log(options, writer, file):
             userCpu, sysCpu = int(tokens[13+offset]), int(tokens[14+offset]),
             c_user, c_sys = int(tokens[15+offset]), int(tokens[16+offset])
             starttime = int(tokens[21+offset])
+            delayacct_blkio_ticks = int(tokens[41+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
             ppid *= 1000
-            processMap = _handle_sample(processMap, writer, ltime, time,
+            processMap = _handle_sample(processMap, ltime, time,
                                         pid, pid, cmd, state, ppid,
-                                        userCpu, sysCpu, c_user, c_sys, starttime)
+                                        userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+                                        num_cpus)
         if ltime:
             accumulate_missing_child_ltime(processMap, ltime)
             # compute_lost_child_times(processMap, ltime, time)
@@ -427,9 +449,11 @@ def _parse_proc_ps_log(options, writer, file):
     startTime = timed_blocks[0][0]
     avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
 
-    return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
+    _distribute_belatedly_reported_delayacct_blkio_ticks(processMap)
 
-def _parse_proc_ps_threads_log(options, writer, file):
+    return ProcessStats (processMap, len (timed_blocks), avgSampleLength)
+
+def _parse_proc_ps_threads_log(options, file):
     """
      *    0* pid -- inserted here from value in /proc/*pid*/task/.  Not to be found in /proc/*pid*/task/*tid*/stat.
      *              Not the same as pgrp, session, or tpgid.  Refer to collector daemon source code for details.
@@ -449,6 +473,7 @@ def _parse_proc_ps_threads_log(options, writer, file):
      *   14  current_EIP_instruction_pointer
      *   15  wchan
      *   16  scheduling_policy
+     *   17* delayacct_blkio_ticks -- in proc_ps_threads-2.log only, requires CONFIG_TASK_DELAY_ACCT
     """
     processMap = {}
     ltime = None
@@ -465,6 +490,8 @@ def _parse_proc_ps_threads_log(options, writer, file):
             pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
             userCpu, sysCpu = int(tokens[7+offset]), int(tokens[8+offset])
             c_user, c_sys = int(tokens[9+offset]), int(tokens[10+offset])
+            delayacct_blkio_ticks = int(tokens[17+offset]) if len(tokens) == 18+offset else 0
+
             assert(type(c_user) is IntType)
             assert(type(c_sys) is IntType)
             starttime = int(tokens[13+offset])
@@ -474,9 +501,10 @@ def _parse_proc_ps_threads_log(options, writer, file):
             tid *= 1000
             ppid *= 1000
 
-            processMap = _handle_sample(processMap, writer, ltime, time,
+            processMap = _handle_sample(processMap, ltime, time,
                                         pid, tid, cmd, state, ppid,
-                                        userCpu, sysCpu, c_user, c_sys, starttime)
+                                        userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+                                        1)
         ltime = time
 
     if len (timed_blocks) < 2:
@@ -485,9 +513,11 @@ def _parse_proc_ps_threads_log(options, writer, file):
     startTime = timed_blocks[0][0]
     avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
 
-    return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
+    _distribute_belatedly_reported_delayacct_blkio_ticks(processMap)
 
-def _parse_taskstats_log(writer, file):
+    return ProcessStats (processMap, len (timed_blocks), avgSampleLength)
+
+def _parse_taskstats_log(file):
     """
      * See bootchart-collector.c for details.
      *
@@ -501,7 +531,7 @@ def _parse_taskstats_log(writer, file):
     for time, lines in timed_blocks:
         # we have no 'starttime' from taskstats, so prep 'init'
         if ltime is None:
-            process = Process(writer, 1, '[init]', 0, 0)
+            process = Process(1, '[init]', 0, 0)
             processMap[1000] = process
             ltime = time
 #                       continue
@@ -529,12 +559,12 @@ def _parse_taskstats_log(writer, file):
                     pid += 1
                     pidRewrites[opid] = pid
 #                                       print "process mutation ! '%s' vs '%s' pid %s -> pid %s\n" % (process.cmd, cmd, opid, pid)
-                    process = process.split (writer, pid, cmd, ppid, time)
+                    process = process.split (pid, cmd, ppid, time)
                     processMap[pid] = process
                 else:
                     process.cmd = cmd;
             else:
-                process = Process(writer, pid, cmd, ppid, time)
+                process = Process(pid, pid, cmd, ppid, time)
                 processMap[pid] = process
 
             delta_cpu_ns = (float) (cpu_ns - process.last_cpu_ns)
@@ -570,7 +600,18 @@ def _parse_taskstats_log(writer, file):
     startTime = timed_blocks[0][0]
     avgSampleLength = (ltime - startTime)/(len(timed_blocks)-1)
 
-    return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
+    return ProcessStats (processMap, len (timed_blocks), avgSampleLength)
+
+def get_num_cpus(file):
+    """Get the number of CPUs from the ps_stats file."""
+    num_cpus = -1
+    for time, lines in _parse_timed_blocks(file):
+        for l in lines:
+            if l.split(' ')[0] == "intr":
+                file.seek(0)
+                return num_cpus
+            num_cpus += 1
+    assert(False)
 
 def _parse_proc_stat_log(file):
     samples = []
@@ -604,92 +645,65 @@ def _parse_proc_stat_log(file):
         ltimes = times
     return samples
 
+# matched not against whole line, but field only
+#  XX  Rework to be not a whitelist but rather a blacklist of uninteresting devices e.g. "loop*"
+part_name_re = re.compile('^([hsv]d.|mtdblock\d|mmcblk\d.*|cciss/c\d+d\d+.*)$')
+
 def _parse_proc_disk_stat_log(file, options, numCpu):
     """
-    Parse file for disk stats, summing over all physical storage devices, eg. sda, sdb.
-    Also parse stats for individual devices or partitions indicated on the command line.
-    The format of relevant lines should be:
-    {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running io_ticks aveq}
-    The file is generated by block/genhd.c
-    FIXME: for Flash devices, rio/wio may have more usefulness than rsect/wsect.
+    Input file is organized:
+        [(time, [(major, minor, partition_name, iostats[])])]
+    Output form, as required for drawing:
+        [(partition_name, [(time, iostat_deltas[])])]
+
+    Finally, produce pseudo-partition sample sets containing sums
+    over each physical storage device, e.g. sda, mmcblk0.
+
+    The input file was generated by block/genhd.c .
     """
 
-    def delta_disk_samples(disk_stat_samples, numCpu):
-        disk_stats = []
-
-        # Very short intervals amplify round-off under division by time delta, so coalesce now.
-        # XX  scaling issue for high-efficiency collector!
-        disk_stat_samples_coalesced = [(disk_stat_samples[0])]
-        for sample in disk_stat_samples:
-            if sample.time - disk_stat_samples_coalesced[-1].time < 5:
-                continue
-            disk_stat_samples_coalesced.append(sample)
-
-        for sample1, sample2 in zip(disk_stat_samples_coalesced[:-1], disk_stat_samples_coalesced[1:]):
-            interval = sample2.time - sample1.time
-            vector_diff = [ a - b for a, b in zip(sample2.diskdata, sample1.diskdata) ]
-            readTput =  float( vector_diff[0]) / interval
-            writeTput = float( vector_diff[1]) / interval
-            util = float( vector_diff[2]) / 10 / interval / numCpu
-            disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
-        return disk_stats
-
-    def get_relevant_tokens(lines, regex):
-        return [
-            linetokens
-            for linetokens in map (lambda x: x.split(),lines)
-            	if len(linetokens) == 14 and regex.match(linetokens[2])
-            ]
-
-    def add_tokens_to_sample(sample, tokens):
-        if options.show_ops_not_bytes:
-            disk_name, rop, wop, io_ticks = tokens[2], int(tokens[3]), int(tokens[7]), int(tokens[12])
-            sample.add_diskdata([rop, wop, io_ticks])
-        else:
-            disk_name, rsect, wsect, io_ticks = tokens[2], int(tokens[3]), int(tokens[7]), int(tokens[12])
-            sample.add_diskdata([rsect, wsect, io_ticks])
-        return disk_name
-
-    # matched not against whole line, but field only
-    disk_regex_re = re.compile('^([hsv]d.|mtdblock\d|mmcblk\d|cciss/c\d+d\d+.*)$')
-
-    disk_stat_samples = []
-    for time, lines in _parse_timed_blocks(file):
-        sample = DiskStatSample(time)
-        relevant_tokens = get_relevant_tokens(lines, disk_regex_re)
-
-        for tokens in relevant_tokens:
-            add_tokens_to_sample(sample,tokens)
-
-        disk_stat_samples.append(sample)
-
-    partition_samples = [DiskSamples("Sum over all disks",
-                                     delta_disk_samples(disk_stat_samples, numCpu))]
-
     strip_slash_dev_slash = re.compile("/dev/(.*)$")
-    if options.partitions:
-        for part in options.partitions:
-                file.seek(0)
-                disk_stat_samples = []
-                this_partition_regex_re = re.compile('^' + part + '.*$')
-                disk_name = ''
+#    this_partition_regex_re = re.compile('^' + part + '.*$')
 
-                # for every timed_block
-                disk_stat_samples = []
-                for time, lines in _parse_timed_blocks(file):
-                    sample = DiskStatSample(time)
-                    relevant_tokens = get_relevant_tokens(lines, this_partition_regex_re)
-                    if relevant_tokens:    # XX  should exit with usage message
-                        disk_name = add_tokens_to_sample(sample,relevant_tokens[0]) # [0] assumes 'part' matched at most a single line
-                    disk_stat_samples.append(sample)
+    parts_dict = {}
+    # for every timed_block, collect per-part lists of samples in 'parts_dict'
+    for time, lines in _parse_timed_blocks(file):
+        for line in lines:
+            def line_to_tokens(line):
+                linetokens = line.split()
+                return linetokens if len(linetokens) == 14 else None
 
-                if options.partition_labels:
-                    disk_name = options.partition_labels[0]
+            tokenized_partition = line_to_tokens(line)
+            if not tokenized_partition:
+                continue
+            sample = PartitionSample( time, IOStat_make(tokenized_partition))
+            if not part_name_re.match(sample.iostat.name):
+                continue
+            if not sample.iostat.name in parts_dict:
+                parts_dict[sample.iostat.name] = []
+            parts_dict[sample.iostat.name].append(sample)
+
+    # take deltas, discard original (cumulative) samples
+    partitions = []
+    WHOLE_DEV = 0
+    for partSamples in parts_dict.iteritems():
+        partitions.append( PartitionDeltas(
+            partSamples[1], numCpu,
+            partSamples[0],
+            partSamples[0]  # possibly to be replaced with partition_labels from command line
+            ))
+    partitions.sort(key = lambda p: p.name)
+    partitions[WHOLE_DEV].hide = False   # whole device
+
+    if len(options.partitions) > 0:
+        for opt_name in options.partitions:
+            for part in partitions:
+                if part.name == opt_name:
+                    part.hide = False
+                    part.label = options.partition_labels[0]
                     options.partition_labels = options.partition_labels[1:]
-                partition_samples.append(DiskSamples(disk_name,
-                                                     delta_disk_samples(disk_stat_samples, numCpu)))
 
-    return partition_samples
+    return partitions
 
 def _parse_proc_meminfo_log(file):
     """
@@ -727,13 +741,13 @@ def _parse_proc_meminfo_log(file):
 # ...
 # [    0.039993] calling  migration_init+0x0/0x6b @ 1
 # [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
-def _parse_dmesg(writer, file):
+def _parse_dmesg(file):
     timestamp_re = re.compile ("^\[\s*(\d+\.\d+)\s*]\s+(.*)$")
     split_re = re.compile ("^(\S+)\s+([\S\+_-]+) (.*)$")
     processMap = {}
     idx = 0
     inc = 1.0 / 1000000
-    kernel = Process(writer, idx, "k-boot", 0, 0.1)
+    kernel = Process(idx, idx, "k-boot", 0, 0.1)
     processMap['k-boot'] = kernel
     base_ts = False
     max_ts = 0
@@ -780,7 +794,7 @@ def _parse_dmesg(writer, file):
 #                               print "match: '%s' ('%g') at '%s'" % (func, ppid, time_ms)
             name = func.split ('+', 1) [0]
             idx += inc
-            processMap[func] = Process(writer, ppid + idx, name, ppid, time_ms / 10)
+            processMap[func] = Process(ppid + idx, ppid + idx, name, ppid, time_ms / 10)
         elif type == "initcall":
 #                       print "finished: '%s' at '%s'" % (func, time_ms)
             if func in processMap:
@@ -794,39 +808,72 @@ def _parse_dmesg(writer, file):
 
     return processMap.values()
 
-def _parse_events_log(writer, tf, file):
+def get_boot_relative_usec(state, boot_time_as_usecs_since_epoch, time_usec):
+    boot_relative_usec = time_usec - boot_time_as_usecs_since_epoch
+    if boot_relative_usec < csec_to_usec(state.start_time):
+        return None
+    if boot_relative_usec > csec_to_usec(state.end_time):
+        return None
+    return boot_relative_usec
+
+def parse_raw_log(state, boot_time_as_usecs_since_epoch, log_file, fields_re):
     '''
-    Parse a generic log format produced by target-specific filters.
-    Extracting the standard fields from the target-specific raw_file
-    is the responsibility of target-specific pre-processors.
+    Parse variously-formatted logs containing recorded events, as guided by a
+    set of target-specific regexps provided on the command line.
     Eventual output is per-process lists of events in temporal order.
     '''
-    split_re = re.compile ("^(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+)$")
-    timed_blocks = _parse_timed_blocks(file)
+    fields_re_c = re.compile(fields_re)
+
     samples = []
-    for time, lines in timed_blocks:
-        for line in lines:
+    for line in log_file:
             if line is '':
                 continue
-            m = split_re.match(line)
-            if m == None or m.lastindex < 7:    # XX  Ignore bad data from Java events, for now
+            m = fields_re_c.search(line)
+            if m == None:
                 continue
-            time_usec = long(m.group(1))
-            pid = int(m.group(2))
-            tid = int(m.group(3))
-            comm = m.group(4)
-            match = m.group(5)
-            raw_log_filename = m.group(6)
-            raw_log_seek = int(m.group(7))
-            samples.append( EventSample(time, time_usec, pid, tid, comm, match,
-                                        tf.extractfile(raw_log_filename), raw_log_seek))
+
+            time_usec = float(m.group('CLOCK_REALTIME_usec'))  # See `man 3 clock_gettime`
+            # tolerate any loss of precision in the timestamp, by rounding down
+            # FIXME: Don't simply round down -- show the user the (min,max) interval
+            # corresponding to the low-precision number.
+            while time_usec < 1300*1000*1000*1000*1000:
+                time_usec *= 10.0
+            while time_usec > 1300*1000*1000*1000*1000 * 2:
+                time_usec /= 10.0
+
+            try:
+                pid = int(m.group('pid'))
+            except IndexError:
+                # "inherited" by parent's per-thread/process bar
+                pid = 1
+
+            try:
+                tid = int(m.group('tid'))
+            except IndexError:
+                # "inherited" by parent's per-thread/process bar
+                tid = pid
+
+            try:
+                comm = m.group('comm')
+            except IndexError:
+                comm = ""
+
+            raw_log_seek = log_file.tell()
+
+            boot_relative_usec = get_boot_relative_usec(
+                state, boot_time_as_usecs_since_epoch, time_usec)
+            if boot_relative_usec:
+                samples.append( EventSample(
+                    boot_relative_usec,
+                    pid, tid, comm,
+                    log_file, raw_log_seek, line))
     return samples
 
 #
 # Parse binary pacct accounting file output if we have one
 # cf. /usr/include/linux/acct.h
 #
-def _parse_pacct(writer, file):
+def _parse_pacct(file):
     # read LE int32
     def _read_le_int32(file):
         byts = file.read(4)
@@ -850,7 +897,7 @@ def _parse_pacct(writer, file):
         file.seek (16, 1)         # acct_comm
     return parent_map
 
-def _parse_paternity_log(writer, file):
+def _parse_paternity_log(file):
     parent_map = {}
     parent_map[0] = 0
     for line in file.read().split('\n'):
@@ -862,7 +909,7 @@ def _parse_paternity_log(writer, file):
             print("Odd paternity line '%s'" % (line))
     return parent_map
 
-def _parse_cmdline_log(writer, file):
+def _parse_cmdline_log(file):
     cmdLines = {}
     for block in file.read().split('\n\n'):
         lines = block.split('\n')
@@ -877,62 +924,60 @@ def _parse_cmdline_log(writer, file):
             cmdLines[pid] = values
     return cmdLines
 
-def get_num_cpus(headers):
-    """Get the number of CPUs from the system.cpu header property. As the
-    CPU utilization graphs are relative, the number of CPUs currently makes
-    no difference."""
-    if headers is None:
-        return 1
-    if headers.get("system.cpu.num"):
-        return max (int (headers.get("system.cpu.num")), 1)
-    cpu_model = headers.get("system.cpu")
-    if cpu_model is None:
-        return 1
-    mat = re.match(".*\\((\\d+)\\)", cpu_model)
-    if mat is None:
-        return 1
-    return max (int(mat.group(1)), 1)
-
-def _do_parse(writer, state, tf, name, file, options):
+def _do_parse(state, tf, name, file, options):
     writer.status("parsing '%s'" % name)
     t1 = clock()
     if name == "header":
         state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
-        state.disk_stats = _parse_proc_disk_stat_log(file, options, get_num_cpus(state.headers))
+        state.disk_stats = _parse_proc_disk_stat_log(file, options, state.num_cpus)
     elif name == "taskstats.log":
-        state.ps_stats = _parse_taskstats_log(writer, file)
+        state.ps_stats = _parse_taskstats_log(file)
         state.taskstats = True
     elif name == "proc_stat.log":
+        state.num_cpus = get_num_cpus(file)
         state.cpu_stats = _parse_proc_stat_log(file)
+        state.start_time = state.cpu_stats[0].time
+        state.end_time = state.cpu_stats[-1].time
     elif name == "proc_meminfo.log":
         state.mem_stats = _parse_proc_meminfo_log(file)
     elif name == "dmesg":
-        state.kernel = _parse_dmesg(writer, file)
+        state.kernel = _parse_dmesg(file)
     elif name == "cmdline2.log":
-        state.cmdline = _parse_cmdline_log(writer, file)
+        state.cmdline = _parse_cmdline_log(file)
     elif name == "paternity.log":
-        state.parent_map = _parse_paternity_log(writer, file)
+        state.parent_map = _parse_paternity_log(file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
-        state.ps_stats = _parse_proc_ps_log(options, writer, file)
-    elif name == "proc_ps_threads.log":
-        state.ps_stats = _parse_proc_ps_threads_log(options, writer, file)
+        state.ps_stats = _parse_proc_ps_log(options, file, state.num_cpus)
+    elif name == "proc_ps_threads.log" or  name == "proc_ps_threads-2.log" :
+        state.ps_threads_stats = _parse_proc_ps_threads_log(options, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
-        state.parent_map = _parse_pacct(writer, file)
-    elif name == "events-7.log":   # 7 is number of fields -- a crude versioning scheme
-        state.events = _parse_events_log(writer, tf, file)
+        state.parent_map = _parse_pacct(file)
+    elif hasattr(options, "event_source"):
+        boot_t = state.headers.get("boot_time_as_usecs_since_epoch")
+        assert boot_t, NotImplementedError
+        for es in options.event_source:
+            if name == es.filename:
+                parser = parse_raw_log
+                es.parsed = parser(state, long(boot_t), file, es.regex)
+                es.enable = len(es.parsed) > 0
+                file.seek(0)   # file will be re-scanned for each regex
+                writer.info("parsed {0:5d} events from {1:16s} using {2:s}".format(
+                        len(es.parsed), file.name, es.regex))
+    else:
+        pass # unknown file in tarball
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state
 
-def parse_file(writer, state, filename, options):
+def parse_file(state, filename, options):
     if state.filename is None:
         state.filename = filename
     basename = os.path.basename(filename)
     with open(filename, "rb") as file:
-        return _do_parse(writer, state, None, basename, file, options)
+        return _do_parse(state, None, basename, file, options)
 
-def parse_paths(writer, state, paths, options):
+def parse_paths(state, paths, options):
     for path in paths:
         root, extension = os.path.splitext(path)
         if not(os.path.exists(path)):
@@ -941,7 +986,7 @@ def parse_paths(writer, state, paths, options):
         if os.path.isdir(path):
             files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
             files.sort()
-            state = parse_paths(writer, state, files, options)
+            state = parse_paths(state, files, options)
         elif extension in [".tar", ".tgz", ".gz"]:
             if extension == ".gz":
                 root, extension = os.path.splitext(root)
@@ -950,12 +995,27 @@ def parse_paths(writer, state, paths, options):
                     continue
             state.tf = None
             try:
-                writer.status("parsing '%s'" % path)
                 state.tf = tarfile.open(path, 'r:*')
-                for name in state.tf.getnames():
-                    state = _do_parse(writer, state, state.tf, name, state.tf.extractfile(name), options)
+
+                # parsing of other files depends on these
+                early_opens = ["header", "proc_stat.log"]
+                def not_in_early_opens(name):
+                    return len(filter(lambda n: n==name, early_opens)) == 0
+
+                for name in early_opens + filter(not_in_early_opens, state.tf.getnames()):
+                    # Extracted file should be seekable, presumably a decompressed copy.
+                    #   file:///usr/share/doc/python2.6/html/library/tarfile.html?highlight=extractfile#tarfile.TarFile.extractfile
+                    # XX  Python 2.6 extractfile() assumes file contains lines of text, not binary :-(
+                    extracted_file = state.tf.extractfile(name)
+                    if not extracted_file:
+                        continue
+                    state = _do_parse(state, state.tf, name, extracted_file, options)
             except tarfile.ReadError as error:
                 raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
         else:
-            state = parse_file(writer, state, path, options)
+            state = parse_file(state, path, options)
+
+        for es in options.event_source:
+            if es.parsed == None:
+                raise ParseError("\n\tevents file found on command line but not in tarball: {0}\n".format(es.filename))
     return state

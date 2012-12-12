@@ -22,6 +22,9 @@ import colorsys
 import collections
 import traceback # debug
 
+from samples import IOStat, EventSample
+from . import writer
+
 # Constants: Put the more heavily used, non-derived constants in a named tuple, for immutability.
 # XX  The syntax is awkward, but more elegant alternatives have run-time overhead.
 #     http://stackoverflow.com/questions/4996815/ways-to-make-a-class-immutable-in-python
@@ -46,6 +49,7 @@ DARK_GREY = (0.1, 0.1, 0.1)
 NOTEPAD_YELLOW = (0.95, 0.95, 0.8, 1.0)
 PURPLE = (0.6, 0.1, 0.6, 1.0)
 RED = (1.0, 0.0, 0.0)
+MAGENTA = (0.7, 0.0, 0.7, 1.0)
 
 # Process tree border color.
 BORDER_COLOR = (0.63, 0.63, 0.63, 1.0)
@@ -74,16 +78,14 @@ CPU_COLOR = (0.60, 0.60, 0.70, 1.0)
 # CPU system-mode load chart color.
 CPU_SYS_COLOR = (0.70, 0.65, 0.40, 1.0)
 # IO wait chart color.
-IO_COLOR = (0.76, 0.48, 0.48, 0.5)
+IO_COLOR = (0.88, 0.74, 0.74, 1.0)
 
 PROCS_RUNNING_COLOR = (0.0, 1.0, 0.0, 1.0)
 PROCS_BLOCKED_COLOR = (0.7, 0.0, 0.0, 1.0)
 
-# Disk throughput color.
-DISK_TPUT_COLOR = (0.20, 0.71, 0.20, 1.0)
-# Disk throughput color.
-MAGENTA = (0.7, 0.0, 0.7, 1.0)
+DISK_READ_COLOR = (0.20, 0.71, 0.20, 1.0)
 DISK_WRITE_COLOR = MAGENTA
+
 # Mem cached color
 MEM_CACHED_COLOR = CPU_COLOR
 # Mem used color
@@ -91,7 +93,7 @@ MEM_USED_COLOR = IO_COLOR
 # Buffers color
 MEM_BUFFERS_COLOR = (0.4, 0.4, 0.4, 0.3)
 # Swap color
-MEM_SWAP_COLOR = DISK_TPUT_COLOR
+MEM_SWAP_COLOR = (0.20, 0.71, 0.20, 1.0)
 
 # Process CPU load of children -- including those waited for by the parent, but not captured by any collector sample
 CPU_CHILD_COLOR = (1.00, 0.70, 0.00, 1.0)
@@ -238,6 +240,9 @@ class DrawContext:
 		self.charts = charts
 		self.kernel_only = kernel_only  # set iff collector daemon saved output of `dmesg`
 		self.SWEEP_CSEC = None
+
+		self.ps_event_lists_valid = False
+
 		self.event_dump_list = None
 		self.trace = trace
 
@@ -245,23 +250,76 @@ class DrawContext:
 		self.time_origin_drawn = None # time of leftmost plotted data, as integer csecs
 		self.SEC_W = None
 		self.time_origin_relative = None  # currently used only to locate events
-		self.highlight_event__match_RE = []
 
 		# intra-rendering state
 		self.hide_process_y = None
 		self.unhide_process_y = None
 		self.proc_above_was_hidden = False
 
-	def per_render_init(self, cr, time_origin_drawn, SEC_W, sweep_csec):
+	def _validate_event_state(self, ctx, trace):
+		def copy_if_enabled(color_list, re_index):
+			return [ec.color_regex[re_index] for ec in color_list if ec.enable]
+
+		self.event_RE = copy_if_enabled( self.app_options.event_color, 0)
+		self.event_interval_0_RE = copy_if_enabled( self.app_options.event_interval_color, 0)
+		self.event_interval_1_RE = copy_if_enabled( self.app_options.event_interval_color, 1)
+
+		if trace.ps_threads_stats:
+			ps_s = trace.ps_threads_stats
+			key_fn = lambda ev: ev.tid * 1000
+		else:
+			ps_s = trace.ps_stats
+			key_fn = lambda ev: ev.pid * 1000
+
+		# Copy events selected by currently enabled EventSources to per-process lists
+	        for proc in ps_s.process_map.values():
+			proc.events = []
+	        for ep in filter(lambda ep: ep.enable, ctx.app_options.event_source):
+			for ev in ep.parsed:
+				key = key_fn(ev)
+				if key in ps_s.process_map:
+					ps_s.process_map[key].events.append(ev)
+				else:
+					writer.warn("no samples of /proc/%d/task/%d/stat found -- event lost:\n\t%s" %
+						    (ev.pid, ev.tid, ev.raw_log_line))
+
+		# Strip out from per-process lists any events not selected by a regexp.
+	        for proc in ps_s.process_map.values():
+			enabled_events = []
+			for ev in proc.events:
+				# Separate attrs, because they may be drawn differently
+				ev.event_match_any = None
+				ev.event_match_0 = None
+				ev.event_match_1 = None
+                                def _set_attr_on_match(RE_list, event_match_attr):
+                                        # Only LAST matching regexp contributes to the label string --
+                                        # this allows user to append overriding regexes to the command line.
+                                        m = None
+                                        for ev_re in RE_list:
+                                                m = re.search(ev_re, ev.raw_log_line)
+                                                if m:
+                                                        setattr(ev, event_match_attr, m)
+                                        return getattr(ev, event_match_attr) is not None
+                                _set_attr_on_match(ctx.event_RE + ctx.event_interval_0_RE + ctx.event_interval_1_RE,
+                                                  "event_match_any")
+                                _set_attr_on_match(ctx.event_interval_0_RE, "event_match_0")
+                                _set_attr_on_match(ctx.event_interval_1_RE, "event_match_1")
+				enabled_events.append(ev)
+			enabled_events.sort(key = lambda ev: ev.time_usec)
+			proc.events = enabled_events
+			proc.draw |= len(proc.events) > 0
+		self.ps_event_lists_valid = True
+
+	def per_render_init(self, cr, ctx, trace, time_origin_drawn, SEC_W, sweep_csec):
 		self.cr = cr
 		self.time_origin_drawn = time_origin_drawn
 		self.SEC_W = SEC_W
 		self.n_WIDTH = cr.text_extents("n")[2]
 		self.M_HEIGHT = cr.text_extents("M")[3]
 
-		self.highlight_event__match_RE = []
-		for ev_regex in self.app_options.event_regex:
-			self.highlight_event__match_RE.append( re.compile(ev_regex))
+	        # merge in enabled event sources
+		if not self.ps_event_lists_valid:
+			self._validate_event_state(ctx, trace)
 
 		self.SWEEP_CSEC = sweep_csec
 		if self.SWEEP_CSEC:
@@ -378,13 +436,23 @@ def plot_square(cr, point, x, y):
         cr.line_to(x, y)  # rightward
 
 # backward-looking
-def plot_segment_positive(cr, point, x, y):
+def plot_segment(cr, point, x, y, segment_tick_height):
 	cr.move_to(cr.get_current_point()[0], y)       # upward or downward
 	if point[1] <= 0:           # zero-Y samples draw nothing
 		cr.move_to(x, y)
 		return
-	cr.set_line_width(1.0)
-	cr.line_to(x, y)
+	#cr.set_line_width(1.0)
+	cr.line_to(x, y-segment_tick_height/2)
+	cr.rel_line_to(0, segment_tick_height)
+	cr.fill()
+	cr.move_to(x, y)
+
+SEGMENT_TICK_HEIGHT = 2
+def plot_segment_thin(cr, point, x, y):
+	plot_segment(cr, point, x, y, SEGMENT_TICK_HEIGHT)
+
+def plot_segment_fat(cr, point, x, y):
+	plot_segment(cr, point, x, y, 1.5*SEGMENT_TICK_HEIGHT)
 
 def _plot_scatter_positive(cr, point, x, y, w, h):
 	if point[1] <= 0:
@@ -472,6 +540,11 @@ def render_charts(ctx, trace, curr_y, w, h):
 	proc_tree = ctx.proc_tree(trace)
 	x_onscreen = max(0, ctx.cr.device_to_user(0, 0)[0])
 
+	max_procs_blocked = \
+		max([sample.procs_blocked for sample in trace.cpu_stats])
+	max_procs_running = \
+		max([sample.procs_running for sample in trace.cpu_stats])
+
 	if ctx.app_options.show_legends:
 		# render bar legend
 		ctx.cr.set_font_size(LEGEND_FONT_SIZE)
@@ -480,10 +553,10 @@ def render_charts(ctx, trace, curr_y, w, h):
 		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (user)", CPU_COLOR, curr_x, curr_y, C.leg_s)
 		curr_x += 20 + draw_legend_box(ctx.cr, "CPU (sys)", CPU_SYS_COLOR, curr_x, curr_y, C.leg_s)
 		curr_x += 20 + draw_legend_box(ctx.cr, "I/O (wait)", IO_COLOR, curr_x, curr_y, C.leg_s)
-		curr_x += draw_legend_diamond(ctx.cr, "Runnable threads", PROCS_RUNNING_COLOR,
-				    curr_x +10, curr_y, C.leg_s, C.leg_s)
-		curr_x += draw_legend_diamond(ctx.cr, "Blocked threads -- Uninterruptible Syscall", PROCS_BLOCKED_COLOR,
-				    curr_x +70, curr_y, C.leg_s, C.leg_s)
+		curr_x += draw_legend_diamond(ctx.cr, str(max_procs_running) + " Runnable threads",
+				PROCS_RUNNING_COLOR, curr_x +10, curr_y, C.leg_s, C.leg_s)
+		curr_x += draw_legend_diamond(ctx.cr, str(max_procs_blocked) + " Blocked threads -- Uninterruptible Syscall",
+				PROCS_BLOCKED_COLOR, curr_x +70, curr_y, C.leg_s, C.leg_s)
 
 	chart_rect = (0, curr_y+10+USER_HALF, w, C.bar_h)
 	draw_box_1 (ctx, chart_rect)
@@ -510,35 +583,70 @@ def render_charts(ctx, trace, curr_y, w, h):
 	# instantaneous sample
 	draw_chart (ctx, PROCS_BLOCKED_COLOR, False, chart_rect,
 		    [(sample.time, sample.procs_blocked) for sample in trace.cpu_stats], \
-		    proc_tree, [0, 9], plot_scatter_positive_big)
+		    proc_tree, [0, max(max_procs_blocked, max_procs_running)], plot_scatter_positive_big)
 
 	# instantaneous sample
 	draw_chart (ctx, PROCS_RUNNING_COLOR, False, chart_rect,
 		    [(sample.time, sample.procs_running) for sample in trace.cpu_stats], \
-		    proc_tree, [0, 9], plot_scatter_positive_small)
+		    proc_tree, [0, max(max_procs_blocked, max_procs_running)], plot_scatter_positive_small)
 
 	curr_y += 8 + C.bar_h
 
+	# XXX  Assume single device for now.
+	# XX   Generate an IOStat containing max'es of all stats, instead?
+	max_whole_device_IOStat = IOStat._make(
+		getattr( max( trace.disk_stats[0].part_deltas,
+			      key = lambda part_delta: getattr(part_delta.s.iostat, f)).s.iostat,
+			 f)
+		for f in IOStat._fields)
+	max_whole_device_util = \
+		max( trace.disk_stats[0].part_deltas,
+		     key = lambda part_delta: part_delta.util).util
+
+	if ctx.app_options.show_ops_not_bytes:
+		read_field = 'nreads'
+		write_field = 'nwrites'
+	else:
+		read_field = 'nsectors_read'
+		write_field = 'nsectors_write'
+
+	max_whole_device_read_or_write = max(getattr(max_whole_device_IOStat, write_field),
+					     getattr(max_whole_device_IOStat, read_field))
+
 	if ctx.app_options.show_legends:
 		curr_y += 34
+		curr_x = C.legend_indent+x_onscreen
 		# render second chart
-		draw_legend_box(ctx.cr, "Disk utilization -- fraction of sample interval I/O queue was not empty",
-				IO_COLOR, C.legend_indent+x_onscreen, curr_y, C.leg_s)
-		if ctx.app_options.show_ops_not_bytes:
-			unit = "ops"
-		else:
-			unit = "bytes"
-		draw_legend_line(ctx.cr, "Disk writes -- " + unit + "/sample",
-				 DISK_WRITE_COLOR, C.legend_indent+x_onscreen+470, curr_y, C.leg_s)
-		draw_legend_line(ctx.cr, "Disk reads+writes -- " + unit + "/sample",
-				 DISK_TPUT_COLOR, C.legend_indent+x_onscreen+470+220, curr_y, C.leg_s)
+		draw_legend_box(ctx.cr,
+				"Disk utilization -- fraction of sample interval I/O queue was not empty",
+				IO_COLOR, curr_x, curr_y, C.leg_s)
+		curr_x += 457
 
-	# render disk throughput
-	max_sample = None
+		def draw_RW_legend(x, field, color, plot):
+			label = str(getattr(max_whole_device_IOStat, field)) + " " + field
+			cr = ctx.cr
+			cr.set_source_rgba(*color)
+			cr.move_to(x, -1)
+			PLOT_WIDTH = 30
+			plot(cr, [0,1], x+PLOT_WIDTH, curr_y-4)
+			x += PLOT_WIDTH+5
+			x += draw_text(cr, label, TEXT_COLOR, x, curr_y)
+			return x
+
+		curr_x = 10 + draw_RW_legend(curr_x,
+				read_field, DISK_READ_COLOR, plot_segment_thin)
+		curr_x = draw_RW_legend(curr_x,
+				write_field, DISK_WRITE_COLOR, plot_segment_fat)
+		if ctx.app_options.show_ops_not_bytes:
+			curr_x = draw_RW_legend(curr_x,
+						"nio_in_progress", BLACK, plot_scatter_positive_big)
 
         # render I/O utilization
+	#  No correction for non-constant sample.time -- but see sample-coalescing code in parsing.py.
 	for partition in trace.disk_stats:
-		draw_text(ctx.cr, partition.name, TEXT_COLOR, C.legend_indent+x_onscreen, curr_y+18)
+		if partition.hide:
+			continue
+		draw_text(ctx.cr, partition.label, TEXT_COLOR, C.legend_indent+x_onscreen, curr_y+18)
 
 		# utilization -- inherently normalized [0,1]
 		chart_rect = (0, curr_y+18+5+USER_HALF, w, C.bar_h)
@@ -546,35 +654,28 @@ def render_charts(ctx, trace, curr_y, w, h):
 		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
 		# a backwards delta
 		draw_chart (ctx, IO_COLOR, True, chart_rect,
-				    [(sample.time, sample.util) for sample in partition.samples],
-				    proc_tree, [0, 1], plot_square)
+				    [(sample.s.time, sample.util) for sample in partition.part_deltas],
+				    proc_tree, [0, max_whole_device_util], plot_square)
 
-		# render disk throughput
-		#  XXX assume single block device, for now
-		if not max_sample:
-			#  XXX correction for non-constant sample.time?
-			max_sample = max (partition.samples, key = lambda s: s.tput)
-
-		# a backwards delta
-		draw_chart (ctx, DISK_TPUT_COLOR, False, chart_rect,
-				    [(sample.time, sample.tput) for sample in partition.samples],
-				    proc_tree, [0, max_sample.tput], plot_segment_positive)
-
-		# overlay write throughput
-		# a backwards delta
+		# write throughput -- a backwards delta
 		draw_chart (ctx, DISK_WRITE_COLOR, False, chart_rect,
-				    [(sample.time, sample.write) for sample in partition.samples],
-				    proc_tree, [0, max_sample.tput], plot_segment_positive)
+			[(sample.s.time, getattr(sample.s.iostat, write_field)) for sample in partition.part_deltas],
+			proc_tree, [0, max_whole_device_read_or_write], plot_segment_fat)
 
-		# pos_x = ((max_sample.time - proc_tree.start_time) * w / proc_tree.duration())
-		#
-		# shift_x, shift_y = -20, 20
-		# if (pos_x < 245):
-		# 	shift_x, shift_y = 5, 40
-		#
-		# DISK_BLOCK_SIZE = 1024
-		# label = "%.1fMB/s" % round ((max_sample.tput) / DISK_BLOCK_SIZE)
-		# draw_text (ctx, label, DISK_TPUT_COLOR, pos_x + shift_x, curr_y + shift_y)
+		# overlay read throughput -- any overlapping read will be protrude around the edges
+		draw_chart (ctx, DISK_READ_COLOR, False, chart_rect,
+			[(sample.s.time, getattr(sample.s.iostat, read_field)) for sample in partition.part_deltas],
+			proc_tree, [0, max_whole_device_read_or_write], plot_segment_thin)
+
+		# overlay instantaneous count of number of I/O operations in progress, only if comparable to
+		# the read/write stats currently shown (ops).
+		if ctx.app_options.show_ops_not_bytes:
+			draw_chart (ctx, BLACK, False, chart_rect,
+				    [(sample.s.time, sample.nio_in_progress) for sample in partition.part_deltas],
+				    proc_tree,
+				    [0, max(max_whole_device_read_or_write,
+					    max_whole_device_IOStat.nio_in_progress)],
+				     plot_scatter_positive_small)
 
 		curr_y += 18+C.bar_h
 
@@ -624,7 +725,7 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 	"ctx" is a DrawContext object.
 	'''
 	#traceback.print_stack()
-	ctx.per_render_init(cr, _time_origin_drawn(ctx, trace), _sec_w(xscale), sweep_csec)
+	ctx.per_render_init(cr, ctx, trace, _time_origin_drawn(ctx, trace), _sec_w(xscale), sweep_csec)
 	(w, h) = extents(ctx, xscale, trace)
 
 	ctx.cr.set_line_width(1.0)
@@ -700,15 +801,16 @@ def render(cr, ctx, xscale, trace, sweep_csec = None, hide_process_y = None):
 		ctx.event_dump_list.sort(key = lambda e: e.raw_log_seek)
 		if len(ctx.event_dump_list):
 			event0 = ctx.event_dump_list[0]
-			event0.raw_log_file.seek(event0.raw_log_seek)
-			eventN = ctx.event_dump_list[-1]
-			#for line in event0.raw_log_file.readline():
-			while event0.raw_log_file.tell() <= eventN.raw_log_seek:
-				print event0.raw_log_file.readline(),
-	else:   # dump events only
+			if event0.raw_log_seek:
+				event0.raw_log_file.seek(event0.raw_log_seek)
+				eventN = ctx.event_dump_list[-1]
+				# for line in event0.raw_log_file.readline():
+				while event0.raw_log_file.tell() <= eventN.raw_log_seek:
+					print event0.raw_log_file.readline().rstrip()
+	else:   # dump only digestible events
 		ctx.event_dump_list.sort(key = lambda ev: ev.time_usec)
 		for ev in ctx.event_dump_list:
-			print ev.time_usec, ".", ev.raw_log_line(),
+			print ev.dump_format()
 
 	ctx.event_dump_list = None
 
@@ -762,6 +864,8 @@ def draw_process_bar_chart_legends(ctx, curr_y):
 				   PROC_COLOR_R, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Running (sys)",
 				   CPU_SYS_COLOR, curr_x, curr_y, C.leg_s)
+	curr_x += 20 + draw_legend_box (ctx.cr, "I/O wait",
+				   IO_COLOR, curr_x, curr_y, C.leg_s)
         curr_x += 20 + draw_legend_box (ctx.cr, "Child CPU time lost, charged to parent",
 				   CPU_CHILD_COLOR, curr_x, curr_y, C.leg_s)
 	curr_x += 20 + draw_legend_box (ctx.cr, "Sleeping",
@@ -972,35 +1076,46 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w):
 	    if cpu_exited_child != 0:
 		    print "cpu_exited_child == " + str(cpu_exited_child)
 
-	    if cpu_self > 1.0:
-		print "process CPU time overflow: ", proc.tid, sample.time, width, cpu_self
-		OVERFLOW_BAR_HEIGHT=2
-		draw_fill_rect(ctx.cr, PURPLE, (last_time, y+SEP_HALF, width, OVERFLOW_BAR_HEIGHT))
-		cpu_self = 1.0 - float(OVERFLOW_BAR_HEIGHT)/C.proc_h
-	    if cpu_self > 0:
-	        height = cpu_self * BAR_HEIGHT
-	        draw_fill_rect(ctx.cr, PROC_COLOR_R, (last_time, y+C.proc_h-SEP_HALF, width, -height))
+	    # XX  For whole processes, the cpu_sample.io stat is the sum of waits for all threads.
 
-	        # in unlikely event of no sys time at all, skip setting of color to CPU_SYS_COLOR
-	        if sample.cpu_sample.sys > 0:
-	        	height = sample.cpu_sample.sys * BAR_HEIGHT
-	        	draw_fill_rect(ctx.cr, CPU_SYS_COLOR, (last_time, y+C.proc_h-SEP_HALF, width, -height))
-	        	if sample.cpu_sample.sys < cpu_self:
-	    		# draw a separator between the bar segments, to aid the eye in
-	        		# resolving the boundary
-	        		ctx.cr.save()
-	        		ctx.cr.move_to(last_time, y+C.proc_h-SEP_HALF-height)
-	        		ctx.cr.rel_line_to(width,0)
-	        		ctx.cr.set_source_rgba(*PROC_COLOR_S)
-	        		ctx.cr.set_line_width(DEP_STROKE/2)
-	        		ctx.cr.stroke()
-	        		ctx.cr.restore()
+	    # Inspection of kernel code shows that tick counters are rounded to nearest,
+	    # so overflow is to be expected.
+	    OVERFLOW_LIMIT=1.0
+	    # XX  What's the upper bound on rounding-induced overflow?
+	    if sample.cpu_sample.io + cpu_self > 0:
+	        height = min(OVERFLOW_LIMIT, (sample.cpu_sample.io + cpu_self)) * BAR_HEIGHT
+	        draw_fill_rect(ctx.cr, IO_COLOR, (last_time, y+C.proc_h-SEP_HALF, width, -height))
 
-	        # If thread ran at all, draw a "speed bump", in case rect was too short to resolve.
+		for (cpu_field, color) in [(sample.cpu_sample.user + sample.cpu_sample.sys, PROC_COLOR_R),
+					   (sample.cpu_sample.sys, CPU_SYS_COLOR)]:
+	            # If this test fails -- no time ticks -- then skip changing of color.
+	            if cpu_field > 0:
+			    height = min(OVERFLOW_LIMIT, cpu_field) * BAR_HEIGHT
+			    draw_fill_rect(ctx.cr, color, (last_time, y+C.proc_h-SEP_HALF, width, -height))
+			    if cpu_field < cpu_self:
+				    # draw a separator between the bar segments, to aid the eye in
+				    # resolving the boundary
+				    ctx.cr.save()
+				    ctx.cr.move_to(last_time, y+C.proc_h-SEP_HALF-height)
+				    ctx.cr.rel_line_to(width,0)
+				    ctx.cr.set_source_rgba(*PROC_COLOR_S)
+				    ctx.cr.set_line_width(DEP_STROKE/2)
+				    ctx.cr.stroke()
+				    ctx.cr.restore()
+
+	        # If thread ran at all, draw a "speed bump", in the last used color, to help the user
+		# with rects that are too short to resolve.
 	        tick_height = C.proc_h/5
 	        ctx.cr.arc((last_time + sample.time)/2, y+C.proc_h-SEP_HALF, tick_height, math.pi, 0.0)
 	        ctx.cr.close_path()
 	        ctx.cr.fill()
+
+	    if cpu_self > 1.0:
+		writer.info("process CPU+I/O time overflow: time {0:5d}, start_time {1:5d}, tid {2:5d}, width {3:2d}, cpu_self {4: >5.2f}".format(
+			sample.time, proc.start_time, proc.tid/1000, width, cpu_self))
+		OVERFLOW_BAR_HEIGHT=2
+		draw_fill_rect(ctx.cr, PURPLE, (last_time, y+SEP_HALF, width, OVERFLOW_BAR_HEIGHT))
+		cpu_self = 1.0 - float(OVERFLOW_BAR_HEIGHT)/C.proc_h
 
 	    last_time = sample.time
 	ctx.cr.restore()
@@ -1009,8 +1124,11 @@ def usec_to_csec(usec):
 	'''would drop precision without the float() cast'''
 	return float(usec) / 1000 / 10
 
+def csec_to_usec(csec):
+	return csec * 1000 * 10
+
 def draw_event_label(ctx, label, tx, y):
-	draw_label_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
+	return draw_label_at_time(ctx.cr, HIGHLIGHT_EVENT_COLOR, label, y, tx)
 
 def format_label_time(ctx, delta):
 	if ctx.SWEEP_CSEC:
@@ -1027,23 +1145,21 @@ def format_label_time(ctx, delta):
 					     prec=min(3, max(0, int(ctx.SEC_W/100))))
 
 def print_event_times(ctx, y, ev_list):
-	ctx.cr.set_source_rgba(*DIM_EVENT_COLOR)
-	width = ctx.cr.text_extents("00")[2]
 	last_x_touched = 0
 	last_label_str = None
 	for (ev, tx) in ev_list:
-		for ev_re in ctx.highlight_event__match_RE:
-			m = re.search(ev_re, ev.match)
-			if m:
-				break;
-		if not m and tx < last_x_touched + width:
+		if not ctx.app_options.synthesize_sample_start_events and ev.raw_log_line == "pseudo-raw_log_line":
 			continue
-		delta= float(ev.time_usec)/1000/10 - ctx.time_origin_relative
+		m_highlight = ev.event_match_any
+		delta = usec_to_csec(ev.time_usec) - ctx.time_origin_relative
 
 		label_str = format_label_time(ctx, delta)
-		if m or label_str != last_label_str:
-			if m:
-				# freely step on top of any time labels drawn earlier
+		white_space = 8
+		if tx < last_x_touched + white_space:
+			continue
+
+		if m_highlight or label_str != last_label_str:
+			if m_highlight:
 				last_x_touched = tx + draw_label_on_bg(
 					ctx.cr,
 					WHITE,
@@ -1056,11 +1172,13 @@ def print_event_times(ctx, y, ev_list):
 			last_label_str = label_str
 
 def draw_process_events(ctx, proc, proc_tree, x, y):
+	ctx.cr.save()
+	ctx.cr.set_line_width(0)
+
 	n_highlighted_events = 0
+	last_tx_plus_width_drawn = 0
 	ev_list = [(ev, csec_to_xscaled(ctx, usec_to_csec(ev.time_usec)))
 		   for ev in proc.events]
-	if not ev_list:
-		return n_highlighted_events
 
 	# draw numbers
 	if ctx.app_options.print_event_times:
@@ -1068,39 +1186,68 @@ def draw_process_events(ctx, proc, proc_tree, x, y):
 
 	# draw ticks, maybe add to dump list
 	for (ev, tx) in ev_list:
-		# FIXME: Optimize by doing re.search() per-regexp change, rather than per-rendering?
-		for ev_re in ctx.highlight_event__match_RE:
-			m = re.search(ev_re, ev.match)
-			if m:
-				break;
-		if m:
+		if not ctx.app_options.synthesize_sample_start_events and ev.raw_log_line == "pseudo-raw_log_line":
+			continue
+		last_m = ev.event_match_any
+		if last_m:
 			ctx.cr.set_source_rgb(*HIGHLIGHT_EVENT_COLOR)
-			W,H = 2,8
-			if m.lastindex:
+			W = 2
+			if last_m.lastindex:
 				groups_concat = ""
-				for g in m.groups():
+				for g in last_m.groups():
 					groups_concat += str(g)
 			else:
-				groups_concat = m.group(0)
-			draw_event_label(ctx,
-					 groups_concat,
-					 tx, y+2*C.proc_h-4)
+				groups_concat = last_m.group(0)
+			if last_tx_plus_width_drawn < tx:
+				# draw bottom half of tick mark
+				tick_depth = 10
+				ctx.cr.move_to(tx, y +C.proc_h +tick_depth) # bottom
+
+				ctx.cr.rel_line_to(-W, -tick_depth -0.5)      # top-left
+				ctx.cr.rel_line_to(2*W, 0)        # top-right
+				ctx.cr.close_path()
+				ctx.cr.fill()
+
+				clear = 1.0                        # clearance between down-tick and string
+				last_tx_plus_width_drawn = \
+						tx + clear + \
+						draw_event_label(ctx,
+								 groups_concat,
+								 tx + clear, y+2*C.proc_h-4)
 			n_highlighted_events += 1
 		else:
 			ctx.cr.set_source_rgb(*DIM_EVENT_COLOR)
-			W,H = 1,5
-		# don't dump synthetic events
-		if ctx.event_dump_list != None and ctx.SWEEP_CSEC and ev.raw_log_seek:
-			ev_time_csec = float(ev.time_usec)/1000/10
+			W = 1
+
+		# If an interval bar should start at tx, record the time.
+		last_m = ev.event_match_0
+		if last_m:
+			proc.event_interval_0_tx = tx
+
+		# Draw interval bar that terminates at tx, if any.
+		if proc.event_interval_0_tx != None:
+			last_m = ev.event_match_1
+			if last_m:
+				ctx.cr.rectangle(proc.event_interval_0_tx, y+C.proc_h+0.5,
+						 tx-proc.event_interval_0_tx, 1.5)
+				ctx.cr.fill()
+				proc.event_interval_0_tx = None
+
+		if ctx.event_dump_list != None and ctx.SWEEP_CSEC \
+			    and ev.raw_log_file:        # don't dump synthetic events
+			ev_time_csec = usec_to_csec(ev.time_usec)
 			if ev_time_csec >= ctx.SWEEP_CSEC[0] and ev_time_csec < ctx.SWEEP_CSEC[1]:
 				ctx.event_dump_list.append(ev)
-		ctx.cr.move_to(tx, y+C.proc_h-6) # top
 
-		ctx.cr.rel_line_to(-W,H)         # bottom-left
+		# draw top half of tick mark
+		ctx.cr.move_to(tx, y+C.proc_h-6.5) # top
+
+		ctx.cr.rel_line_to(-W,6)         # bottom-left
 		ctx.cr.rel_line_to(2*W,0)        # bottom-right
 		ctx.cr.close_path()
 		ctx.cr.fill()
 
+	ctx.cr.restore()
 	return n_highlighted_events
 
 def draw_process_state_colors(ctx, proc, proc_tree, x, y, w):

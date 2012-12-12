@@ -15,6 +15,8 @@
 
 MAX_PID=100000
 
+from . import writer
+
 def sort_func(proc):
     return long(proc.pid) / 1000 * MAX_PID + proc.tid / 1000
 
@@ -42,18 +44,17 @@ class ProcessTree:
     LOGGER_PROC = 'bootchart-colle'
     EXPLODER_PROCESSES = set(['hwup'])
 
-    def __init__(self, writer, kernel, psstats, sample_period,
+    def __init__(self, kernel, ps_stats, sample_period,
                  monitoredApp, options, idle, taskstats,
                  accurate_parentage, for_testing = False):
-        self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
-        if psstats is None:
+        if ps_stats is None:
             process_list = kernel
         elif kernel is None:
-            process_list = psstats.process_map.values()
+            process_list = ps_stats.process_map.values()
         else:
-            process_list = kernel + psstats.process_map.values()
+            process_list = kernel + ps_stats.process_map.values()
         self.process_list = sorted(process_list, key = sort_func)
         self.sample_period = sample_period
 
@@ -190,10 +191,9 @@ class ProcessTree:
 
     def is_active_process(self, p):
         # (self.options.hide_low_CPU == 0) is a special case, documented in the usage message.
-        return (self.options.hide_low_CPU == 0 and \
-                    (p.activeCount > 0 or len(p.samples) != len(self.process_list[0].samples))) or \
-                p.cpu_tick_count_during_run() > self.options.hide_low_CPU or \
-                len(p.events) > 0  # any event counts as activity
+        return p.cpu_tick_count_during_run() > self.options.hide_low_CPU or \
+               (self.options.hide_low_CPU == 0 and \
+                p.sleepingCount != len(p.samples))   # born, died, or did not sleep for the duration
 
     def is_inactive_process(self, p):
         return not self.is_active_process(p)

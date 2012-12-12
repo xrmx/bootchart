@@ -161,28 +161,54 @@ class PyBootchartWidget(gtk.DrawingArea):
         self.zoom_image(1.0)  # XX  replace with:   self.zoom_ratio = 1.0  \  self.x = 0  \  self.y = 0
         self.set_xscale(1.0)
 
-    def show_legends(self, button):
-        self.drawctx.app_options.show_legends = button.get_property ('active')
+    def absolute_uptime_event_times(self, action, current):
+        self.drawctx.app_options.absolute_uptime_event_times = action.get_current_value()
         self.queue_draw()
 
-    def show_thread_details(self, button):
-        self.drawctx.app_options.show_all = button.get_property ('active')
+    def show_IO_ops(self, action, current):
+        self.drawctx.app_options.show_ops_not_bytes = action.get_current_value()
         self.queue_draw()
 
-    def hide_events(self, button):
-        self.drawctx.app_options.hide_events = not button.get_property ('active')
+    def show_thread_details(self, action):
+        self.drawctx.app_options.show_all = action.get_active()
         self.queue_draw()
 
-    def print_event_times(self, button):
-        self.drawctx.app_options.print_event_times = button.get_property ('active')
+    def hide_events(self, action):
+        self.drawctx.app_options.hide_events = not action.get_active()
         self.queue_draw()
 
-    def absolute_uptime_event_times(self, button):
-        self.drawctx.app_options.absolute_uptime_event_times = button.get_property ('active')
+    def print_event_times(self, action):
+        self.drawctx.app_options.print_event_times = action.get_active()
         self.queue_draw()
 
-    def dump_raw_event_context(self, button):
-        self.drawctx.app_options.dump_raw_event_context = button.get_property ('active')
+    def event_source_toggle(self, action):
+        # turn second char of the string into an int
+        self.drawctx.app_options.event_source[int(action.get_name()[1])].enable = action.get_active()
+        self.drawctx.ps_event_lists_valid = False
+        self.queue_draw()
+
+    def _toggle_EventColor_by_label(self, ecl, action):
+        for ec in ecl:
+            if ec.label == action.get_name():
+                break
+        ec.enable = action.get_active()
+        self.drawctx.ps_event_lists_valid = False
+        self.queue_draw()
+
+    def event_toggle(self, action):
+        self._toggle_EventColor_by_label(
+            self.drawctx.app_options.event_color, action)
+
+    def event_interval_toggle(self, action):
+        self._toggle_EventColor_by_label(
+            self.drawctx.app_options.event_interval_color, action)
+
+    def dump_raw_event_context(self, action):
+        self.drawctx.app_options.dump_raw_event_context = action.get_active()
+        self.queue_draw()
+
+    def show_legends(self, action):
+        self.drawctx.app_options.show_legends = action.get_active()
         self.queue_draw()
 
     POS_INCREMENT = 100
@@ -202,7 +228,7 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.y += self.POS_INCREMENT/self.zoom_ratio
         else:
             return False
-        self.queue_draw()
+        #self.queue_draw()
         self.position_changed()
         return True
 
@@ -219,7 +245,7 @@ class PyBootchartWidget(gtk.DrawingArea):
         elif event.button == 3:
             if not self.sweep_csec:
                 self.sweep_csec = [self.device_to_csec_user_y(event.x, 0)[0],
-                                   self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]]
+                                   self.device_to_csec_user_y(self.trace.end_time, 0)[0]]
             else:
                 self.sweep_csec = None
             self.queue_draw()
@@ -238,7 +264,7 @@ class PyBootchartWidget(gtk.DrawingArea):
             self.queue_draw()
         elif event.button == 3:
             if self.sweep_csec and \
-                   self.sweep_csec[1] != self.device_to_csec_user_y(self.trace.ps_stats.end_time, 0)[0]:
+                   self.sweep_csec[1] != self.device_to_csec_user_y(self.trace.end_time, 0)[0]:
                     self.drawctx.event_dump_list = []    # XX
             self.queue_draw()
         return True
@@ -268,13 +294,12 @@ class PyBootchartWidget(gtk.DrawingArea):
             # pan the image
             self.x += (self.prevmousex - x)/self.zoom_ratio
             self.y += (self.prevmousey - y)/self.zoom_ratio
-            self.queue_draw()
             self.prevmousex = x
             self.prevmousey = y
             self.position_changed()
         elif state & gtk.gdk.BUTTON3_MASK and self.sweep_csec:
             self.sweep_csec[1] = self.device_to_csec_user_y(event.x, 0)[0]
-            self.queue_draw()
+            #self.queue_draw()
         return True
 
     def on_set_scroll_adjustments(self, area, hadj, vadj):
@@ -340,8 +365,16 @@ class PyBootchartWidget(gtk.DrawingArea):
 PyBootchartWidget.set_set_scroll_adjustments_signal('set-scroll-adjustments')
 
 class PyBootchartShell(gtk.VBox):
-    ui = '''
-    <ui>
+    def __init__(self, window, trace, drawctx, xscale):
+        gtk.VBox.__init__(self)
+
+        self.widget = PyBootchartWidget(trace, drawctx, xscale)
+
+        # Create a UIManager instance
+        uimanager = self.uimanager = gtk.UIManager()
+
+        uimanager.add_ui_from_string('''
+        <ui>
             <toolbar name="ToolBar">
                     <toolitem action="Expand"/>
                     <toolitem action="Contract"/>
@@ -351,87 +384,209 @@ class PyBootchartShell(gtk.VBox):
                     <toolitem action="ZoomFit"/>
                     <toolitem action="Zoom100"/>
             </toolbar>
-    </ui>
-    '''
-    def __init__(self, window, trace, drawctx, xscale):
-        gtk.VBox.__init__(self)
+            <menubar name="MenuBar">
+                <menu action="Time">
+                    <menuitem action="bootchart daemon start"/>
+                    <menuitem action="system boot"/>
+                </menu>
+                <menu action="I/O">
+                    <menuitem action="hardware operations"/>
+                    <menuitem action="512-byte sectors"/>
+                </menu>
+            </menubar>
+        </ui>
+        ''')
 
-        self.widget = PyBootchartWidget(trace, drawctx, xscale)
-
-        # Create a UIManager instance
-        uimanager = self.uimanager = gtk.UIManager()
-
-        # Add the accelerator group to the toplevel window
-        accelgroup = uimanager.get_accel_group()
-        window.add_accel_group(accelgroup)
-
-        # Create an ActionGroup
         actiongroup = gtk.ActionGroup('Actions')
-        self.actiongroup = actiongroup
 
-        # Create actions
+        # Zooming buttons
         actiongroup.add_actions((
-                ('Expand', gtk.STOCK_ORIENTATION_LANDSCAPE, None, None, None, self.widget.on_expand),
-                ('Contract', gtk.STOCK_ORIENTATION_PORTRAIT, None, None, None, self.widget.on_contract),
-                ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget.on_zoom_in),
-                ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget.on_zoom_out),
-                ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, None, self.widget.on_zoom_fit),
-                ('Zoom100', gtk.STOCK_ZOOM_100, None, None, None, self.widget.on_zoom_100),
+            ('Expand', gtk.STOCK_ORIENTATION_LANDSCAPE, None, None, "widen", self.widget.on_expand),
+            ('Contract', gtk.STOCK_ORIENTATION_PORTRAIT, None, None, "narrow", self.widget.on_contract),
+            ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, "zoom in", self.widget.on_zoom_in),
+            ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, "zoom out", self.widget.on_zoom_out),
+            ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, "zoom-to-fit while preserving aspect ratio", self.widget.on_zoom_fit),
+            ('Zoom100', gtk.STOCK_ZOOM_100, None, None, "zoom to best image quality", self.widget.on_zoom_100),
         ))
 
-        # Add the actiongroup to the uimanager
+        # "Time" drop-down menu
+        actiongroup.add_radio_actions([
+            ("bootchart daemon start", None, "bootchart daemon start -- startup of the collector daemon on the target", None, None, False),
+            ("system boot", None, "system boot i.e. 'uptime'", None, None, True),
+            ], 1 if drawctx.app_options.absolute_uptime_event_times else 0, self.widget.absolute_uptime_event_times
+        )
+        actiongroup.add_actions((
+            ("Time", None, "Time", None, "XXX why does this not show up???  time-origin selection for display"),
+        ))
+
+        # I/O dropdown
+        actiongroup.add_radio_actions([
+            ("hardware operations", None, "hardware operations", None, None, True),
+            ("512-byte sectors", None, "512-byte sectors", None, None, False),
+            ], drawctx.app_options.show_ops_not_bytes, self.widget.show_IO_ops
+        )
+        actiongroup.add_actions((
+            ("I/O", None, "I/O", None, ""),
+        ))
+
+        # Threads dropdown
+        if not drawctx.kernel_only:
+            uimanager.add_ui_from_string('''
+            <ui>
+                <menubar name="MenuBar">
+                    <menu action="Threads">
+                        <menuitem action="details"/>
+                    </menu>
+                </menubar>
+            </ui>
+            ''')
+            actiongroup.add_toggle_actions([
+                ('details', None, "details", None, None, self.widget.show_thread_details, drawctx.app_options.show_all),
+            ])
+            actiongroup.add_actions([
+                ("Threads", None, "Threads", None, ""),
+            ])
+
+
+        # Events dropdown
+        ui_Events = '''
+        <ui>
+            <menubar name="MenuBar">
+                <menu action="Events">
+                    <menuitem action="show"/>
+                    <menuitem action="times"/>
+                </menu>
+            </menubar>
+        </ui>
+        '''
+        actiongroup.add_toggle_actions([
+            ('show', None, "show", None, None, self.widget.hide_events, not drawctx.app_options.hide_events),
+            ('times', None, "show times", None, None, self.widget.print_event_times, drawctx.app_options.print_event_times),
+        ])
+        uimanager.add_ui_from_string(ui_Events)
+        actiongroup.add_actions([
+            ("Events", None, "Events", None, ""),
+        ])
+
+
+        # Event Source dropdown
+        ui_Event_Source = '''
+        <ui>
+            <menubar name="MenuBar">
+                <menu action="Event_Source">
+        '''
+        def add_es(index, es, callback):
+            action_name = "p{0:d}".format(index)  # callback will extract a list index from this name string
+                                                  # XX Supports 10 logs, max
+            actiongroup.add_toggle_actions([
+                (action_name, None,
+                 "{0:s} ({1:d})".format(es.label, len(es.parsed)),
+                 None, None,
+                 getattr(self.widget, callback), es.enable),
+            ])
+            return '''
+                    <menuitem action="{0:s}"/>
+            '''.format(action_name)
+
+        for index, es in enumerate(drawctx.app_options.event_source):
+            ui_Event_Source += add_es(index, es, "event_source_toggle")
+        ui_Event_Source += '''
+                </menu>
+            </menubar>
+        </ui>
+        '''
+        uimanager.add_ui_from_string(ui_Event_Source)
+        actiongroup.add_actions([
+            ("Event_Source", None, "Ev-Sources", None, ""),
+        ])
+
+
+        # Event Color dropdown
+        ui_Event_Color = '''
+        <ui>
+            <menubar name="MenuBar">
+                <menu action="Event_Color">
+        '''
+        def add_re(ec, callback_name):
+            # XX  add_toggle_actions() can take a "user_data" arg -- but how is the value
+            #     retrieved later?
+            actiongroup.add_toggle_actions([
+                (ec.label, None, ec.label, None, None,
+                 getattr(self.widget, callback_name), ec.enable),
+            ])
+            return '''
+                    <menuitem action="{0:s}"/>
+            '''.format(ec.label)
+        for ec in drawctx.app_options.event_color:
+            ui_Event_Color += add_re(ec, "event_toggle")
+        ui_Event_Color += '''<separator/>'''
+
+        for ec in drawctx.app_options.event_interval_color:
+            ui_Event_Color += add_re(ec, "event_interval_toggle")
+        ui_Event_Color += '''
+                </menu>
+            </menubar>
+        </ui>
+        '''
+        uimanager.add_ui_from_string(ui_Event_Color)
+        actiongroup.add_actions([
+            ("Event_Color", None, "Ev-Color", None, ""),
+        ])
+
+        # Stdout, Help dropdowns
+        uimanager.add_ui_from_string( '''
+        <ui>
+            <menubar name="MenuBar">
+                <menu action="Stdout">
+                    <menuitem action="dump raw"/>
+                </menu>
+                <menu action="Help">
+                    <menuitem action="show legends"/>
+                </menu>
+            </menubar>
+        </ui>
+        ''')
+        # Stdout dropdown
+        actiongroup.add_toggle_actions([
+            ('dump raw', None, "dump raw context lines from log along with events", None, None,
+             self.widget.dump_raw_event_context, drawctx.app_options.dump_raw_event_context),
+        ])
+        actiongroup.add_actions([
+            ("Stdout", None, "Stdout", None, ""),
+        ])
+
+        # Stdout dropdown
+        actiongroup.add_toggle_actions([
+            ('show legends', None, "show legends", None, None,
+             self.widget.show_legends, drawctx.app_options.show_legends),
+        ])
+        actiongroup.add_actions([
+            ("Help", None, "Help", None, ""),
+        ])
+
         uimanager.insert_action_group(actiongroup, 0)
 
-        # Add a UI description
-        uimanager.add_ui_from_string(self.ui)
+        # toolbar / h-box
+        hbox = gtk.HBox(False, 0)
+
+        # Create a Toolbar
+        toolbar = uimanager.get_widget('/ToolBar')
+        hbox.pack_start(toolbar, True)
+
+        menubar = uimanager.get_widget("/MenuBar")
+        hbox.pack_start(menubar, True)
+
+        # force all the real widgets to the left
+        #  XX Why doesn't this force the others all the way to the left?
+        empty_menubar = gtk.MenuBar()
+        hbox.pack_start(empty_menubar, True, True)
+
+        self.pack_start(hbox, False)
 
         # Scrolled window
         scrolled = gtk.ScrolledWindow()
         scrolled.add(self.widget)
 
-        # toolbar / h-box
-        hbox = gtk.HBox(False, 8)
-
-        # Create a Toolbar
-        toolbar = uimanager.get_widget('/ToolBar')
-        hbox.pack_start(toolbar, True, True)
-
-        def gtk_CheckButton(name):
-            button = gtk.CheckButton(name)
-            button.set_focus_on_click(False)
-            return button
-
-        button = gtk_CheckButton("show Legends")
-        button.connect ('toggled', self.widget.show_legends)
-        hbox.pack_start (button, False)
-
-        if not drawctx.kernel_only:
-            # Misc. drawctx
-            button = gtk_CheckButton("thread details")
-            button.connect ('toggled', self.widget.show_thread_details)
-            hbox.pack_start (button, False)
-
-        button = gtk_CheckButton("Events")
-        button.connect ('toggled', self.widget.hide_events)
-        button.set_active (True)
-        hbox.pack_start (button, False)
-
-        button = gtk_CheckButton("event Time Labels")
-        button.connect ('toggled', self.widget.print_event_times)
-        button.set_active (drawctx.app_options.print_event_times)
-        hbox.pack_start (button, False)
-
-        button = gtk_CheckButton("event Times Absolute")
-        button.connect ('toggled', self.widget.absolute_uptime_event_times)
-        button.set_active (drawctx.app_options.absolute_uptime_event_times)
-        hbox.pack_start (button, False)
-
-        button = gtk_CheckButton("dump raw event context")
-        button.connect ('toggled', self.widget.dump_raw_event_context)
-        button.set_active (drawctx.app_options.dump_raw_event_context)
-        hbox.pack_start (button, False)
-
-        self.pack_start(hbox, False)
         self.pack_start(scrolled)
         self.show_all()
 
@@ -450,18 +605,26 @@ class PyBootchartWindow(gtk.Window):
         window.set_default_size(screen.get_width() * 95/100,
                                 screen.get_height() * 95/100)
 
-        tab_page = gtk.Notebook()
-        tab_page.show()
-        window.add(tab_page)
-
         full_drawctx = DrawContext(app_options, trace)
-        full_tree = PyBootchartShell(window, trace, full_drawctx, 1.0)
-        tab_page.append_page (full_tree, gtk.Label("Full tree"))
+        full_tree = PyBootchartShell(window, trace, full_drawctx,
+                                     # XX  "1.7" is a hack
+                                     float(window.get_default_size()[0]) * 1.7 / \
+                                     ((trace.end_time - trace.start_time) + \
+                                      2 * trace.ps_stats.sample_period))
+        # FIXME: Permanently disable top-level tabs?
+        if True:
+            window.add(full_tree)
+        else:
+            tab_page = gtk.Notebook()
+            tab_page.show()
+            window.add(tab_page)
 
-        if trace.kernel is not None and len (trace.kernel) > 2:
-            kernel_drawctx = DrawContext(app_options, trace, cumulative = False, charts = False, kernel_only = True)
-            kernel_tree = PyBootchartShell(window, trace, kernel_drawctx, 5.0)
-            tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
+            tab_page.append_page (full_tree, gtk.Label("Full tree"))
+
+            if trace.kernel is not None and len (trace.kernel) > 2:
+                kernel_drawctx = DrawContext(app_options, trace, cumulative = False, charts = False, kernel_only = True)
+                kernel_tree = PyBootchartShell(window, trace, kernel_drawctx, 5.0)
+                tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
 
         full_tree.grab_focus(self)
         self.show()

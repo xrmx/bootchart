@@ -21,6 +21,7 @@ import string
 import re
 import tarfile
 import struct
+import bisect
 from time import clock
 import collections
 from collections import defaultdict
@@ -272,6 +273,10 @@ def _parse_timed_blocks(file):
     blocks = file.read().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
+def _save_PC_sample(trace, es, time, pid, tid, comm, addr):
+    ev = EventSample(csec_to_usec(time), pid, tid, comm, None, None, "0x{0:08x}".format(addr))
+    es.parsed.append(ev)
+
 # Cases to handle:
 #   1. run starting   (ltime==None)
 #   1.1  thread started in preceding sample_period
@@ -279,8 +284,9 @@ def _parse_timed_blocks(file):
 #   2. run continuing
 #   2.1  thread continues    (tid in processMap)
 #   2.2  thread starts
-def _handle_sample(processMap, ltime, time,
-                   pid, tid, cmd, state, ppid, userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+def _handle_sample(options, trace, processMap, ltime, time,
+                   pid, tid, cmd, state, ppid, userCpu, sysCpu,
+                   kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                    num_cpus):
     assert(type(c_user) is IntType)
     assert(type(c_sys) is IntType)
@@ -320,6 +326,16 @@ def _handle_sample(processMap, ltime, time,
     process.user_cpu_ticks[-1] = userCpu
     process.sys_cpu_ticks[-1] = sysCpu
     process.delayacct_blkio_ticks[-1] = delayacct_blkio_ticks
+
+    if state == "R" and kstkeip != 0 and kstkeip != 0xffffffff:
+            _save_PC_sample(trace, options.event_source[" ~ current PC, if thread Runnable"],
+                            time, pid/1000, tid/1000, cmd, kstkeip)
+    if state == "D" and kstkeip != 0 and kstkeip != 0xffffffff:
+            _save_PC_sample(trace, options.event_source[" ~ current PC, if thread in non-interruptible D-wait"],
+                            time, pid/1000, tid/1000, cmd, kstkeip)
+    if state == "D" and wchan != 0:
+        _save_PC_sample(trace, options.event_source[" ~ kernel function wchan, if thread in non-interruptible D-wait"],
+                        time, pid/1000, tid/1000, cmd, wchan)
     return processMap
 
 # Consider this case: a process P and three waited-for children C1, C2, C3.
@@ -406,7 +422,20 @@ def _distribute_belatedly_reported_delayacct_blkio_ticks(processMap):
                 io_acc = s.cpu_sample.io + s.cpu_sample.user + s.cpu_sample.sys - 1.0
                 s.cpu_sample.io -= io_acc
 
-def _parse_proc_ps_log(options, file, num_cpus):
+def _init_pseudo_EventSource_for_PC_samples(name):
+    es = EventSource(name, "", "")   # empty regex
+    es.enable = False
+    es.parsed = []
+    return es
+
+def _init_pseudo_EventSources_for_PC_samples(options):
+    for label in [" ~ current PC, if thread Runnable",
+                  " ~ current PC, if thread in non-interruptible D-wait",
+                  " ~ kernel function wchan, if thread in non-interruptible D-wait"]:
+        es = _init_pseudo_EventSource_for_PC_samples(label)
+        options.event_source[label] = es   # XX  options.event_source must be used because the Trace object is not yet instantiated
+
+def _parse_proc_ps_log(options, trace, file, num_cpus):
     """
      * See proc(5) for details.
      *
@@ -414,6 +443,8 @@ def _parse_proc_ps_log(options, file, num_cpus):
      *  cutime, cstime, priority, nice, 0, itrealvalue, starttime, vsize, rss, rlim, startcode, endcode, startstack,
      *  kstkesp, kstkeip}
     """
+    _init_pseudo_EventSources_for_PC_samples(options)
+
     processMap = {}
     ltime = None
     timed_blocks = _parse_timed_blocks(file)
@@ -429,14 +460,16 @@ def _parse_proc_ps_log(options, file, num_cpus):
             userCpu, sysCpu = int(tokens[13+offset]), int(tokens[14+offset]),
             c_user, c_sys = int(tokens[15+offset]), int(tokens[16+offset])
             starttime = int(tokens[21+offset])
+            kstkeip = int(tokens[29+offset])
+            wchan = int(tokens[34+offset])
             delayacct_blkio_ticks = int(tokens[41+offset])
 
             # magic fixed point-ness ...
             pid *= 1000
             ppid *= 1000
-            processMap = _handle_sample(processMap, ltime, time,
+            processMap = _handle_sample(options, trace, processMap, ltime, time,
                                         pid, pid, cmd, state, ppid,
-                                        userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+                                        userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         num_cpus)
         if ltime:
             accumulate_missing_child_ltime(processMap, ltime)
@@ -453,7 +486,7 @@ def _parse_proc_ps_log(options, file, num_cpus):
 
     return ProcessStats (processMap, len (timed_blocks), avgSampleLength)
 
-def _parse_proc_ps_threads_log(options, file):
+def _parse_proc_ps_threads_log(options, trace, file):
     """
      *    0* pid -- inserted here from value in /proc/*pid*/task/.  Not to be found in /proc/*pid*/task/*tid*/stat.
      *              Not the same as pgrp, session, or tpgid.  Refer to collector daemon source code for details.
@@ -475,6 +508,8 @@ def _parse_proc_ps_threads_log(options, file):
      *   16  scheduling_policy
      *   17* delayacct_blkio_ticks -- in proc_ps_threads-2.log only, requires CONFIG_TASK_DELAY_ACCT
     """
+    _init_pseudo_EventSources_for_PC_samples(options)
+
     processMap = {}
     ltime = None
     timed_blocks = _parse_timed_blocks(file)
@@ -490,6 +525,8 @@ def _parse_proc_ps_threads_log(options, file):
             pid, tid, cmd, state, ppid = int(tokens[0]), int(tokens[1]), ' '.join(tokens[2:3+offset]), tokens[3+offset], int(tokens[4+offset])
             userCpu, sysCpu = int(tokens[7+offset]), int(tokens[8+offset])
             c_user, c_sys = int(tokens[9+offset]), int(tokens[10+offset])
+            kstkeip = int(tokens[14+offset])
+            wchan = int(tokens[15+offset])
             delayacct_blkio_ticks = int(tokens[17+offset]) if len(tokens) == 18+offset else 0
 
             assert(type(c_user) is IntType)
@@ -501,9 +538,9 @@ def _parse_proc_ps_threads_log(options, file):
             tid *= 1000
             ppid *= 1000
 
-            processMap = _handle_sample(processMap, ltime, time,
+            processMap = _handle_sample(options, trace, processMap, ltime, time,
                                         pid, tid, cmd, state, ppid,
-                                        userCpu, sysCpu, delayacct_blkio_ticks, c_user, c_sys, starttime,
+                                        userCpu, sysCpu, kstkeip, wchan, delayacct_blkio_ticks, c_user, c_sys, starttime,
                                         1)
         ltime = time
 
@@ -948,9 +985,9 @@ def _do_parse(state, tf, name, file, options):
     elif name == "paternity.log":
         state.parent_map = _parse_paternity_log(file)
     elif name == "proc_ps.log":  # obsoleted by TASKSTATS
-        state.ps_stats = _parse_proc_ps_log(options, file, state.num_cpus)
+        state.ps_stats = _parse_proc_ps_log(options, state, file, state.num_cpus)
     elif name == "proc_ps_threads.log" or  name == "proc_ps_threads-2.log" :
-        state.ps_threads_stats = _parse_proc_ps_threads_log(options, file)
+        state.ps_threads_stats = _parse_proc_ps_threads_log(options, state, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(file)
     elif hasattr(options, "event_source"):

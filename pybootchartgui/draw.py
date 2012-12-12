@@ -358,9 +358,13 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	# render second chart
 	draw_legend_box(ctx, "Disk utilization -- fraction of sample interval I/O queue was not empty",
 			IO_COLOR, off_x, curr_y+20, leg_s)
-	draw_legend_line(ctx, "Disk writes -- bytes per sample",
+	if OPTIONS.show_ops_not_bytes:
+		unit = "ops"
+	else:
+		unit = "bytes"
+	draw_legend_line(ctx, "Disk writes -- " + unit + "/sample",
 			 DISK_WRITE_COLOR, off_x+470, curr_y+20, leg_s)
-	draw_legend_line(ctx, "Disk reads+writes -- bytes per sample",
+	draw_legend_line(ctx, "Disk reads+writes -- " + unit + "/sample",
 			 DISK_TPUT_COLOR, off_x+470+120*2, curr_y+20, leg_s)
 
 	curr_y += 5

@@ -62,10 +62,14 @@ def _mk_options_parser():
 			  help="suppress informational messages")
 	parser.add_option("--verbose", action="store_true", dest="verbose", default=False,
 			  help="print all messages")
+        # disk stats
 	parser.add_option("-p", "--show-partitions", action="extend", dest="partitions", type="string", default=[],
-			  help="draw a disk stat chart for any block device partitions in this list")
+			  help="draw a disk stat chart for any block device partitions in this comma-separated list")
 	parser.add_option("-P", "--relabel-partitions", action="extend", dest="partition_labels", default=[],
 			  help="list of per-partition strings, to be drawn instead of the raw per-partition device names")
+	parser.add_option("--show-ops-not-bytes", action="store_true", dest="show_ops_not_bytes", default=False,
+			  help="chart number of I/O operations handed to driver, rather than bytes transferred per sample")
+
 	parser.add_option("--show-pid", action="store_true", dest="show_pid", default=False,
 			  help="show process ids in the bootchart as 'processname [pid]'")
 	parser.add_option("-j", "--justify", dest="justify", default="left", choices=["left", "center"],

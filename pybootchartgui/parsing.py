@@ -426,15 +426,21 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
 
     def delta_disk_samples(disk_stat_samples, numCpu):
         disk_stats = []
-        for sample1, sample2 in zip(disk_stat_samples[:-1], disk_stat_samples[1:]):
-            interval = sample1.time - sample2.time
-            if interval == 0:
-                print("time between samples is 0!")
-                interval = 1
-            sums = [ a - b for a, b in zip(sample1.diskdata, sample2.diskdata) ]
-            readTput = sums[0] / 2.0 * 100.0 / interval       # XXX why divide by 2.0 ?
-            writeTput = sums[1] / 2.0 * 100.0 / interval
-            util = float( sums[2] ) / 10 / interval / numCpu
+
+        # Very short intervals amplify round-off under division by time delta, so coalesce now.
+        # XX  scaling issue for high-efficiency collector!
+        disk_stat_samples_coalesced = [(disk_stat_samples[0])]
+        for sample in disk_stat_samples:
+            if sample.time - disk_stat_samples_coalesced[-1].time < 5:
+                continue
+            disk_stat_samples_coalesced.append(sample)
+
+        for sample1, sample2 in zip(disk_stat_samples_coalesced[:-1], disk_stat_samples_coalesced[1:]):
+            interval = sample2.time - sample1.time
+            vector_diff = [ a - b for a, b in zip(sample2.diskdata, sample1.diskdata) ]
+            readTput =  float( vector_diff[0]) / interval
+            writeTput = float( vector_diff[1]) / interval
+            util = float( vector_diff[2]) / 10 / interval / numCpu
             util = max(0.0, min(1.0, util))
             disk_stats.append(DiskSample(sample2.time, readTput, writeTput, util))
         return disk_stats
@@ -447,9 +453,12 @@ def _parse_proc_disk_stat_log(file, options, numCpu):
             ]
 
     def add_tokens_to_sample(sample, tokens):
-        disk_name, rsect, wsect, io_ticks = tokens[2], int(tokens[5]), int(tokens[9]), int(tokens[12])
-
-        sample.add_diskdata([rsect, wsect, io_ticks])
+        if options.show_ops_not_bytes:
+            disk_name, rop, wop, io_ticks = tokens[2], int(tokens[3]), int(tokens[7]), int(tokens[12])
+            sample.add_diskdata([rop, wop, io_ticks])
+        else:
+            disk_name, rsect, wsect, io_ticks = tokens[2], int(tokens[3]), int(tokens[7]), int(tokens[12])
+            sample.add_diskdata([rsect, wsect, io_ticks])
         return disk_name
 
     # matched not against whole line, but field only

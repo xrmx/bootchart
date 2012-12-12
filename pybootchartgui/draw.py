@@ -356,6 +356,7 @@ class DrawContext:
 		# XX ugly magic constants, tuned by trial-and-error
 		draw_fill_rect(self.cr, bg_color, (label_x, y-1, label_w, -(C.proc_h-2)))
 		draw_text(self.cr, label, color, label_x, y-4)
+		return label_x+label_w
 
 # XX  Should be "_csec_to_user"
 # Assume off_x translation is already applied, as it will be in drawing functions.
@@ -855,8 +856,26 @@ def draw_sweep(ctx):
 			 x_itime[1] + ctx.n_WIDTH/2)
 
 def draw_process_bar_chart_legends(ctx, curr_y):
-	curr_y += 30
-	curr_x = 10 + C.legend_indent + max(0, ctx.cr.device_to_user(0, 0)[0])
+	x_onscreen = max(0, ctx.cr.device_to_user(0, 0)[0])
+
+	def draw_process_or_thread_legend(color, label, x, y):
+		label_w = ctx.cr.text_extents(label)[2]
+		return ctx.draw_process_label_in_box(
+			PROC_TEXT_COLOR,
+			color,
+			label,
+			x, y,
+			-1,
+			ctx.cr.device_to_user(0, 0)[0],
+			ctx.cr.clip_extents()[2])
+
+	curr_y += 10
+	curr_x = draw_process_or_thread_legend(NOTEPAD_PINK, "[PPID:PID]<process name>", x_onscreen, curr_y)
+	curr_y += 16
+	curr_x = draw_process_or_thread_legend(NOTEPAD_YELLOW, "[PPID:PID:TID:NICE]<thread name>", x_onscreen, curr_y)
+
+	curr_y += 15
+	curr_x += C.legend_indent
 	curr_x += 30 + draw_legend_diamond (ctx.cr, "Runnable",
 				       PROCS_RUNNING_COLOR, curr_x, curr_y, C.leg_s*3/4, C.proc_h)
 	curr_x += 30 + draw_legend_diamond (ctx.cr, "Uninterruptible Syscall",

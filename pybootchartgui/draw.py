@@ -717,17 +717,27 @@ def draw_sweep(ctx):
 		cr.stroke()
 
 	height = int(ctx.cr.device_to_user(0,2000)[1])
-	for i_time, label_offset in enumerate([-ctx.cr.text_extents("_0.0")[2], 0]):
+	x_itime = [None, None]
+	for i_time, time in enumerate(ctx.SWEEP_CSEC):
 		time = ctx.SWEEP_CSEC[i_time]
 		x = csec_to_xscaled(ctx, time)
 		draw_shading(ctx.cr, (int(x),0,int(ctx.cr.clip_extents()[i_time*2]-x),height))
 		draw_vertical(ctx, time, x)
-		draw_label_on_bg(ctx.cr, NOTEPAD_YELLOW, BLACK,
-				 "0.0" if
-				 i_time==0 else
-				 "{0:.6f}".format((time - ctx.time_origin_relative)/C.CSEC),
-				 ctx.cr.device_to_user(0, 0)[1],
-				 x + label_offset + ctx.n_WIDTH/2)
+		x_itime[i_time] = x
+
+	top = ctx.cr.device_to_user(0, 0)[1]
+	origin = 0 if ctx.app_options.absolute_uptime_event_times else \
+		 ctx.time_origin_drawn + ctx.trace.proc_tree.sample_period
+	draw_label_on_bg(ctx.cr, NOTEPAD_YELLOW, BLACK,
+			 "{0:.6f}".format((ctx.SWEEP_CSEC[0] - origin)/C.CSEC),
+			 top,
+			 x_itime[0] + ctx.n_WIDTH/2)
+	if i_time == 0:
+		return
+	draw_label_on_bg(ctx.cr, NOTEPAD_YELLOW, BLACK,
+			 "+{0:.6f}".format((ctx.SWEEP_CSEC[1] - ctx.SWEEP_CSEC[0])/C.CSEC),
+			 top + ctx.M_HEIGHT*2,
+			 x_itime[1] + ctx.n_WIDTH/2)
 
 def draw_process_bar_chart_legends(ctx, curr_y):
 	curr_y += 30

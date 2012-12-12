@@ -43,6 +43,7 @@ class Trace:
         self.parent_map = None
         self.mem_stats = None
 
+        # Read in all files, parse each into a time-ordered list
         parse_paths (writer, self, paths, options)
         if not self.valid():
             raise ParseError("empty state: '%s' does not contain a valid bootchart" % ", ".join(paths))
@@ -605,6 +606,34 @@ def _parse_dmesg(writer, file):
     return processMap.values()
 
 #
+# Input resembles dmesg.  Eventual output is per-process lists of events in temporal order.
+#
+def _parse_events_log(writer, file):
+    '''
+    Parse a generic log format produced by target-specific filters, which
+    resembles output of `dmesg`, except that the timestamp must be followed
+    by tid, pid, and a string common to related log messages, otherwise unformatted.
+    Extracting {timestamp_microseconds_from_boot, tid, pid, group_string, raw_line} from
+    the target-specific system logs is the responsibility of a target-specific script.
+    '''
+    split_re = re.compile ("^(\S+) (\S+) (\S+) (\S+) (\S+) (\S+)$")
+    timed_blocks = _parse_timed_blocks(file)
+    samples = []
+    for time, lines in timed_blocks:
+        for line in lines:
+            if line is '':
+                continue
+            m = split_re.match(line)
+            time_usec = m.group(1)
+            pid = m.group(2)
+            tid = m.group(3)
+            match = m.group(4)
+            raw_file = m.group(5)
+            raw_line_number =  m.group(6)
+            samples.append( EventSample(time, time_usec, tid, pid, match, raw_file, raw_line_number) )
+    return samples
+
+#
 # Parse binary pacct accounting file output if we have one
 # cf. /usr/include/linux/acct.h
 #
@@ -699,6 +728,8 @@ def _do_parse(writer, state, name, file, options):
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(writer, file)
+    elif name == "events-6.log":   # 6 is number of fields -- a crude versioning scheme
+        state.events = _parse_events_log(writer, file)   # writes to just-created process tree
     t2 = clock()
     writer.info("  %s seconds" % str(t2-t1))
     return state

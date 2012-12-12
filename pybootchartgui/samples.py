@@ -14,6 +14,16 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 
+class EventSample:
+    def __init__(self, time, time_usec, tid, pid, match, raw_file, raw_line_number):
+        self.time = time
+        self.time_usec = time_usec
+        self.tid = tid
+        self.pid = pid
+        self.match = match
+        self.raw_file = raw_file
+        self.raw_line_number = raw_line_number
+
 class DiskStatSample:
     def __init__(self, time):
         self.time = time

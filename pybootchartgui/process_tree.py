@@ -64,6 +64,8 @@ class ProcessTree:
         if for_testing:
             return
 
+        # XX  Specific to bootchart2 collector; not executed for known /proc-sampling collectors.
+        # XX  Test bootchart2 with this disabled.
         removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
         writer.status("merged %i logger processes" % removed)
 

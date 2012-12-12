@@ -65,8 +65,9 @@ class ProcessTree:
 
         # XX  Specific to bootchart2 collector; not executed for known /proc-sampling collectors.
         # XX  Test bootchart2 with this disabled.
-        removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
-        writer.status("merged %i logger processes" % removed)
+        if False:                              # XX disable this dubious code entirely for now
+            removed = self.merge_logger(self.process_tree, self.LOGGER_PROC, monitoredApp, False)
+            writer.status("merged %i logger processes" % removed)
 
         if option_prune != "lightest":
             p_processes = self.prune(self.process_tree, None, self.is_idle_background_process_without_children)

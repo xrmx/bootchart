@@ -193,9 +193,7 @@ class ProcessTree:
                     prune = True
 
                 if prune:
-                    process_subtree.pop(idx)
-                    for c in p.child_list:
-                        process_subtree.insert(idx, c)
+                    p.draw = False
                     num_removed += 1
                     continue
                 else:

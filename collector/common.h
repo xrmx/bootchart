@@ -35,10 +35,10 @@
 #include <pthread.h>
 
 /* Magic path we mount our tmpfs on, inside which we do everything */
-#define TMPFS_PATH "/lib/bootchart/tmpfs"
-#define PROC_PATH  "/lib/bootchart/tmpfs/proc"
+#define TMPFS_PATH PKGLIBDIR "/tmpfs"
+#define PROC_PATH  PKGLIBDIR "/tmpfs/proc"
 /* where we lurk to get move mounted into the live system */
-#define MOVE_DEV_PATH "/dev/.bootchart"
+#define MOVE_DEV_PATH "/dev/." PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX
 
 /* helpers */
 #undef	MAX

@@ -23,8 +23,11 @@
 # our 'proc' without having to touch a (potentially) read-only
 # file-system.
 LIBDIR="@LIBDIR@"
-TMPFS="${LIBDIR}/bootchart/tmpfs"
-COLLECTOR_BIN="${LIBDIR}/bootchart/bootchart-collector"
+PKGLIBDIR="@PKGLIBDIR@"
+PROGRAM_PREFIX="@PROGRAM_PREFIX@"
+PROGRAM_SUFFIX="@PROGRAM_SUFFIX@"
+TMPFS="${PKGLIBDIR}/tmpfs"
+COLLECTOR_BIN="${PKGLIBDIR}/${PROGRAM_PREFIX}bootchart${PROGRAM_SUFFIX}-collector"
 
 # some initrds don't have usleep etc.
 USLEEP="$COLLECTOR_BIN --usleep"
@@ -56,9 +59,10 @@ EXIT_PROC="compiz \
 	xterm"
 
 # Read configuration.
-CONF="/etc/bootchartd.conf"
-if [ -f $PWD/bootchartd.conf ]; then
-	. $PWD/bootchartd.conf
+CONFBASE="${PROGRAM_PREFIX}bootchartd${PROGRAM_SUFFIX}"
+CONF="/etc/${CONFBASE}.conf"
+if [ -f $PWD/${CONFBASE}.conf ]; then
+	. $PWD/${CONFBASE}.conf
 elif [ -f $CONF ]; then
 	. $CONF
 else
@@ -193,10 +197,14 @@ if [ $$ -eq 1 ]; then
 		fi
 		if [ "${i%%=*}" = "init" ]; then
 			_init=${i#*=}
-			if test "$_init" != "/sbin/bootchartd"; then
-				init="$_init"
-				break
-			fi
+			case "$_init" in
+				(*/sbin/*bootchartd*)
+					;;
+				(*)
+					init="$_init"
+					break
+					;;
+			esac
 		fi
 	done
 	export PATH=$OLDPATH

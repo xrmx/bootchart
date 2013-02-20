@@ -657,8 +657,9 @@ enter_environment (int console_debug)
 
 	/* we need our tmpfs to look like this file-system,
 	   so we can chroot into it if necessary */
-	mkdir (TMPFS_PATH "/lib", 0777);
-	mkdir (TMPFS_PATH "/lib/bootchart", 0777);
+	mkdir (TMPFS_PATH EARLY_PREFIX, 0777);
+	mkdir (TMPFS_PATH EARLY_PREFIX LIBDIR, 0777);
+	mkdir (TMPFS_PATH PKGLIBDIR, 0777);
 	if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
 		if (errno != EEXIST) {
 			fprintf (stderr, "bootchart-collector failed to create a chroot at "

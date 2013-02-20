@@ -265,7 +265,7 @@ bootchart_find_running_pid (Arguments *opt_args)
 			continue;
 		link_target[len] = '\0';
 
-		if (strstr (link_target, "bootchart-collector")) {
+		if (strstr (link_target, PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX "-collector")) {
 			FILE *argf;
 			int harmless = 0;
 

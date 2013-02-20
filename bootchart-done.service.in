@@ -6,15 +6,16 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=Stop Bootchart after Completed Startup
+Description=Stop Read-Ahead Data Collection
 DefaultDependencies=no
 Conflicts=shutdown.target
 After=default.target
 Before=shutdown.target
 
-[Timer]
-OnActiveSec=20s
+[Service]
+Type=oneshot
+ExecStart=@EARLY_PREFIX@/sbin/@PROGRAM_PREFIX@bootchartd@PROGRAM_SUFFIX@ stop
 
 [Install]
-Also=bootchart.service
+Also=@PROGRAM_PREFIX@bootchart@PROGRAM_SUFFIX@.service
 

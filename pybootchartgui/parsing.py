@@ -391,8 +391,10 @@ def _parse_proc_stat_log(file):
         # skip emtpy lines
         if not lines:
             continue
-        # CPU times {user, nice, system, idle, io_wait, irq, softirq}
         tokens = lines[0].split()
+        if len(tokens) < 8:
+            continue
+        # CPU times {user, nice, system, idle, io_wait, irq, softirq}
         times = [ int(token) for token in tokens[1:] ]
         if ltimes:
             user = float((times[0] + times[1]) - (ltimes[0] + ltimes[1]))

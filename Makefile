@@ -123,7 +123,8 @@ install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o pybootchartgui/main.py bootchartd
+	collector/*.o pybootchartgui/main.py bootchartd \
+	bootchart-done.service bootchart-done.timer bootchart.service
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

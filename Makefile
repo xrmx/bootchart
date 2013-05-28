@@ -69,6 +69,7 @@ substitute_variables = \
 		-e "s:@PKGLIBDIR@:$(PKGLIBDIR):" \
 		-e "s:@PROGRAM_PREFIX@:$(PROGRAM_PREFIX):" \
 		-e "s:@PROGRAM_SUFFIX@:$(PROGRAM_SUFFIX):" \
+		-e "s:@EARLY_PREFIX@:$(EARLY_PREFIX):" \
 		-e "s:@VER@:$(VER):"
 
 bootchartd: bootchartd.in

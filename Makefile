@@ -2,7 +2,9 @@ VER=0.14.5
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
-CC ?= gcc
+CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
+
+CC = $(CROSS_COMPILE)gcc
 CFLAGS ?= -g -Wall -O0
 CPPFLAGS ?=
 

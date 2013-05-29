@@ -2,7 +2,9 @@ VER=0.14.5
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
-CC ?= gcc
+CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
+
+CC = $(CROSS_COMPILE)gcc
 CFLAGS ?= -g -Wall -O0
 CPPFLAGS ?=
 
@@ -67,6 +69,7 @@ substitute_variables = \
 		-e "s:@PKGLIBDIR@:$(PKGLIBDIR):" \
 		-e "s:@PROGRAM_PREFIX@:$(PROGRAM_PREFIX):" \
 		-e "s:@PROGRAM_SUFFIX@:$(PROGRAM_SUFFIX):" \
+		-e "s:@EARLY_PREFIX@:$(EARLY_PREFIX):" \
 		-e "s:@VER@:$(VER):"
 
 bootchartd: bootchartd.in
@@ -121,7 +124,8 @@ install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o pybootchartgui/main.py bootchartd
+	collector/*.o pybootchartgui/main.py bootchartd \
+	bootchart-done.service bootchart-done.timer bootchart.service
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

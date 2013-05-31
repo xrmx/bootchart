@@ -23,7 +23,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
-#include <assert.h>
 #include <dirent.h>
 #include <limits.h>
 #include <signal.h>

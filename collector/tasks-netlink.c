@@ -215,7 +215,7 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 		switch (ev->what) {
 		case PROC_EVENT_FORK:
 
-/*			fprintf (stderr, "Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
+/*			log ("Fork: parent = %d (ptgid %d)\tchild=%d (tpid %d)\n",
 				 ev->event_data.fork.parent_pid,
 				 ev->event_data.fork.parent_tgid,
 				 ev->event_data.fork.child_pid,
@@ -230,7 +230,7 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 						   ev->event_data.fork.child_pid);
 			break;
 		case PROC_EVENT_EXIT:
-/*			fprintf (stderr, "Exit: pid = %d\ttgid=%d\n",
+/*			log ("Exit: pid = %d\ttgid=%d\n",
 				ev->event_data.exit.process_pid,
 				ev->event_data.exit.process_tgid); */
 
@@ -242,7 +242,7 @@ netlink_pid_scanner_restart (PidScanner *scanner)
 						   ev->event_data.exit.process_pid);
 			break;
 		default:
-			fprintf (stderr, "Serious event logging / threading error %d\n", ev->what);
+			log ("Serious event logging / threading error %d\n", ev->what);
 			break;
 		}
 	}
@@ -398,7 +398,7 @@ netlink_listen_thread (void *user_data)
                                 continue;
                         if ((nlh->nlmsg_type == NLMSG_ERROR) ||
                             (nlh->nlmsg_type == NLMSG_OVERRUN)) {
-				fprintf (stderr, "Netlink error or overrun !\n");
+				log ("Netlink error or overrun !\n");
                                 break;
 			}
 			handle_news (nls, cn_hdr);
@@ -444,7 +444,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
          */
         nls->socket = socket (PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
         if (unlikely (nls->socket == -1)) {
-		fprintf (stderr, "netlink socket error\n");
+		log ("netlink socket error\n");
                 return NULL;
         }
         my_nla.nl_family = AF_NETLINK;
@@ -452,7 +452,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         my_nla.nl_pid = getpid();
 
         if (unlikely (bind (nls->socket, (struct sockaddr *)&my_nla, sizeof(my_nla)))) {
-		fprintf (stderr, "binding nls->socket error\n");
+		log ("binding nls->socket error\n");
                 goto close_and_exit;
         }
         nl_hdr = (struct nlmsghdr *)buff;
@@ -471,7 +471,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         cn_hdr->id.val = CN_VAL_PROC;
         cn_hdr->len = sizeof(enum proc_cn_mcast_op);
         if (unlikely(send (nls->socket, nl_hdr, nl_hdr->nlmsg_len, 0) != nl_hdr->nlmsg_len)) {
-		fprintf(stderr, "failed to send proc connector mcast ctl op!\n");
+		log("failed to send proc connector mcast ctl op!\n");
                 goto close_and_exit;
         } else {
 		size_t recv_len;
@@ -481,14 +481,14 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 		pr.fd = nls->socket;
 		pr.events = POLLIN;
 		if ((unlikely(poll (&pr, 1, 50 /* ms */) <= 0) || (!(pr.revents & POLLIN)))) {
-			fprintf (stderr, "No PROC_EVENTs present\n");
+			log ("No PROC_EVENTs present\n");
 			goto close_and_exit;
 		}
 
                 recv_len = netlink_recvfrom (nls, buff);
 		if (unlikely(recv_len < 1 || !NLMSG_OK (nlh, recv_len) ||
 		    nlh->nlmsg_type != NLMSG_DONE)) {
-			fprintf (stderr, "Failed to connect to PROC_EVENT via netlink\n");
+			log ("Failed to connect to PROC_EVENT via netlink\n");
 			goto close_and_exit;
 		} else {
 			struct proc_event *ev;
@@ -499,7 +499,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 
 			if (unlikely (ev->what != PROC_EVENT_NONE ||
 			    ev->event_data.ack.err)) {
-				fprintf (stderr, "error: expecting an EVENT_NONE in response "
+				log ("error: expecting an EVENT_NONE in response "
 					 "to PROC_EVENT connect (err 0x%x)\n",
 					 ev->event_data.ack.err);
 				goto close_and_exit;
@@ -512,7 +512,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 
 	if (unlikely (pthread_create (&nls->listener, NULL,
 					netlink_listen_thread, nls))) {
-	    fprintf (stderr, "Failed to create netlink thread\n");
+	    log ("Failed to create netlink thread\n");
 	    goto close_and_exit;
 	}
 
@@ -521,7 +521,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 	return (PidScanner *)nls;
 
 close_and_exit:
-	fprintf (stderr, "Failed to create netlink scanner\n");
+	log ("Failed to create netlink scanner\n");
 	pid_scanner_free ((PidScanner *)nls);
 
 	return NULL;

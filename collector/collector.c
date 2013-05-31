@@ -131,7 +131,7 @@ wait_taskstats (void)
 		    !NLMSG_OK((&msg.n), rep_len))) {
 			/* process died before we got to it or somesuch */
 			/* struct nlmsgerr *err = NLMSG_DATA(&msg);
-			   fprintf (stderr, "fatal reply error,  errno %d\n", err->error); */
+			   log ("fatal reply error,  errno %d\n", err->error); */
 			return NULL;
 		}
   
@@ -191,7 +191,7 @@ get_taskstats (pid_t pid)
 		return NULL;
 
 	if (unlikely (ts->ac_pid != pid)) {
-		fprintf (stderr, "Serious error got data for wrong pid: %d %d\n",
+		log ("Serious error got data for wrong pid: %d %d\n",
 			 (int)ts->ac_pid, (int)pid);
 		return NULL;
 	}
@@ -225,7 +225,7 @@ get_tgid_taskstats (PidScanner *scanner)
 		if (unlikely (!ts))
 			continue;
 
-/*		fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total); */
+/*		log ("CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total); */
 
 		/* aggregate */
 		tgits.cpu_run_real_total += ts->cpu_run_real_total;
@@ -509,7 +509,7 @@ am_in_initrd (void)
 	}
 	fclose (mi);
 
-	fprintf (stderr, "bootchart-collector run %sside initrd\n", ret ? "in" : "out");
+	log ("bootchart-collector run %sside initrd\n", ret ? "in" : "out");
 	return ret;
 }
 
@@ -535,7 +535,7 @@ have_dev_tmpfs (void)
 	}
 	fclose (mi);
 
-	fprintf (stderr, "bootchart-collector has %stmpfs on /dev\n", ret ? "" : "no ");
+	log ("bootchart-collector has %stmpfs on /dev\n", ret ? "" : "no ");
 	return ret;
 }
 
@@ -553,7 +553,7 @@ sanity_check_initrd (void)
 
 	cmdline = fopen (PROC_PATH "/cmdline", "r");
 	if (unlikely (!cmdline)) {
-		fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
+		log ("Urk ! no proc/cmdline on a linux system !?\n");
 		return 1;
 	}
 	fgets (buffer, sizeof (buffer), cmdline);
@@ -561,7 +561,7 @@ sanity_check_initrd (void)
 
 	if (unlikely (!strstr (buffer, "init=") ||
 	    !strstr (buffer, "bootchartd"))) {
-		fprintf (stderr, "Urk ! can't find bootchartd on the cmdline\n");
+		log ("Urk ! can't find bootchartd on the cmdline\n");
 		return 1;
 	}
 
@@ -579,21 +579,21 @@ sanity_check_initrd (void)
 static int
 chroot_into_dev (void)
 {
-	fprintf (stderr, "bootchart-collector - migrating into /dev/\n");
+	log ("bootchart-collector - migrating into /dev/\n");
 
 	if (mkdir (MOVE_DEV_PATH, 0777)) {
 		if (unlikely (errno != EEXIST)) {
-			fprintf (stderr, "bootchart-collector - failed to create "
+			log ("bootchart-collector - failed to create "
 				 MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
 			return 1;
 		}
 	}
 	if (unlikely (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL))) {
-		fprintf (stderr, "bootchart-collector - mount failed: '%s'\n", strerror (errno));
+		log ("bootchart-collector - mount failed: '%s'\n", strerror (errno));
 		return 1;
 	}
 	if (unlikely (chroot (MOVE_DEV_PATH))) {
-		fprintf (stderr, "bootchart-collector - chroot failed: '%s'\n", strerror (errno));
+		log ("bootchart-collector - chroot failed: '%s'\n", strerror (errno));
 		return 1;
 	}
 	return 0;
@@ -624,7 +624,7 @@ enter_environment (int console_debug)
 	/* create a happy tmpfs */
 	if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
 		if (unlikely (errno != EBUSY)) {
-			fprintf (stderr, "bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
+			log("bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
 			return 1;
 		}
 	}
@@ -632,7 +632,7 @@ enter_environment (int console_debug)
 	/* re-direct debugging output */
 	if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
 		if (unlikely (errno != EEXIST)) {
-			fprintf (stderr, "bootchart-collector can't create kmsg node\n");
+			log ("bootchart-collector can't create kmsg node\n");
 			return 1;
 		}
 	}
@@ -643,14 +643,14 @@ enter_environment (int console_debug)
 	/* we badly need proc */
 	if (mkdir (PROC_PATH, 0777) < 0) {
 		if (unlikely (errno != EEXIST)) {
-			fprintf (stderr, "bootchart-collector proc mkdir at " PROC_PATH " failed\n");
+			log ("bootchart-collector proc mkdir at " PROC_PATH " failed\n");
 			return 1;
 		}
 	}
 	if (mount ("none", PROC_PATH, "proc",
 		   MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
 		if (unlikely (errno != EBUSY)) {
-			fprintf (stderr, "bootchart-collector proc mount to " PROC_PATH " failed\n");
+			log ("bootchart-collector proc mount to " PROC_PATH " failed\n");
 			return 1;
 		}
 	}
@@ -662,7 +662,7 @@ enter_environment (int console_debug)
 	mkdir (TMPFS_PATH PKGLIBDIR, 0777);
 	if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
 		if (unlikely (errno != EEXIST)) {
-			fprintf (stderr, "bootchart-collector failed to create a chroot at "
+			log ("bootchart-collector failed to create a chroot at "
 				 TMPFS_PATH TMPFS_PATH " error '%s'\n", strerror (errno));
 			return 1;
 		}
@@ -755,7 +755,7 @@ void arguments_parse (Arguments *args, int argc, char **argv)
 	for (i = 1; i < argc; i++)  {
 		if (!argv[i]) continue;
     
-/*		fprintf (stderr, "arg %d = '%s'\n", i, argv[i]); */
+/*		log ("arg %d = '%s'\n", i, argv[i]); */
 
 		/* commands with an argument */
 		if (i < argc - 1) {
@@ -825,11 +825,11 @@ int main (int argc, char *argv[])
 
 	setup_sigaction(SIGTERM);
 
-	fprintf (stderr, "bootchart-collector started as pid %d with %d args: ",
+	log ("bootchart-collector started as pid %d with %d args: ",
 		 (int) getpid(), argc - 1);
 	for (i = 1; i < argc; i++)
-		fprintf (stderr, "'%s' ", argv[i]);
-	fprintf (stderr, "\n");
+		log ("'%s' ", argv[i]);
+	log ("\n");
 
 	if (args.dump_path) {
 		Arguments remote_args;
@@ -858,7 +858,7 @@ int main (int argc, char *argv[])
 	} else {
 		if (pid >= 0) {
 			clean_environment = 0;
-			fprintf (stderr, "bootchart collector already running as pid %d, exiting...\n", pid);
+			log ("bootchart collector already running as pid %d, exiting...\n", pid);
 			goto exit;
 		}
 	}
@@ -874,7 +874,7 @@ int main (int argc, char *argv[])
 
 		*fds[i] = open (path, O_RDONLY);
 		if (*fds[i] < 0) {
-			fprintf (stderr, "error opening '%s': %s'\n",
+			log ("error opening '%s': %s'\n",
 				 path, strerror (errno));
 			exit (1);
 		}
@@ -893,7 +893,7 @@ int main (int argc, char *argv[])
 
 	if (!stat_file || !disk_file || !per_pid_file || !meminfo_file ||
 	    !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file) {
-		fprintf (stderr, "Error allocating output buffers\n");
+		log ("Error allocating output buffers\n");
 		return 1;
 	}
 
@@ -918,7 +918,7 @@ int main (int argc, char *argv[])
 		if (in_initrd) {
 			if (have_dev_tmpfs ()) {
 				if (chroot_into_dev ()) {
-					fprintf (stderr, "failed to chroot into /dev - exiting so run_init can proceed\n");
+					log ("failed to chroot into /dev - exiting so run_init can proceed\n");
 					return 1;
 				}
 				in_initrd = 0;
@@ -964,7 +964,7 @@ int main (int argc, char *argv[])
 
 	for (i = 0; fds [i]; i++) {
 		if (close (*fds[i]) < 0) {
-			fprintf (stderr, "error closing file '%s': %s'\n",
+			log ("error closing file '%s': %s'\n",
 				 fd_names[i], strerror (errno));
 			return 1;
 		}
@@ -980,7 +980,7 @@ int main (int argc, char *argv[])
 
 	if (clean_environment) {
 		if (clean_enviroment() == 0)
-			fprintf (stderr, "bootchart-collector pid: %d unmounted proc / clean exit\n", getpid());
+			log ("bootchart-collector pid: %d unmounted proc / clean exit\n", getpid());
 	}
 
 	return ret;

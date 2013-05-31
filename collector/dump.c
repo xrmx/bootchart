@@ -58,7 +58,7 @@ find_chunks (DumpState *s)
 		start = strtoull (buffer, NULL, 0x10);
 		end = strtoull (p + 1, NULL, 0x10);
 	  
-		fprintf (stderr, "map 0x%lx -> 0x%lx size: %dk from '%s' '%s'\n",
+		log ("map 0x%lx -> 0x%lx size: %dk from '%s' '%s'\n",
 			 (long) start, (long)end, (int)(end - start) / 1024,
 			 buffer, p + 1);
 
@@ -70,13 +70,13 @@ find_chunks (DumpState *s)
 				if (errno == EINTR || errno == EAGAIN)
 					continue;
 				else {
-					fprintf (stderr, "pread error '%s'\n", strerror (errno));
+					log ("pread error '%s'\n", strerror (errno));
 					break;
 				}
 			}
 			read_bytes += count;
 		}
-		fprintf (stderr, "read %ld bytes of %ld\n", (long)read_bytes, (long)toread);
+		log ("read %ld bytes of %ld\n", (long)read_bytes, (long)toread);
 
 		map = search_stack (copy, read_bytes);
 		if (map) {
@@ -97,8 +97,8 @@ open_pid (int pid)
 	char name[1024];
 	DumpState *s;
 
-	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
-		fprintf (stderr, "cannot ptrace %d\n", pid);
+	if (unlikely (ptrace (PTRACE_ATTACH, pid, 0, 0))) {
+		log ("cannot ptrace %d\n", pid);
 		return NULL;
 	}
 
@@ -106,8 +106,8 @@ open_pid (int pid)
 	s = calloc (sizeof (DumpState), 1);
 	s->pid = pid;
 	s->mem = open (name, O_RDONLY|O_LARGEFILE);
-	if (s->mem < 0) {
-		fprintf (stderr, "Failed to open memory map\n"); 
+	if (unlikely (s->mem < 0)) {
+		log ("Failed to open memory map\n"); 
 		free (s);
 		return NULL;
 	}
@@ -127,7 +127,7 @@ close_pid (DumpState *s, int avoid_kill)
 
 	/* Rather terminate the process then killing, less scary messages */
 	if (!avoid_kill && kill(s->pid,SIGTERM))
-		fprintf (stderr, "failed to terminate pid %d: %s\n",
+		log ("failed to terminate pid %d: %s\n",
 			 s->pid, strerror (errno));
 
 	/* presumably dead by now - but detach anyway */
@@ -167,7 +167,7 @@ static void dump_buffers (DumpState *s)
 	   to parse, due to dis-continuous data, discard it */
 	max_chunk = MIN (s->map.max_chunk, sizeof (s->map.chunks)/sizeof(s->map.chunks[0]) - 1);
   
-	fprintf (stderr, "reading %d chunks (of %d) ... ", max_chunk, s->map.max_chunk);
+	log ("reading %d chunks (of %d) ... ", max_chunk, s->map.max_chunk);
 	for (i = 0; i < max_chunk; i++) {
 		FILE *output;
 		char buffer[CHUNK_SIZE];
@@ -175,7 +175,7 @@ static void dump_buffers (DumpState *s)
 		size_t addr = (size_t) s->map.chunks[i];
 
 		pread (s->mem, &buffer, CHUNK_SIZE, addr);
-		/*      fprintf (stderr, "type: '%s' len %d\n",
+		/*      log ("type: '%s' len %d\n",
 			c->dest_stream, (int)c->length); */
 
 		output = fopen (c->dest_stream, "a+");
@@ -183,7 +183,7 @@ static void dump_buffers (DumpState *s)
 		bytes_dumped += c->length;
 		fclose (output);
 	}
-	fprintf (stderr, "wrote %ld kb\n", (long)(bytes_dumped+1023)/1024);
+	log ("wrote %ld kb\n", (long)(bytes_dumped+1023)/1024);
 }
 
 /*
@@ -196,14 +196,14 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	int i, pid, ret = 0;
 	DumpState *state;
 
-	chdir (output_path);
+	assert (chdir (output_path));
 
 	pid = bootchart_find_running_pid (remote_args);
-	if (pid < 0) {
-		fprintf (stderr, "Failed to find the collector's pid\n");
+	if (unlikely(pid < 0)) {
+		log ("Failed to find the collector's pid\n");
 		return 1;
 	}
-	fprintf (stderr, "Extracting profile data from pid %d\n", pid);
+	log ("Extracting profile data from pid %d\n", pid);
 
 	/* the kernel for reasons of it's own really likes to return
 	   ESRCH - No such process from pread randomly, so retry a bit */
@@ -213,7 +213,7 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 
 		if (find_chunks (state)) {
 			ret = 1;
-			fprintf (stderr, "Couldn't find state structures on pid %d's stack%s\n",
+			log ("Couldn't find state structures on pid %d's stack%s\n",
 				 pid, i < 7 ? ", retrying" : " aborting");
 			close_pid (state, 1);
 		} else {
@@ -271,7 +271,7 @@ bootchart_find_running_pid (Arguments *opt_args)
 
 			int p = atoi (ent->d_name);
 
-			/*      fprintf (stderr, "found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid()); */
+			/*      log ("found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid()); */
 
 			if (p == getpid())
 				continue; /* I'm not novel */
@@ -336,7 +336,7 @@ dump_dmsg (const char *output_path)
 	}
 
 	if (!count) {
-		fprintf (stderr, " odd - no dmesg log data\n");
+		log (" odd - no dmesg log data\n");
 		return 1;
 	}
 	
@@ -480,7 +480,7 @@ dump_header (const char *output_path)
 		FILE *cmdline = fopen ("/proc/cmdline", "r");
 		if (cmdline) {
 			char line [4096] = "";
-			fgets (line, 4096, cmdline);
+			assert (NULL != fgets (line, 4096, cmdline));
 			fprintf (header, "system.kernel.options = %s", line);
 			fclose (cmdline);
 		}

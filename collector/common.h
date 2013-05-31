@@ -23,7 +23,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
-#include <assert.h>
 #include <dirent.h>
 #include <limits.h>
 #include <signal.h>
@@ -34,17 +33,13 @@
 #include <alloca.h>
 #include <pthread.h>
 
+#include "macro.h"
+
 /* Magic path we mount our tmpfs on, inside which we do everything */
 #define TMPFS_PATH PKGLIBDIR "/tmpfs"
 #define PROC_PATH  PKGLIBDIR "/tmpfs/proc"
 /* where we lurk to get move mounted into the live system */
 #define MOVE_DEV_PATH "/dev/." PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX
-
-/* helpers */
-#undef	MAX
-#undef	MIN
-#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 
 /* ---------------- collector.c  ---------------- */
 

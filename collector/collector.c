@@ -451,6 +451,8 @@ static int get_family_id(int sd)
 	rc = send_cmd (sd, GENL_ID_CTRL, getpid(), CTRL_CMD_GETFAMILY,
 			CTRL_ATTR_FAMILY_NAME, (void *)name,
 			strlen(TASKSTATS_GENL_NAME)+1);
+	if(unlikely (rc < 0))
+		return -1;
 
 	rep_len = recv(sd, &ans, sizeof(ans), 0);
 	if (unlikely (ans.n.nlmsg_type == NLMSG_ERROR ||
@@ -556,7 +558,7 @@ sanity_check_initrd (void)
 		log ("Urk ! no proc/cmdline on a linux system !?\n");
 		return 1;
 	}
-	fgets (buffer, sizeof (buffer), cmdline);
+	assert (NULL != fgets (buffer, sizeof (buffer), cmdline));
 	fclose (cmdline);
 
 	if (unlikely (!strstr (buffer, "init=") ||
@@ -638,7 +640,10 @@ enter_environment (int console_debug)
 	}
 
 	if (!console_debug)
-		freopen (TMPFS_PATH "/kmsg", "a", stderr);
+		if (unlikely(!freopen (TMPFS_PATH "/kmsg", "a",stderr))){
+			log ("freopen() failed\n");
+			return 1;
+		}
 
 	/* we badly need proc */
 	if (mkdir (PROC_PATH, 0777) < 0) {

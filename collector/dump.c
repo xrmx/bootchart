@@ -480,7 +480,7 @@ dump_header (const char *output_path)
 		FILE *cmdline = fopen ("/proc/cmdline", "r");
 		if (cmdline) {
 			char line [4096] = "";
-			fgets (line, 4096, cmdline);
+			assert (NULL != fgets (line, 4096, cmdline));
 			fprintf (header, "system.kernel.options = %s", line);
 			fclose (cmdline);
 		}

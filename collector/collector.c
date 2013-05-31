@@ -961,7 +961,7 @@ int main (int argc, char *argv[])
 	 * this point
 	 */
 	if (use_taskstat) {
-		if (unlink (close (netlink_socket) < 0)) {
+		if (unlikely (close (netlink_socket) < 0)) {
 			perror ("failed to close netlink socket");
 			exit (1);
 		}

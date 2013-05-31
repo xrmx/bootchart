@@ -33,6 +33,8 @@
 #include <alloca.h>
 #include <pthread.h>
 
+#include "macro.h"
+
 /* Magic path we mount our tmpfs on, inside which we do everything */
 #define TMPFS_PATH PKGLIBDIR "/tmpfs"
 #define PROC_PATH  PKGLIBDIR "/tmpfs/proc"

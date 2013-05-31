@@ -37,7 +37,7 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 	if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0])) {
 		static int overflowed = 0;
 		if (!overflowed) {
-			fprintf (stderr, "bootchart-collector - internal buffer overflow! "
+			log ("bootchart-collector - internal buffer overflow! "
 				 "did you set hz too high, or is your boot time too long ?\n");
 			overflowed = 1;
 		}

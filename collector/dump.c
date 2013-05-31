@@ -97,7 +97,7 @@ open_pid (int pid)
 	char name[1024];
 	DumpState *s;
 
-	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
+	if (unlikely (ptrace (PTRACE_ATTACH, pid, 0, 0))) {
 		fprintf (stderr, "cannot ptrace %d\n", pid);
 		return NULL;
 	}
@@ -106,7 +106,7 @@ open_pid (int pid)
 	s = calloc (sizeof (DumpState), 1);
 	s->pid = pid;
 	s->mem = open (name, O_RDONLY|O_LARGEFILE);
-	if (s->mem < 0) {
+	if (unlikely (s->mem < 0)) {
 		fprintf (stderr, "Failed to open memory map\n"); 
 		free (s);
 		return NULL;
@@ -199,7 +199,7 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	chdir (output_path);
 
 	pid = bootchart_find_running_pid (remote_args);
-	if (pid < 0) {
+	if (unlikely(pid < 0)) {
 		fprintf (stderr, "Failed to find the collector's pid\n");
 		return 1;
 	}

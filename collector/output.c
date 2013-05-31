@@ -36,7 +36,7 @@ static Chunk *chunk_alloc (StackMap *sm, const char *dest)
 	/* if we run out of buffer, just keep writing to the last buffer */
 	if (sm->max_chunk == sizeof (sm->chunks)/sizeof(sm->chunks[0])) {
 		static int overflowed = 0;
-		if (!overflowed) {
+		if (unlikely(!overflowed)) {
 			fprintf (stderr, "bootchart-collector - internal buffer overflow! "
 				 "did you set hz too high, or is your boot time too long ?\n");
 			overflowed = 1;
@@ -90,7 +90,7 @@ buffer_file_dump (BufferFile *file, int input_fd)
 		ssize_t to_read = CHUNK_PAYLOAD - file->cur->length;
 
 		to_read = read (input_fd, file->cur->data + file->cur->length, to_read);
-		if (to_read < 0) {
+		if (unlikely(to_read < 0)) {
 			perror ("read error");
 			break;
 		} else if (to_read == 0) {

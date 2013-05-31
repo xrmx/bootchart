@@ -112,7 +112,7 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 		if (r > 0) {
 			buf += r;
 			buflen -= r;
-		} else if (errno != EAGAIN)
+		} else if (unlikely (errno != EAGAIN))
 			return -1;
 	}
 	return 0;
@@ -127,8 +127,8 @@ wait_taskstats (void)
 	for (;;) {
 		while ((rep_len = recv (netlink_socket, &msg, sizeof(msg), 0)) < 0 && errno == EINTR);
   
-		if (msg.n.nlmsg_type == NLMSG_ERROR ||
-		    !NLMSG_OK((&msg.n), rep_len)) {
+		if (unlikely (msg.n.nlmsg_type == NLMSG_ERROR ||
+		    !NLMSG_OK((&msg.n), rep_len))) {
 			/* process died before we got to it or somesuch */
 			/* struct nlmsgerr *err = NLMSG_DATA(&msg);
 			   fprintf (stderr, "fatal reply error,  errno %d\n", err->error); */
@@ -181,16 +181,16 @@ get_taskstats (pid_t pid)
 			   TASKSTATS_CMD_GET, TASKSTATS_CMD_ATTR_PID,
 			   &pid, sizeof(__u32));
 
-	if (rc < 0)
+	if (unlikely (rc < 0))
 		return NULL;
 
 	/* get reply */
 	ts = wait_taskstats ();
 		    
-	if (!ts)
+	if (unlikely (!ts))
 		return NULL;
 
-	if (ts->ac_pid != pid) {
+	if (unlikely (ts->ac_pid != pid)) {
 		fprintf (stderr, "Serious error got data for wrong pid: %d %d\n",
 			 (int)ts->ac_pid, (int)pid);
 		return NULL;
@@ -213,7 +213,7 @@ get_tgid_taskstats (PidScanner *scanner)
 	memset (&tgits, 0, sizeof (struct taskstats));
 
 	ts = get_taskstats (pid_scanner_get_cur_pid (scanner));
-	if (!ts)
+	if (unlikely (!ts))
 		return NULL;
 
 	tgits = *ts;
@@ -222,7 +222,7 @@ get_tgid_taskstats (PidScanner *scanner)
 	while ((tpid = pid_scanner_get_tasks_next (scanner))) {
 		struct taskstats *ts = get_taskstats (tpid);
 
-		if (!ts)
+		if (unlikely (!ts))
 			continue;
 
 /*		fprintf (stderr, "CPU aggregate %d: %ld\n", tpid, (long) ts->cpu_run_real_total); */
@@ -255,7 +255,7 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 	struct taskstats *ts;
 	
 	ts = get_tgid_taskstats (scanner);
-	if (!ts) /* process exited before we got there */
+	if (unlikely (!ts)) /* process exited before we got there */
 		return;
 
 	/* reduce the amount of parsing we have to do later */
@@ -279,7 +279,7 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 			       (long long)ts->cpu_run_real_total,
 			       (long long)ts->blkio_delay_total,
 			       (long long)ts->swapin_delay_total);
-	if (output_len < 0)
+	if (unlikely (output_len < 0))
 		return;
 
 	buffer_file_append (file, output_line, output_len);
@@ -316,7 +316,7 @@ dump_proc_stat (BufferFile *file, int pid)
 	sprintf (filename, PROC_PATH "/%d/stat", pid);
 
 	fd = open (filename, O_RDONLY);
-	if (fd < 0)
+	if (unlikely (fd < 0))
 		return;
 	
 	buffer_file_dump (file, fd);
@@ -332,7 +332,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	char str[PATH_MAX], path[PATH_MAX], buffer[4096];
 
 	sprintf (str, PROC_PATH "/%d/exe", pid);
-	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
+	if (unlikely ((len = readlink (str, path, sizeof (path) - 1)) < 0))
 		return;
 	path[len] = '\0';
 
@@ -415,14 +415,14 @@ get_uptime (int fd)
 	lseek (fd, SEEK_SET, 0);
 
 	len = read (fd, buf, sizeof buf);
-	if (len < 0) {
+	if (unlikely (len < 0)) {
 		perror ("read");
 		return 0;
 	}
 
 	buf[len] = '\0';
 
-	if (sscanf (buf, "%lu.%lu", &u1, &u2) != 2) {
+	if (unlikely (sscanf (buf, "%lu.%lu", &u1, &u2) != 2)) {
 		perror ("sscanf");
 		return 0;
 	}
@@ -453,8 +453,8 @@ static int get_family_id(int sd)
 			strlen(TASKSTATS_GENL_NAME)+1);
 
 	rep_len = recv(sd, &ans, sizeof(ans), 0);
-	if (ans.n.nlmsg_type == NLMSG_ERROR ||
-	    (rep_len < 0) || !NLMSG_OK((&ans.n), rep_len))
+	if (unlikely (ans.n.nlmsg_type == NLMSG_ERROR ||
+	    (rep_len < 0) || !NLMSG_OK((&ans.n), rep_len)))
 		return -1;
 
 	na = (struct nlattr *) GENLMSG_DATA(&ans);
@@ -471,13 +471,13 @@ init_taskstat (void)
 	struct sockaddr_nl addr;
 
 	netlink_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
-	if (netlink_socket < 0)
+	if (unlikely (netlink_socket < 0))
 		goto error;
 
 	memset (&addr, 0, sizeof (addr));
 	addr.nl_family = AF_NETLINK;
 
-	if (bind (netlink_socket, (struct sockaddr *) &addr, sizeof (addr)) < 0)
+	if (unlikely (bind (netlink_socket, (struct sockaddr *) &addr, sizeof (addr)) < 0))
 		goto error;
 
 	netlink_taskstats_id = get_family_id (netlink_socket);
@@ -552,15 +552,15 @@ sanity_check_initrd (void)
 	char buffer[4096];
 
 	cmdline = fopen (PROC_PATH "/cmdline", "r");
-	if (!cmdline) {
+	if (unlikely (!cmdline)) {
 		fprintf (stderr, "Urk ! no proc/cmdline on a linux system !?\n");
 		return 1;
 	}
 	fgets (buffer, sizeof (buffer), cmdline);
 	fclose (cmdline);
 
-	if (!strstr (buffer, "init=") ||
-	    !strstr (buffer, "bootchartd")) {
+	if (unlikely (!strstr (buffer, "init=") ||
+	    !strstr (buffer, "bootchartd"))) {
 		fprintf (stderr, "Urk ! can't find bootchartd on the cmdline\n");
 		return 1;
 	}
@@ -582,17 +582,17 @@ chroot_into_dev (void)
 	fprintf (stderr, "bootchart-collector - migrating into /dev/\n");
 
 	if (mkdir (MOVE_DEV_PATH, 0777)) {
-		if (errno != EEXIST) {
+		if (unlikely (errno != EEXIST)) {
 			fprintf (stderr, "bootchart-collector - failed to create "
 				 MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
 			return 1;
 		}
 	}
-	if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL)) {
+	if (unlikely (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL))) {
 		fprintf (stderr, "bootchart-collector - mount failed: '%s'\n", strerror (errno));
 		return 1;
 	}
-	if (chroot (MOVE_DEV_PATH)) {
+	if (unlikely (chroot (MOVE_DEV_PATH))) {
 		fprintf (stderr, "bootchart-collector - chroot failed: '%s'\n", strerror (errno));
 		return 1;
 	}
@@ -623,7 +623,7 @@ enter_environment (int console_debug)
 {
 	/* create a happy tmpfs */
 	if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
-		if (errno != EBUSY) {
+		if (unlikely (errno != EBUSY)) {
 			fprintf (stderr, "bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
 			return 1;
 		}
@@ -631,7 +631,7 @@ enter_environment (int console_debug)
 
 	/* re-direct debugging output */
 	if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
-		if (errno != EEXIST) {
+		if (unlikely (errno != EEXIST)) {
 			fprintf (stderr, "bootchart-collector can't create kmsg node\n");
 			return 1;
 		}
@@ -642,14 +642,14 @@ enter_environment (int console_debug)
 
 	/* we badly need proc */
 	if (mkdir (PROC_PATH, 0777) < 0) {
-		if (errno != EEXIST) {
+		if (unlikely (errno != EEXIST)) {
 			fprintf (stderr, "bootchart-collector proc mkdir at " PROC_PATH " failed\n");
 			return 1;
 		}
 	}
 	if (mount ("none", PROC_PATH, "proc",
 		   MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-		if (errno != EBUSY) {
+		if (unlikely (errno != EBUSY)) {
 			fprintf (stderr, "bootchart-collector proc mount to " PROC_PATH " failed\n");
 			return 1;
 		}
@@ -661,7 +661,7 @@ enter_environment (int console_debug)
 	mkdir (TMPFS_PATH EARLY_PREFIX LIBDIR, 0777);
 	mkdir (TMPFS_PATH PKGLIBDIR, 0777);
 	if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
-		if (errno != EEXIST) {
+		if (unlikely (errno != EEXIST)) {
 			fprintf (stderr, "bootchart-collector failed to create a chroot at "
 				 TMPFS_PATH TMPFS_PATH " error '%s'\n", strerror (errno));
 			return 1;
@@ -956,7 +956,7 @@ int main (int argc, char *argv[])
 	 * this point
 	 */
 	if (use_taskstat) {
-		if (close (netlink_socket) < 0) {
+		if (unlink (close (netlink_socket) < 0)) {
 			perror ("failed to close netlink socket");
 			exit (1);
 		}

@@ -115,7 +115,7 @@ find_pid_an_idx (NetLinkPidScanner *nls, pid_t pid, int create)
 	if (i > 0 && nls->procs[i - 1]->pid == pid)
 		return i - 1;
 
-	if (!create)
+	if (unlikely(!create))
 		return -1;
 
 	/* increase size & realloc */
@@ -443,7 +443,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
          * protocol (NETLINK_CONNECTOR)
          */
         nls->socket = socket (PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
-        if (nls->socket == -1) {
+        if (unlikely (nls->socket == -1)) {
 		fprintf (stderr, "netlink socket error\n");
                 return NULL;
         }
@@ -451,7 +451,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         my_nla.nl_groups = CN_IDX_PROC;
         my_nla.nl_pid = getpid();
 
-        if (bind (nls->socket, (struct sockaddr *)&my_nla, sizeof(my_nla))) {
+        if (unlikely (bind (nls->socket, (struct sockaddr *)&my_nla, sizeof(my_nla)))) {
 		fprintf (stderr, "binding nls->socket error\n");
                 goto close_and_exit;
         }
@@ -470,7 +470,7 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
         cn_hdr->id.idx = CN_IDX_PROC;
         cn_hdr->id.val = CN_VAL_PROC;
         cn_hdr->len = sizeof(enum proc_cn_mcast_op);
-        if (send (nls->socket, nl_hdr, nl_hdr->nlmsg_len, 0) != nl_hdr->nlmsg_len) {
+        if (unlikely(send (nls->socket, nl_hdr, nl_hdr->nlmsg_len, 0) != nl_hdr->nlmsg_len)) {
 		fprintf(stderr, "failed to send proc connector mcast ctl op!\n");
                 goto close_and_exit;
         } else {
@@ -480,14 +480,14 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 
 		pr.fd = nls->socket;
 		pr.events = POLLIN;
-		if ((poll (&pr, 1, 50 /* ms */) <= 0) || (!(pr.revents & POLLIN))) {
+		if ((unlikely(poll (&pr, 1, 50 /* ms */) <= 0) || (!(pr.revents & POLLIN)))) {
 			fprintf (stderr, "No PROC_EVENTs present\n");
 			goto close_and_exit;
 		}
 
                 recv_len = netlink_recvfrom (nls, buff);
-		if (recv_len < 1 || !NLMSG_OK (nlh, recv_len) ||
-		    nlh->nlmsg_type != NLMSG_DONE) {
+		if (unlikely(recv_len < 1 || !NLMSG_OK (nlh, recv_len) ||
+		    nlh->nlmsg_type != NLMSG_DONE)) {
 			fprintf (stderr, "Failed to connect to PROC_EVENT via netlink\n");
 			goto close_and_exit;
 		} else {
@@ -497,7 +497,8 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
                         cn_hdr = NLMSG_DATA (nlh);
 			ev = (struct proc_event*)cn_hdr->data;
 
-			if (ev->what != PROC_EVENT_NONE || ev->event_data.ack.err) {
+			if (unlikely (ev->what != PROC_EVENT_NONE ||
+			    ev->event_data.ack.err)) {
 				fprintf (stderr, "error: expecting an EVENT_NONE in response "
 					 "to PROC_EVENT connect (err 0x%x)\n",
 					 ev->event_data.ack.err);
@@ -509,7 +510,8 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
 
 	pthread_mutex_init (&nls->lock, NULL);
 
-	if (pthread_create (&nls->listener, NULL, netlink_listen_thread, nls)) {
+	if (unlikely (pthread_create (&nls->listener, NULL,
+					netlink_listen_thread, nls))) {
 	    fprintf (stderr, "Failed to create netlink thread\n");
 	    goto close_and_exit;
 	}

@@ -37,4 +37,10 @@
 #define assert(expr)		do {} while(0)
 #endif /* CONFIG_DEBUG */
 
+/* helpers */
+#undef	MAX
+#undef	MIN
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
+
 #endif /* BOOTCHART_MACRO_H */

@@ -41,12 +41,6 @@
 /* where we lurk to get move mounted into the live system */
 #define MOVE_DEV_PATH "/dev/." PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX
 
-/* helpers */
-#undef	MAX
-#undef	MIN
-#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
-
 /* ---------------- collector.c  ---------------- */
 
 /* it is nice to be able to parse the remote process' arguments too */

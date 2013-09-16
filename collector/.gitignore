@@ -1,2 +1,1 @@
-bootchart-collector.o
-bootchart-output.o
+*.o

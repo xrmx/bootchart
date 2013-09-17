@@ -135,7 +135,7 @@ wait_taskstats (void)
 			return NULL;
 		}
   
-		int rep_len = GENLMSG_PAYLOAD(&msg.n);
+		rep_len = GENLMSG_PAYLOAD(&msg.n);
 		struct nlattr *na = (struct nlattr *) GENLMSG_DATA(&msg);
 		int len = 0;
 		

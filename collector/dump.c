@@ -10,7 +10,7 @@
 #include <sys/utsname.h>
 
 typedef struct {
-	int pid;
+	pid_t pid;
 	int mem;
 	StackMap map;
 } DumpState;
@@ -35,7 +35,7 @@ find_chunks (DumpState *s)
 	StackMap *map;
 	int ret = 1;
 
-	snprintf (buffer, 1024, "/proc/%d/maps", s->pid);
+	snprintf (buffer, 1024, "/proc/%ld/maps", (long) s->pid);
 	maps = fopen (buffer, "r");
 
 	while (!result && fgets (buffer, 1024, maps)) {
@@ -92,17 +92,17 @@ find_chunks (DumpState *s)
 }
 
 static DumpState *
-open_pid (int pid)
+open_pid (pid_t pid)
 {
 	char name[1024];
 	DumpState *s;
 
 	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
-		log ("cannot ptrace %d\n", pid);
+		log ("cannot ptrace %ld\n", (long) pid);
 		return NULL;
 	}
 
-	snprintf (name, 1024, "/proc/%d/mem", pid);
+	snprintf (name, 1024, "/proc/%ld/mem", (long) pid);
 	s = calloc (sizeof (DumpState), 1);
 	s->pid = pid;
 	s->mem = open (name, O_RDONLY|O_LARGEFILE);
@@ -120,15 +120,15 @@ open_pid (int pid)
  * wait a while hoping it exits (so we can
  * cleanup after it).
  */
-static int
+static pid_t
 close_pid (DumpState *s, int avoid_kill)
 {
-	int pid;
+	pid_t pid;
 
 	/* Rather terminate the process then killing, less scary messages */
 	if (!avoid_kill && kill(s->pid,SIGTERM))
-		log ("failed to terminate pid %d: %s\n",
-			 s->pid, strerror (errno));
+		log ("failed to terminate pid %ld: %s\n",
+			 (long) s->pid, strerror (errno));
 
 	/* presumably dead by now - but detach anyway */
 	ptrace (PTRACE_DETACH, s->pid, 0, 0);
@@ -143,7 +143,8 @@ close_pid (DumpState *s, int avoid_kill)
 static void
 close_wait_pid (DumpState *s, int avoid_kill)
 {
-	int i, pid;
+	int i;
+	pid_t pid;
 
 	pid = close_pid (s, avoid_kill);
 	/* 's' invalid */
@@ -151,7 +152,7 @@ close_wait_pid (DumpState *s, int avoid_kill)
 	/* wait at most second max */
 	for (i = 0; i < 100; i++) {
 		char buffer[1024];
-		sprintf (buffer, PROC_PATH "/%d/cmdline", pid);
+		sprintf (buffer, PROC_PATH "/%ld/cmdline", (long) pid);
 		if (access (buffer, R_OK))
 			break;
 		usleep (10 * 1000);
@@ -193,7 +194,8 @@ static void dump_buffers (DumpState *s)
 int
 buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 {
-	int i, pid, ret = 0;
+	int i, ret = 0;
+	pid_t pid;
 	DumpState *state;
 
 	assert (chdir (output_path));
@@ -203,7 +205,7 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 		log ("Failed to find the collector's pid\n");
 		return 1;
 	}
-	log ("Extracting profile data from pid %d\n", pid);
+	log ("Extracting profile data from pid %ld\n", (long) pid);
 
 	/* the kernel for reasons of it's own really likes to return
 	   ESRCH - No such process from pread randomly, so retry a bit */
@@ -213,8 +215,8 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 
 		if (find_chunks (state)) {
 			ret = 1;
-			log ("Couldn't find state structures on pid %d's stack%s\n",
-				 pid, i < 7 ? ", retrying" : " aborting");
+			log ("Couldn't find state structures on pid %ld's stack%s\n",
+				 (long) pid, i < 7 ? ", retrying" : " aborting");
 			close_pid (state, 1);
 		} else {
 			ret = 0;
@@ -232,12 +234,12 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
  * returns it's pid (or -1) if not found, ignores
  * the --usleep mode we use to simplify our scripts.
  */
-int
+pid_t
 bootchart_find_running_pid (Arguments *opt_args)
 {
 	DIR *proc;
 	struct dirent *ent;
-	int pid = -1;
+	pid_t pid = (pid_t) -1;
 	char exe_path[1024];
 	Arguments sargs, *args;
 
@@ -249,6 +251,7 @@ bootchart_find_running_pid (Arguments *opt_args)
 	}
     
 	proc = opendir (PROC_PATH);
+
 	while ((ent = readdir (proc)) != NULL) {
 		int len;
 		char link_target[1024];
@@ -269,9 +272,9 @@ bootchart_find_running_pid (Arguments *opt_args)
 			FILE *argf;
 			int harmless = 0;
 
-			int p = atoi (ent->d_name);
+			pid_t p = (pid_t) atoi (ent->d_name);
 
-			/*      log ("found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid()); */
+			/*      log ("found collector '%s' pid %ld (my pid %ld)\n", link_target, (long) p, (long) getpid()); */
 
 			if (p == getpid())
 				continue; /* I'm not novel */

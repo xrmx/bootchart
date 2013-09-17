@@ -191,8 +191,8 @@ get_taskstats (pid_t pid)
 		return NULL;
 
 	if (ts->ac_pid != pid) {
-		log ("Serious error got data for wrong pid: %d %d\n",
-			 (int)ts->ac_pid, (int)pid);
+		log ("Serious error got data for wrong pid: %ld %ld\n",
+			 (long) ts->ac_pid, (long) pid);
 		return NULL;
 	}
 
@@ -308,12 +308,12 @@ dump_taskstat (BufferFile *file, PidScanner *scanner)
 }
 		
 static void
-dump_proc_stat (BufferFile *file, int pid)
+dump_proc_stat (BufferFile *file, pid_t pid)
 {
 	int  fd;
 	char filename[PATH_MAX];
 
-	sprintf (filename, PROC_PATH "/%d/stat", pid);
+	sprintf (filename, PROC_PATH "/%ld/stat", (long) pid);
 
 	fd = open (filename, O_RDONLY);
 	if (fd < 0)
@@ -331,7 +331,7 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	int fd, len;
 	char str[PATH_MAX], path[PATH_MAX], buffer[4096];
 
-	sprintf (str, PROC_PATH "/%d/exe", pid);
+	sprintf (str, PROC_PATH "/%ld/exe", (long) pid);
 	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
 		return;
 	path[len] = '\0';
@@ -339,11 +339,11 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	/* Zero delimited everything */
 
 	/* write <pid>\n<exe-path>\n */
-	sprintf (str, "%d\n:%s\n:", pid, path);
+	sprintf (str, "%ld\n:%s\n:", (long) pid, path);
 	buffer_file_append (file, str, strlen (str));
 
 	/* write [zero delimited] <cmdline> */
-	sprintf (str, PROC_PATH "/%d/cmdline", pid);
+	sprintf (str, PROC_PATH "/%ld/cmdline", (long) pid);
 	fd = open (str, O_RDONLY);
 	if (fd >= 0) {
 		int i, start;
@@ -378,7 +378,7 @@ dump_paternity (BufferFile *file, pid_t pid, pid_t ppid)
 {
 	char str[1024];
 	/* <Child> <Parent> */
-	sprintf (str, "%d %d\n", pid, ppid);
+	sprintf (str, "%ld %ld\n", (long) pid, (long) ppid);
 	buffer_file_append (file, str, strlen (str));
 }
 
@@ -808,7 +808,8 @@ int main (int argc, char *argv[])
 	Arguments args;
 	int i, use_taskstat;
 	int in_initrd = 0, clean_environment = 1;
-	int stat_fd, disk_fd, uptime_fd, meminfo_fd,  pid, ret = 1;
+	int stat_fd, disk_fd, uptime_fd, meminfo_fd, ret = 1;
+	pid_t pid;
 	PidScanner *scanner = NULL;
 	unsigned long reltime = 0;
 	BufferFile *stat_file, *disk_file, *per_pid_file, *meminfo_file;
@@ -830,8 +831,8 @@ int main (int argc, char *argv[])
 
 	setup_sigaction(SIGTERM);
 
-	log ("bootchart-collector started as pid %d with %d args: ",
-		 (int) getpid(), argc - 1);
+	log ("bootchart-collector started as pid %ld with %d args: ",
+		 (long) getpid(), argc - 1);
 	for (i = 1; i < argc; i++)
 		log ("'%s' ", argv[i]);
 	log ("\n");
@@ -863,7 +864,7 @@ int main (int argc, char *argv[])
 	} else {
 		if (pid >= 0) {
 			clean_environment = 0;
-			log ("bootchart collector already running as pid %d, exiting...\n", pid);
+			log ("bootchart collector already running as pid %ld, exiting...\n", (long) pid);
 			goto exit;
 		}
 	}

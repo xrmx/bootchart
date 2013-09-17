@@ -100,7 +100,7 @@ int         buffers_extract_and_dump   (const char *output_path,
 					Arguments  *remote_args);
 int         dump_dmsg                  (const char *output_path);
 int         dump_header                (const char *output_path);
-int         bootchart_find_running_pid (Arguments *opt_args);
+pid_t       bootchart_find_running_pid (Arguments *opt_args);
 
 /* ---------------- tasks.c  ---------------- */
 

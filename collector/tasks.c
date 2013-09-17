@@ -99,7 +99,7 @@ proc_pid_scanner_next (PidScanner *scanner)
 			return 0;
 	} while (!isdigit (ps->cur_ent->d_name[0]));
 
-	pid = atoi (ps->cur_ent->d_name);
+	pid = (pid_t) atoi (ps->cur_ent->d_name);
 	ps->cur_pid = pid;
 
 	pid_scanner_emit_exec (scanner, pid);
@@ -169,8 +169,8 @@ proc_pid_scanner_get_tasks_next (PidScanner *scanner)
 			return 0;
 		if (!isdigit (tent->d_name[0]))
 			continue;
-		if ((tpid = atoi (tent->d_name)) != ps->cur_pid) {
-/*			log ("pid %d has tpid %d\n", ps->cur_pid, tpid); */
+		if ((tpid = (pid_t) atoi (tent->d_name)) != ps->cur_pid) {
+/*			log ("pid %ld has tpid %ld\n", (long) ps->cur_pid, (long) tpid); */
 			return tpid;
 		}
 	}

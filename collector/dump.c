@@ -261,7 +261,7 @@ bootchart_find_running_pid (Arguments *opt_args)
 
 	while ((ent = readdir (proc)) != NULL) {
 		int len;
-		char link_target[1024];
+		static char link_target[1024];
 
 		if (!isdigit (ent->d_name[0]))
 			continue;

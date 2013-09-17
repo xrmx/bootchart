@@ -312,7 +312,6 @@ bootchart_find_running_pid (Arguments *opt_args)
 					if (args->usleep_time)
 						harmless = 1;
 
-					fclose (argf);
 				}
 				fclose (argf);
 			} else {

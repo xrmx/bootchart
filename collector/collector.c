@@ -500,6 +500,8 @@ am_in_initrd (void)
 	char buffer[4096];
 
 	mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	if (!mi)
+		return ret;
 
 	/* find a single mount; parent of itself: an initrd */
 	while (fgets (buffer, 4096, mi)) {
@@ -524,6 +526,8 @@ have_dev_tmpfs (void)
 	char buffer[4096];
 
 	mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	if (!mi)
+		return ret;
 
 	/* find a single mount; parent of itself: an initrd */
 	while (fgets (buffer, 4096, mi)) {
@@ -555,7 +559,7 @@ sanity_check_initrd (void)
 
 	cmdline = fopen (PROC_PATH "/cmdline", "r");
 	if (!cmdline) {
-		log ("Urk ! no proc/cmdline on a linux system !?\n");
+		log ("Urk ! no" PROC_PATH "/cmdline on a linux system !?\n");
 		return 1;
 	}
 	assert (NULL != fgets (buffer, sizeof (buffer), cmdline));
@@ -874,6 +878,10 @@ int main (int argc, char *argv[])
 
 	for (i = 0; fds [i]; i++) {
 		char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
+		if (!path) {
+			perror("malloc");
+			exit(1);
+		}
 		strcpy (path, PROC_PATH);
 		strcat (path, fd_names[i]);
 

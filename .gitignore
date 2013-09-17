@@ -8,3 +8,8 @@ bootchart-collector
 *.rej
 no
 .project
+bootchart-done.service
+bootchart-done.timer
+bootchart.service
+bootchartd
+pybootchartgui/main.py

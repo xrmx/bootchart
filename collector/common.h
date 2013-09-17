@@ -8,9 +8,15 @@
 #define _XOPEN_SOURCE 800
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
+#ifndef _BSD_SOURCE
 #define _BSD_SOURCE
+#endif /* ndef _BSD_SOURCE */
+#ifndef _ATFILE_SOURCE
 #define _ATFILE_SOURCE
+#endif /* ndef _ATFILE_SOURCE */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif /* ndef _GNU_SOURCE */
 
 #include <sys/mount.h>
 #include <sys/time.h>

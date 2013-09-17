@@ -5,8 +5,15 @@ PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 CC = $(CROSS_COMPILE)gcc
-CFLAGS ?= -g -Wall -O0
-CPPFLAGS ?=
+LD = $(CC)
+# We need to use sys_errlist and sys_nerr, which are deprecated,
+# but have no async-signal-safe re-entrant replacements.
+COMMON_FLAGS ?= -std=gnu99 -g -pthread -Wall -Werror -Wno-deprecated-declarations -Wno-deprecated $(addprefix -D,$(DEFINES))
+DEFINES ?= CONFIG_DEBUG
+# DEFINES ?=
+CFLAGS ?= $(COMMON_FLAGS) -O0
+CPPFLAGS ?= $(COMMON_FLAGS)
+LDFLAGS ?= $(COMMON_FLAGS)
 
 # Normally empty, but you can use program_prefix=mmeeks- or program_suffix=2
 # to install bootchart2 on a system that already has other projects that also
@@ -53,7 +60,7 @@ all: \
 	pybootchartgui/main.py
 
 %.o:%.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -pthread \
+	$(CC) $(CFLAGS) \
 		-DEARLY_PREFIX='"$(EARLY_PREFIX)"' \
 		-DLIBDIR='"$(LIBDIR)"' \
 		-DPKGLIBDIR='"$(PKGLIBDIR)"' \
@@ -82,7 +89,7 @@ bootchartd: bootchartd.in
 	$(substitute_variables) $^ > $@
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
+	$(LD) $(LDFLAGS) -Icollector -o $@ $^
 
 pybootchartgui/main.py: pybootchartgui/main.py.in
 	$(substitute_variables) $^ > $@

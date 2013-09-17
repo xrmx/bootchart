@@ -113,6 +113,7 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 			buf += r;
 			buflen -= r;
 		} else if (errno != EAGAIN)
+			perror("sendto");
 			return -1;
 	}
 	return 0;
@@ -130,8 +131,8 @@ wait_taskstats (void)
 		if (msg.n.nlmsg_type == NLMSG_ERROR ||
 		    !NLMSG_OK((&msg.n), rep_len)) {
 			/* process died before we got to it or somesuch */
-			/* struct nlmsgerr *err = NLMSG_DATA(&msg);
-			   log ("fatal reply error,  errno %d\n", err->error); */
+			struct nlmsgerr *err = NLMSG_DATA(&msg);
+			   log ("fatal reply error,  errno %d\n", err->error);
 			return NULL;
 		}
   
@@ -316,8 +317,10 @@ dump_proc_stat (BufferFile *file, pid_t pid)
 	sprintf (filename, PROC_PATH "/%ld/stat", (long) pid);
 
 	fd = open (filename, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		perror ("open '" PROC_PATH "/pid/stat'");
 		return;
+	}
 	
 	buffer_file_dump (file, fd);
 
@@ -332,8 +335,10 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	char str[PATH_MAX], path[PATH_MAX], buffer[4096];
 
 	sprintf (str, PROC_PATH "/%ld/exe", (long) pid);
-	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
+	if ((len = readlink (str, path, sizeof (path) - 1)) < 0) {
+		perror ("readlink '" PROC_PATH "/pid/exe'");
 		return;
+	}
 	path[len] = '\0';
 
 	/* Zero delimited everything */
@@ -367,6 +372,8 @@ dump_cmdline (BufferFile *file, pid_t pid)
 			}
 		}
 		close (fd);
+	} else {
+		perror ("open '" PROC_PATH "/pid/cmdline'");
 	}
 
 	buffer_file_append (file, "\n\n", 2);
@@ -412,7 +419,10 @@ get_uptime (int fd)
 	ssize_t       len;
 	unsigned long u1, u2;
 
-	lseek (fd, SEEK_SET, 0);
+	if ((off_t) -1 == lseek (fd, SEEK_SET, 0)) {
+		perror ("lseek");
+		return 0;
+	}
 
 	len = read (fd, buf, sizeof buf);
 	if (len < 0) {
@@ -434,7 +444,8 @@ get_uptime (int fd)
  * Probe the controller in genetlink to find the family id
  * for the TASKSTATS family
  */
-static int get_family_id(int sd)
+static int
+get_family_id(int sd)
 {
 	struct {
 		struct nlmsghdr n;
@@ -473,14 +484,18 @@ init_taskstat (void)
 	struct sockaddr_nl addr;
 
 	netlink_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
-	if (netlink_socket < 0)
+	if (netlink_socket < 0) {
+		perror ("socket");
 		goto error;
+	}
 
 	memset (&addr, 0, sizeof (addr));
 	addr.nl_family = AF_NETLINK;
 
-	if (bind (netlink_socket, (struct sockaddr *) &addr, sizeof (addr)) < 0)
+	if (bind (netlink_socket, (struct sockaddr *) &addr, sizeof (addr)) < 0) {
+		perror ("bind");
 		goto error;
+	}
 
 	netlink_taskstats_id = get_family_id (netlink_socket);
 
@@ -500,6 +515,10 @@ am_in_initrd (void)
 	char buffer[4096];
 
 	mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	if (!mi) {
+		perror ("fopen '" PROC_PATH "/self/mountinfo'");
+		return 0;
+	}
 
 	/* find a single mount; parent of itself: an initrd */
 	while (fgets (buffer, 4096, mi)) {
@@ -524,6 +543,10 @@ have_dev_tmpfs (void)
 	char buffer[4096];
 
 	mi = fopen (PROC_PATH "/self/mountinfo", "r");
+	if (!mi) {
+		perror ("fopen '" PROC_PATH "/self/mountinfo'");
+		return 0;
+	}
 
 	/* find a single mount; parent of itself: an initrd */
 	while (fgets (buffer, 4096, mi)) {
@@ -555,7 +578,7 @@ sanity_check_initrd (void)
 
 	cmdline = fopen (PROC_PATH "/cmdline", "r");
 	if (!cmdline) {
-		log ("Urk ! no proc/cmdline on a linux system !?\n");
+		log ("Urk ! No '" PROC_PATH "/cmdline'. Am I on a linux system?!\n");
 		return 1;
 	}
 	assert (NULL != fgets (buffer, sizeof (buffer), cmdline));
@@ -563,7 +586,7 @@ sanity_check_initrd (void)
 
 	if (!strstr (buffer, "init=") ||
 	    !strstr (buffer, "bootchartd")) {
-		log ("Urk ! can't find bootchartd on the cmdline\n");
+		log ("Urk ! Cannot find bootchartd on the cmdline\n");
 		return 1;
 	}
 
@@ -583,19 +606,18 @@ chroot_into_dev (void)
 {
 	log ("bootchart-collector - migrating into /dev/\n");
 
-	if (mkdir (MOVE_DEV_PATH, 0777)) {
+	if (mkdir (MOVE_DEV_PATH, 0777) < 0) {
 		if (errno != EEXIST) {
-			log ("bootchart-collector - failed to create "
-				 MOVE_DEV_PATH " move mount-point: '%s'\n", strerror (errno));
+			perror ("mkdir '" MOVE_DEV_PATH "'");
 			return 1;
 		}
 	}
-	if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL)) {
-		log ("bootchart-collector - mount failed: '%s'\n", strerror (errno));
+	if (mount (TMPFS_PATH, MOVE_DEV_PATH, NULL, MS_MGC_VAL | MS_MOVE, NULL) < 0) {
+		perror ("mount '" TMPFS_PATH "' '" MOVE_DEV_PATH "'");
 		return 1;
 	}
-	if (chroot (MOVE_DEV_PATH)) {
-		log ("bootchart-collector - chroot failed: '%s'\n", strerror (errno));
+	if (chroot (MOVE_DEV_PATH) < 0) {
+		perror ("chroot '" MOVE_DEV_PATH "'");
 		return 1;
 	}
 	return 0;
@@ -625,48 +647,79 @@ enter_environment (int console_debug)
 {
 	/* create a happy tmpfs */
 	if (mount ("none", TMPFS_PATH, "tmpfs", MS_NOEXEC|MS_NOSUID, NULL) < 0) {
-		if (errno != EBUSY) {
-			log ("bootchart-collector tmpfs mount to " TMPFS_PATH " failed\n");
+		if (EBUSY == errno) {
+			/* Use existing mount */
+		} else {
+			log ("bootchart-collector tmpfs mount to " TMPFS_PATH " failed: %s\n", strerror (errno));
 			return 1;
 		}
 	}
 
 	/* re-direct debugging output */
 	if (mknod (TMPFS_PATH "/kmsg", S_IFCHR|0666, makedev(1, 11)) < 0) {
-		if (errno != EEXIST) {
-			log ("bootchart-collector can't create kmsg node\n");
+		if (EEXIST == errno) {
+			/* Use existing */
+		} else {
+			log ("bootchart-collector failed to create kmsg node: %s\n", strerror (errno));
 			return 1;
 		}
 	}
 
 	if (!console_debug)
-		if (!freopen (TMPFS_PATH "/kmsg", "a", stderr)) {
-			log ("freopen() failed\n");
+		if (!freopen (TMPFS_PATH "/kmsg", "w", stderr)) {
+			log ("freopen '" TMPFS_PATH "/kmsg' failed: %s\n", strerror (errno));
 			return 1;
 		}
 
 	/* we badly need proc */
 	if (mkdir (PROC_PATH, 0777) < 0) {
-		if (errno != EEXIST) {
-			log ("bootchart-collector proc mkdir at " PROC_PATH " failed\n");
+		if (EEXIST == errno) {
+			/* Use existing proc dir */
+		} else {
+			log ("bootchart-collector proc mkdir at '" PROC_PATH "' failed: %s\n", strerror (errno));
 			return 1;
 		}
 	}
 	if (mount ("none", PROC_PATH, "proc",
 		   MS_NODEV|MS_NOEXEC|MS_NOSUID , NULL) < 0) {
-		if (errno != EBUSY) {
-			log ("bootchart-collector proc mount to " PROC_PATH " failed\n");
+		if (EBUSY == errno) {
+			/* Use existing proc mount */
+		} else {
+			log ("bootchart-collector proc mount to '" PROC_PATH "' failed: %s\n", strerror (errno));
 			return 1;
 		}
 	}
 
 	/* we need our tmpfs to look like this file-system,
 	   so we can chroot into it if necessary */
-	mkdir (TMPFS_PATH EARLY_PREFIX, 0777);
-	mkdir (TMPFS_PATH EARLY_PREFIX LIBDIR, 0777);
-	mkdir (TMPFS_PATH PKGLIBDIR, 0777);
+	if (mkdir (TMPFS_PATH EARLY_PREFIX, 0777) < 0) {
+		if (EEXIST == errno) {
+			/* Use existing tmpfs dir */
+		} else {
+			log("bootchart-collector failed to mkdir '" TMPFS_PATH EARLY_PREFIX "': %s", strerror (errno));
+			return 1;
+		}
+	}
+	if (mkdir (TMPFS_PATH EARLY_PREFIX LIBDIR, 0777) < 0) {
+		if (EEXIST == errno) {
+			/* Use existing tmpfs mount */
+		} else {
+			log("bootchart-collector failed to mkdir '" TMPFS_PATH EARLY_PREFIX LIBDIR "': %s", strerror (errno));
+			return 1;
+		}
+	}
+	if (mkdir (TMPFS_PATH PKGLIBDIR, 0777) < 0) {
+		if (EEXIST == errno) {
+			/* Use existing lib dir */
+		} else {
+			log("bootchart-collector failed to mkdir '" TMPFS_PATH PKGLIBDIR "': %s", strerror (errno));
+			return 1;
+		}
+	}
 	if (symlink ("../..", TMPFS_PATH TMPFS_PATH)) {
-		if (errno != EEXIST) {
+		if (EEXIST == errno) {
+			/* Use existing symlink */
+		} else {
 			log ("bootchart-collector failed to create a chroot at "
 				 TMPFS_PATH TMPFS_PATH " error '%s'\n", strerror (errno));
 			return 1;
@@ -676,14 +729,25 @@ enter_environment (int console_debug)
 	return 0;
 }
 
-static void
+static int
 cleanup_dev (void)
 {
+	int ret;
 	if (!access (MOVE_DEV_PATH "/kmsg", W_OK)) {
-		umount2 (MOVE_DEV_PATH PROC_PATH, MNT_DETACH);
-		umount2 (MOVE_DEV_PATH, MNT_DETACH);
-		rmdir (MOVE_DEV_PATH);
+		if (umount2 (MOVE_DEV_PATH PROC_PATH, MNT_DETACH) < 0) {
+			perror("umount2(" MOVE_DEV_PATH PROC_PATH ")");
+			ret = 1;
+		}
+		if (umount2 (MOVE_DEV_PATH, MNT_DETACH) < 0) {
+			perror("umount2(" MOVE_DEV_PATH ")");
+			ret = 1;
+		}
+		if (rmdir (MOVE_DEV_PATH) < 0) {
+			perror("rmdir(" MOVE_DEV_PATH ")");
+			ret = 1;
+		}
 	}
+	return ret;
 }
 
 static int
@@ -692,21 +756,40 @@ clean_enviroment (void)
 	int ret = 0;
 
 	if (umount2 (PROC_PATH, MNT_DETACH) < 0) {
-		perror ("umount " PROC_PATH);
+		perror ("umount2 '" PROC_PATH "'");
 		ret = 1;
 	}
 
 	if (unlink (TMPFS_PATH "/kmsg") < 0) {
-		perror ("unlinking " TMPFS_PATH "/kmsg");
+		perror ("unlink '" TMPFS_PATH "/kmsg'");
 		ret = 1;
 	}
 
 	if (umount2 (TMPFS_PATH, MNT_DETACH) < 0) {
-		perror ("umount " TMPFS_PATH);
+		perror ("umount2 '" TMPFS_PATH "'");
 		ret = 1;
 	}
 
 	return ret;
+}
+
+/**
+ * Attempt to write out a diagnostic in a way safe to use from a signal handler.
+ * According to signal(7), write(2) is an async-signal-safe function.
+ * strlen is not specified to be, but any sane implementation will be.
+ */
+static void
+perror_signal_safe(const char *msg)
+{
+	const char *errstr;
+	if (errno <= sys_nerr - 1) {
+		errstr = sys_errlist[errno]; /* avoid perror(3) */
+	} else {
+		errstr = "failed (and sys_errlist is too short)"; /* sys_errlist lacks a new errno value */
+	}
+	write(STDERR_FILENO, msg, strlen(msg));
+	write(STDERR_FILENO, ": ", 2);
+	write(STDERR_FILENO, errstr, strlen(errstr));
 }
 
 static void
@@ -714,16 +797,22 @@ term_handler (int sig)
 {
 	int ret = 0;
 
-	if (unlink (TMPFS_PATH "/kmsg") < 0)
+	if (unlink (TMPFS_PATH "/kmsg") < 0) {
+		perror_signal_safe("unlink '" TMPFS_PATH "/kmsg'");
 		ret = 1;
+	}
 
-	if (umount2 (PROC_PATH, MNT_DETACH) < 0)
+	if (umount2 (PROC_PATH, MNT_DETACH) < 0) {
+		perror_signal_safe("umount2 '" PROC_PATH "'");
 		ret = 1;
+	}
 
-	if (umount2 (TMPFS_PATH, MNT_DETACH) < 0)
+	if (umount2 (TMPFS_PATH, MNT_DETACH) < 0) {
+		perror_signal_safe("umount2 '" TMPFS_PATH "'");
 		ret = 1;
+	}
 
-	_exit(ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+	_exit((0 == ret) ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
@@ -731,7 +820,10 @@ setup_sigaction(int sig)
 {
 	struct sigaction sa;
 	sa.sa_handler = term_handler;
-	sigaction(sig, &sa, NULL);
+	if (sigaction(sig, &sa, NULL) < 0) {
+		perror("sigaction");
+		exit (EXIT_FAILURE);
+	}
 }
 
 static void
@@ -808,7 +900,7 @@ int main (int argc, char *argv[])
 	Arguments args;
 	int i, use_taskstat;
 	int in_initrd = 0, clean_environment = 1;
-	int stat_fd, disk_fd, uptime_fd, meminfo_fd, ret = 1;
+	int stat_fd, disk_fd, uptime_fd, meminfo_fd, ret = EXIT_FAILURE;
 	pid_t pid;
 	PidScanner *scanner = NULL;
 	unsigned long reltime = 0;
@@ -823,11 +915,13 @@ int main (int argc, char *argv[])
 
 	if (args.usleep_time > 0) {
 		usleep (args.usleep_time);
-		return 0;
+		exit (EXIT_SUCCESS);
 	}
 
-	if (enter_environment (args.console_debug))
-		return 1;
+	if (enter_environment (args.console_debug)) {
+		log ("bootchart-collector environment setup failed");
+		exit (EXIT_FAILURE);
+	}
 
 	setup_sigaction(SIGTERM);
 
@@ -845,27 +939,31 @@ int main (int argc, char *argv[])
 
 		if (!remote_args.relative_time)
 			ret |= dump_dmsg (args.dump_path);
-		if (!ret)
+		if (!ret) {
+			log ("bootchart-collector: dump failed");
 			cleanup_dev ();
-		goto exit;
+		}
+		goto leave;
 	}
 
 	if (!args.relative_time) { /* manually started */
 		in_initrd = am_in_initrd ();
-		if (in_initrd && sanity_check_initrd ())
-			goto exit;
+		if (in_initrd && sanity_check_initrd ()) {
+			log ("bootchart-collector: in initrd, but initrd sanity check failed");
+			goto leave;
+		}
 	}
 
 	pid = bootchart_find_running_pid (NULL);
 	if (args.probe_running) {
-		clean_environment = pid < 0;
-		ret = pid < 0;
-		goto exit;
+		clean_environment = (pid < 0);
+		ret = (pid < 0);
+		goto leave;
 	} else {
 		if (pid >= 0) {
 			clean_environment = 0;
 			log ("bootchart collector already running as pid %ld, exiting...\n", (long) pid);
-			goto exit;
+			goto leave;
 		}
 	}
       
@@ -875,14 +973,18 @@ int main (int argc, char *argv[])
 
 	for (i = 0; fds [i]; i++) {
 		char *path = malloc (strlen (PROC_PATH) + strlen (fd_names[i]) + 1);
+		if (!path) {
+			perror("malloc");
+			exit (EXIT_FAILURE);
+		}
 		strcpy (path, PROC_PATH);
 		strcat (path, fd_names[i]);
 
 		*fds[i] = open (path, O_RDONLY);
 		if (*fds[i] < 0) {
-			log ("error opening '%s': %s'\n",
+			log ("error opening '%s': %s\n",
 				 path, strerror (errno));
-			exit (1);
+			exit (EXIT_FAILURE);
 		}
 		free (path);
 	}
@@ -900,19 +1002,19 @@ int main (int argc, char *argv[])
 	if (!stat_file || !disk_file || !per_pid_file || !meminfo_file ||
 	    !pid_ev_cl.cmdline_file || !pid_ev_cl.paternity_file) {
 		log ("Error allocating output buffers\n");
-		return 1;
+		exit (EXIT_FAILURE);
 	}
 
 	scanner = pid_scanner_new_netlink (pid_event_cb, &pid_ev_cl);
 	if (!scanner)
 		scanner = pid_scanner_new_proc (PROC_PATH, pid_event_cb, &pid_ev_cl);
 	if (!scanner)
-		return 1;
+		exit (EXIT_FAILURE);
 
 	if (args.relative_time) {
 		reltime = get_uptime (uptime_fd);
 		if (! reltime)
-			exit (1);
+			exit (EXIT_FAILURE);
 	}
 
 	while (1) {
@@ -925,7 +1027,7 @@ int main (int argc, char *argv[])
 			if (have_dev_tmpfs ()) {
 				if (chroot_into_dev ()) {
 					log ("failed to chroot into /dev - exiting so run_init can proceed\n");
-					return 1;
+					exit (EXIT_FAILURE);
 				}
 				in_initrd = 0;
 			}
@@ -933,7 +1035,7 @@ int main (int argc, char *argv[])
       
 		u = get_uptime (uptime_fd);
 		if (!u)
-			return 1;
+			exit (EXIT_FAILURE);
 
 		uptimelen = sprintf (uptime, "%lu\n", u - reltime);
 
@@ -964,7 +1066,7 @@ int main (int argc, char *argv[])
 	if (use_taskstat) {
 		if (close (netlink_socket) < 0) {
 			perror ("failed to close netlink socket");
-			exit (1);
+			exit (EXIT_FAILURE);
 		}
 	}
 
@@ -972,13 +1074,13 @@ int main (int argc, char *argv[])
 		if (close (*fds[i]) < 0) {
 			log ("error closing file '%s': %s'\n",
 				 fd_names[i], strerror (errno));
-			return 1;
+			exit (EXIT_FAILURE);
 		}
 	}
 
-	ret = 0;
+	ret = EXIT_SUCCESS;
 
- exit:
+ leave:
 	arguments_free (&args);
 
 	if (scanner)

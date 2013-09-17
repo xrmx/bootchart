@@ -198,7 +198,10 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	pid_t pid;
 	DumpState *state;
 
-	assert (chdir (output_path));
+	if (chdir (output_path) < 0) {
+		log ("Failed to chdir to '%s': %s", output_path, strerror(errno));
+		return 1;
+	}
 
 	pid = bootchart_find_running_pid (remote_args);
 	if (pid < 0) {
@@ -251,6 +254,10 @@ bootchart_find_running_pid (Arguments *opt_args)
 	}
     
 	proc = opendir (PROC_PATH);
+	if (!proc) {
+		perror ("opendir " PROC_PATH);
+		return pid;
+	}
 
 	while ((ent = readdir (proc)) != NULL) {
 		int len;
@@ -264,8 +271,11 @@ bootchart_find_running_pid (Arguments *opt_args)
 		strcat (exe_path, ent->d_name);
 		strcat (exe_path, "/exe");
 
-		if ((len = readlink (exe_path, link_target, 1024)) < 0)
+		len = readlink (exe_path, link_target, 1024);
+		if (len < 0) {
+			log ("readlink '%s': %s", exe_path, strerror(errno));
 			continue;
+		}
 		link_target[len] = '\0';
 
 		if (strstr (link_target, PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX "-collector")) {
@@ -304,6 +314,9 @@ bootchart_find_running_pid (Arguments *opt_args)
 
 					fclose (argf);
 				}
+				fclose (argf);
+			} else {
+				log ("Error opening '%s': %s", exe_path, strerror(errno));
 			}
 
 			if (!harmless) {

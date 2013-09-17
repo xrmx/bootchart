@@ -285,9 +285,9 @@ bootchart_find_running_pid (Arguments *opt_args)
 				len = fread (abuffer, 1, 4095, argf);
 				if (len > 0) {
 					/* step through args */
-					abuffer[len] = '\0';
 					int argc;
 					char *argv[128];
+					abuffer[len] = '\0';
 					argv[0] = abuffer;
 					for (argc = i = 0; i < len && argc < 127; i++) {
 						if (abuffer[i] == '\0')

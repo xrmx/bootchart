@@ -8,9 +8,15 @@
 #define _XOPEN_SOURCE 800
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
+#ifndef _BSD_SOURCE
 #define _BSD_SOURCE
+#endif /* ndef _BSD_SOURCE */
+#ifndef _ATFILE_SOURCE
 #define _ATFILE_SOURCE
+#endif /* ndef _ATFILE_SOURCE */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif /* ndef _GNU_SOURCE */
 
 #include <sys/mount.h>
 #include <sys/time.h>
@@ -100,7 +106,7 @@ int         buffers_extract_and_dump   (const char *output_path,
 					Arguments  *remote_args);
 int         dump_dmsg                  (const char *output_path);
 int         dump_header                (const char *output_path);
-int         bootchart_find_running_pid (Arguments *opt_args);
+pid_t       bootchart_find_running_pid (Arguments *opt_args);
 
 /* ---------------- tasks.c  ---------------- */
 

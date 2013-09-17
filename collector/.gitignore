@@ -1,1 +1,3 @@
 *.o
+.cproject
+.project

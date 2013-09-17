@@ -112,9 +112,10 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 		if (r > 0) {
 			buf += r;
 			buflen -= r;
-		} else if (errno != EAGAIN)
+		} else if (errno != EAGAIN) {
 			perror("sendto");
 			return -1;
+		}
 	}
 	return 0;
 }

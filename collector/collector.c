@@ -644,7 +644,7 @@ enter_environment (int console_debug)
 	}
 
 	if (!console_debug)
-		if (!freopen (TMPFS_PATH "/kmsg", "a", stderr)) {
+		if (!freopen (TMPFS_PATH "/kmsg", "w", stderr)) {
 			log ("freopen() failed\n");
 			return 1;
 		}

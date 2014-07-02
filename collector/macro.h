@@ -22,7 +22,7 @@
 #define assert(expr)		assert_debug(expr)
 #else
 #define log(fmt,...)		fprintf(stderr, PREFIX fmt, ##__VA_ARGS__)
-#define assert(expr)		do {} while(0)
+#define assert(expr)		expr
 #endif /* CONFIG_DEBUG */
 
 #endif /* BOOTCHART_MACRO_H */

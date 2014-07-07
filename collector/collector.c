@@ -434,7 +434,7 @@ get_uptime (int fd)
  * Probe the controller in genetlink to find the family id
  * for the TASKSTATS family
  */
-static int get_family_id(int sd)
+static __u16 get_family_id(int sd)
 {
 	struct {
 		struct nlmsghdr n;
@@ -452,12 +452,12 @@ static int get_family_id(int sd)
 			CTRL_ATTR_FAMILY_NAME, (void *)name,
 			strlen(TASKSTATS_GENL_NAME)+1);
 	if (rc < 0)
-		return rc;
+		return 0;
 
 	rep_len = recv(sd, &ans, sizeof(ans), 0);
 	if (ans.n.nlmsg_type == NLMSG_ERROR ||
 	    (rep_len < 0) || !NLMSG_OK((&ans.n), rep_len))
-		return -1;
+		return 0;
 
 	na = (struct nlattr *) GENLMSG_DATA(&ans);
 	na = (struct nlattr *) ((char *) na + NLA_ALIGN(na->nla_len));
@@ -484,7 +484,7 @@ init_taskstat (void)
 
 	netlink_taskstats_id = get_family_id (netlink_socket);
 
-	return netlink_taskstats_id > 0;
+	return netlink_taskstats_id != 0;
 error:
 	if (netlink_socket >= 0)
 		close (netlink_socket);

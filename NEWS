@@ -1,9 +1,12 @@
 bootchart2 UNRELEASED:
 	+ bootchartd
 		+ Add lightdm-gtk-greeter to EXIT_PROC (Paul Menzel)
-		+ Make omponent naming and paths more flexible (Simon McVittie)
+		+ Make component naming and paths more flexible (Simon McVittie)
 		+ Support cross compilation, build fixes, code cleanup (Sangjung Woo)
 		+ misc collector fixes (Matthew Sanderson)
+		+ fix collector without taskstats (Max Eliaser)
+		+ fix collector for non debug builds (Max Eliaser)
+		+ respect CC environment variable (Max Eliaser)
 	+ pybootchartgui (Riccardo)
 		+ Fix --annotate-file
 		+ More robust meminfo parsing

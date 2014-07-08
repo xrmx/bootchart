@@ -1,4 +1,4 @@
-bootchart2 UNRELEASED:
+bootchart2 0.14.6:
 	+ bootchartd
 		+ Add lightdm-gtk-greeter to EXIT_PROC (Paul Menzel)
 		+ Make component naming and paths more flexible (Simon McVittie)

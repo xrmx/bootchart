@@ -1,4 +1,4 @@
-VER=0.14.5
+VER=0.14.6
 PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 

@@ -261,7 +261,7 @@ bootchart_find_running_pid (Arguments *opt_args)
 		strcat (exe_path, ent->d_name);
 		strcat (exe_path, "/exe");
 
-		if ((len = readlink (exe_path, link_target, 1024)) < 0)
+		if ((len = readlink (exe_path, link_target, 1024-1)) < 0)
 			continue;
 		link_target[len] = '\0';
 

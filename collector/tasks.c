@@ -186,6 +186,7 @@ pid_scanner_new_proc (const char *proc_path, PidScanEventFn event_fn, void *user
 	ps->proc = opendir (proc_path);
 	if (!ps->proc) {
 		log ("Failed to open " PROC_PATH ": %s\n", strerror(errno));
+		free (ps);
 		return NULL;
 	}
 	ps->cur_ent = NULL;

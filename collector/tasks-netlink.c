@@ -444,7 +444,8 @@ pid_scanner_new_netlink (PidScanEventFn event_fn, void *user_data)
          */
         nls->socket = socket (PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
         if (nls->socket == -1) {
-		log ("netlink socket error\n");
+                log ("netlink socket error\n");
+                free (nls);
                 return NULL;
         }
         my_nla.nl_family = AF_NETLINK;

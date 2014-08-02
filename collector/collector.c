@@ -739,6 +739,7 @@ setup_sigaction(int sig)
 	sigemptyset(&block_mask);
 	sa.sa_handler = term_handler;
 	sa.sa_mask = block_mask;
+	sa.sa_flags = 0;
 	sigaction(sig, &sa, NULL);
 }
 

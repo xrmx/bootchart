@@ -734,7 +734,11 @@ static void
 setup_sigaction(int sig)
 {
 	struct sigaction sa;
+	sigset_t block_mask;
+
+	sigemptyset(&block_mask);
 	sa.sa_handler = term_handler;
+	sa.sa_mask = block_mask;
 	sigaction(sig, &sa, NULL);
 }
 

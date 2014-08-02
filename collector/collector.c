@@ -414,7 +414,7 @@ get_uptime (int fd)
 
 	lseek (fd, SEEK_SET, 0);
 
-	len = read (fd, buf, sizeof buf);
+	len = read (fd, buf, sizeof(buf)-1);
 	if (len < 0) {
 		perror ("read");
 		return 0;

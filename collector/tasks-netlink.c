@@ -369,6 +369,7 @@ netlink_recvfrom (NetLinkPidScanner *nls, char *buffer)
         from_nla.nl_groups = CN_IDX_PROC;
         from_nla.nl_pid = 1;
 
+	from_nla_len = sizeof(from_nla);
 	return recvfrom (nls->socket, buffer, BUFF_SIZE, 0,
 			 (struct sockaddr*)&from_nla, &from_nla_len);
 }

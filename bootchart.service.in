@@ -8,7 +8,7 @@
 [Unit]
 Description=Collect Bootchart Data
 DefaultDependencies=no
-Wants=@PROGRAM_PREFIX@bootchart@PROGRAM_SUFFIX@-done.timer
+Wants=@PROGRAM_PREFIX@bootchart2@PROGRAM_SUFFIX@-done.timer
 Conflicts=shutdown.target
 Before=basic.target shutdown.target
 

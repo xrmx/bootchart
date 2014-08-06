@@ -326,43 +326,47 @@ int
 dump_dmsg (const char *output_path)
 {
 	int size, i, count;
-	char *log = NULL;
+	char *logbuf = NULL;
 	char fname[4096];
 	FILE *dmesg;
 
 	for (size = 256 * 1024;; size *= 2) {
-		log = (char *)realloc (log, size);
-		count = klogctl (3, log, size);
+		logbuf = (char *)realloc (logbuf, size);
+		count = klogctl (3, logbuf, size);
 		if (count < size - 1)
 			break;
 	}
 
 	if (!count) {
+		free(logbuf);
 		log (" odd - no dmesg log data\n");
 		return 1;
 	}
 	
-	log[count] = '\0';
+	logbuf[count] = '\0';
 
 	snprintf (fname, 4095, "%s/dmesg", output_path);
 	dmesg = fopen (fname, "w");
-	if (!dmesg)
+	if (!dmesg) {
+		free(logbuf);
 		return 1;
+	}
 
 	for (i = 0; i < count; i++) {
 
 		/* skip log level header '<2>...' eg. */
-		while (i < count && log[i] != '>') i++;
+		while (i < count && logbuf[i] != '>') i++;
 		i++;
 
 		/* drop line to disk */
-		while (i < count && log[i - 1] != '\n')
-			fputc (log[i++], dmesg);
+		while (i < count && logbuf[i - 1] != '\n')
+			fputc (logbuf[i++], dmesg);
 	}
-	if (log[count - 1] != '\n')
+	if (logbuf[count - 1] != '\n')
 		fputs ("\n", dmesg);
 
 	fclose (dmesg);
+	free(logbuf);
 	return 0;
 }
 

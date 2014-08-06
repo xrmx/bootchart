@@ -6,7 +6,7 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=Stop Bootchart after Completed Startup
+Description=Stop Bootchart2 after Completed Startup
 DefaultDependencies=no
 Conflicts=shutdown.target
 After=default.target
@@ -16,5 +16,5 @@ Before=shutdown.target
 OnActiveSec=20s
 
 [Install]
-Also=@PROGRAM_PREFIX@bootchart@PROGRAM_SUFFIX@.service
+Also=@PROGRAM_PREFIX@bootchart2@PROGRAM_SUFFIX@.service
 

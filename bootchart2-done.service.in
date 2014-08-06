@@ -6,16 +6,16 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=Collect Bootchart Data
+Description=Stop Bootchart2 Data Collection
 DefaultDependencies=no
-Wants=@PROGRAM_PREFIX@bootchart@PROGRAM_SUFFIX@-done.timer
 Conflicts=shutdown.target
-Before=basic.target shutdown.target
+After=default.target
+Before=shutdown.target
 
 [Service]
-Type=notify
-ExecStart=@EARLY_PREFIX@/sbin/@PROGRAM_PREFIX@bootchartd@PROGRAM_SUFFIX@ start
-RemainAfterExit=yes
+Type=oneshot
+ExecStart=@EARLY_PREFIX@/sbin/@PROGRAM_PREFIX@bootchartd@PROGRAM_SUFFIX@ stop
 
 [Install]
-WantedBy=default.target
+Also=@PROGRAM_PREFIX@bootchart2@PROGRAM_SUFFIX@.service
+

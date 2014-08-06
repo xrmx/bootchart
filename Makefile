@@ -47,9 +47,9 @@ COLLECTOR = \
 all: \
 	bootchart-collector \
 	bootchartd \
-	bootchart.service \
-	bootchart-done.service \
-	bootchart-done.timer \
+	bootchart2.service \
+	bootchart2-done.service \
+	bootchart2-done.timer \
 	pybootchartgui/main.py
 
 %.o:%.c
@@ -113,19 +113,17 @@ install-docs:
 
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)
-	install -m 0644 bootchart.service \
-	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)/bootchart2.service
-	install -m 0644 bootchart-done.service \
-	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)/bootchart2-done.service
-	install -m 0644 bootchart-done.timer \
-	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)/bootchart2-done.timer
+	install -m 0644 bootchart2.service \
+	       bootchart2-done.service \
+	       bootchart2-done.timer \
+	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)
 
 install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
 	collector/*.o pybootchartgui/main.py bootchartd \
-	bootchart-done.service bootchart-done.timer bootchart.service
+	bootchart2-done.service bootchart2-done.timer bootchart2.service
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

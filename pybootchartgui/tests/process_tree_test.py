@@ -20,7 +20,9 @@ class TestProcessTree(unittest.TestCase):
         parser = main._mk_options_parser()
         options, args = parser.parse_args(['--q', self.rootdir])
         writer = main._mk_writer(options)
+        self.writer = writer
         trace = parsing.Trace(writer, args, options)
+        self.trace = trace
 
         parsing.parse_file(writer, trace, self.mk_fname('proc_ps.log'))
         trace.compile(writer)
@@ -57,6 +59,17 @@ class TestProcessTree(unittest.TestCase):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)
         process_tree = self.processtree.process_tree
         self.checkAgainstJavaExtract(self.mk_fname('extract.processtree.2.log'), process_tree)
+
+    def test_merge_logger(self):
+        proc_ps_path = os.path.join(os.path.dirname(sys.argv[0]), 'test_data/process_tree/proc_ps.log')
+        trace = self.trace
+        writer = self.writer
+        parsing.parse_file(writer, trace, proc_ps_path)
+        trace.compile(writer)
+        processtree = process_tree.ProcessTree(writer, None, trace.ps_stats, \
+            trace.ps_stats.sample_period, None, False, None, None, False, for_testing=True)
+        removed = processtree.merge_logger(processtree.process_tree, 'bootchartd', None, False)
+        self.assertNotEqual(removed, 0)
 
     def testPrune(self):
         self.processtree.merge_logger(self.processtree.process_tree, 'bootchartd', None, False)

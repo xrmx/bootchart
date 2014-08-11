@@ -34,7 +34,7 @@ class ProcessTree:
           are merged together.
 
     """
-    LOGGER_PROC = 'bootchart-colle'
+    LOGGER_PROC = 'bootchartd'
     EXPLODER_PROCESSES = set(['hwup'])
 
     def __init__(self, writer, kernel, psstats, sample_period,
@@ -194,31 +194,33 @@ class ProcessTree:
 
         return num_removed
 
+    def filter_subtree(self, tree, filter_fn):
+        """
+        Filter a tree depending on filter function that takes the process as
+        argument.
+        """
+        processes = []
+        for p in tree:
+            if filter_fn(p):
+                processes.append(p)
+            if p.child_list:
+                processes += self.filter_subtree(p.child_list, filter_fn)
+        return processes
+
     def merge_logger(self, process_subtree, logger_proc, monitored_app, app_tree):
         """Merges the logger's process subtree.  The logger will typically
            spawn lots of sleep and cat processes, thus polluting the
            process tree.
-
         """
         num_removed = 0
-        for p in process_subtree:
-            is_app_tree = app_tree
-            if logger_proc == p.cmd and not app_tree:
-                is_app_tree = True
-                num_removed += self.merge_logger(p.child_list, logger_proc, monitored_app, is_app_tree)
-                # don't remove the logger itself
-                continue
-
-            if app_tree and monitored_app != None and monitored_app == p.cmd:
-                is_app_tree = False
-
-            if is_app_tree:
-                for child in p.child_list:
-                    self.merge_processes(p, child)
-                    num_removed += 1
-                p.child_list = []
-            else:
-                num_removed += self.merge_logger(p.child_list, logger_proc, monitored_app, is_app_tree)
+        loggers = self.filter_subtree(process_subtree, lambda x: x.cmd == logger_proc)
+        for p in loggers:
+            for child in p.child_list:
+                if monitored_app and child.cmd == monitored_app:
+                    continue
+                self.merge_processes(p, child)
+                p.child_list.remove(child)
+                num_removed += 1
         return num_removed
 
     def merge_exploders(self, process_subtree, processes):
@@ -290,3 +292,12 @@ class ProcessTree:
         p1.start_time = min(p1time, p2time)
         pendtime = max(p1time + p1.duration, p2time + p2.duration)
         p1.duration = pendtime - p1.start_time
+
+    def _dump_tree(self, process_subtree, shift=0):
+        """Get a tree printed throught the writer, helpful when debugging."""
+        idx = 0
+        while idx < len(process_subtree):
+            p = process_subtree[idx]
+            self._dump_tree(p.child_list, shift + 4)
+            idx += 1
+            self.writer.status("%s%s %d %s" % (" " * shift, p.cmd, p.pid // 1000, "(collector)" if p.cmd == self.LOGGER_PROC or (p.parent and p.parent.cmd == self.LOGGER_PROC) else ""))

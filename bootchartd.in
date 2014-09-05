@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Bootchart logger script
 # Ziga Mahkovec  <ziga.mahkovec@klika.si>

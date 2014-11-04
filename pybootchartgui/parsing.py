@@ -16,6 +16,8 @@
 
 from __future__ import with_statement
 
+import codecs
+import itertools
 import os
 import string
 import re
@@ -234,20 +236,36 @@ def _parse_headers(file):
         return headers, last
     return reduce(parse, file.read().decode('utf-8').split('\n'), (defaultdict(str),''))[0]
 
-def _parse_timed_blocks(file):
-    """Parses (ie., splits) a file into so-called timed-blocks. A
-    timed-block consists of a timestamp on a line by itself followed
-    by zero or more lines of data for that point in time."""
+def _iter_parse_timed_blocks(file):
+    """Parses (ie., splits) a file into so-called timed-blocks.
+
+    A timed-block consists of a timestamp on a line by itself followed
+    by zero or more lines of data for that point in time.
+
+    Return an iterator over timed blocks, so there is no need to keep
+    all the data in memory.
+    """
     def parse(block):
-        lines = block.split('\n')
+        lines = block
         if not lines:
             raise ParseError('expected a timed-block consisting a timestamp followed by data lines')
         try:
             return (int(lines[0]), lines[1:])
         except ValueError:
             raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-    blocks = file.read().decode('utf-8').split('\n\n')
-    return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
+
+    data = codecs.iterdecode(file, "utf-8")
+    block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
+    while block:
+	if block and not block[-1].endswith(" not running\n"):
+            yield parse(block)
+        block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
+
+def _parse_timed_blocks(file):
+    """Parses (ie., splits) a file into so-called timed-blocks. A
+    timed-block consists of a timestamp on a line by itself followed
+    by zero or more lines of data for that point in time."""
+    return [block for block in _iter_parse_timed_blocks(file)]
 
 def _parse_proc_ps_log(writer, file):
     """
@@ -257,10 +275,18 @@ def _parse_proc_ps_log(writer, file):
      *  cutime, cstime, priority, nice, 0, itrealvalue, starttime, vsize, rss, rlim, startcode, endcode, startstack,
      *  kstkesp, kstkeip}
     """
+    timed_blocks = _iter_parse_timed_blocks(file)
+    try:
+        first_timed_block = timed_blocks.next()
+        startTime = first_timed_block[0]
+    except StopIteration:
+        return None
+
     processMap = {}
     ltime = 0
-    timed_blocks = _parse_timed_blocks(file)
-    for time, lines in timed_blocks:
+    timed_blocks_count = 0
+    for time, lines in itertools.chain((first_timed_block,), timed_blocks):
+        timed_blocks_count += 1
         for line in lines:
             if not line: continue
             tokens = line.split(' ')
@@ -290,13 +316,12 @@ def _parse_proc_ps_log(writer, file):
             process.last_sys_cpu_time = sysCpu
         ltime = time
 
-    if len (timed_blocks) < 2:
+    if timed_blocks_count < 2:
         return None
 
-    startTime = timed_blocks[0][0]
-    avgSampleLength = (ltime - startTime)/(len (timed_blocks) - 1)
+    avgSampleLength = (ltime - startTime)/(timed_blocks_count - 1)
 
-    return ProcessStats (writer, processMap, len (timed_blocks), avgSampleLength, startTime, ltime)
+    return ProcessStats (writer, processMap, timed_blocks_count, avgSampleLength, startTime, ltime)
 
 def _parse_taskstats_log(writer, file):
     """

@@ -253,7 +253,6 @@ def _iter_parse_timed_blocks(file):
             return (int(lines[0]), lines[1:])
         except ValueError:
             raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-
     data = codecs.iterdecode(file, "utf-8")
     block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
     while block:
@@ -265,7 +264,16 @@ def _parse_timed_blocks(file):
     """Parses (ie., splits) a file into so-called timed-blocks. A
     timed-block consists of a timestamp on a line by itself followed
     by zero or more lines of data for that point in time."""
-    return [block for block in _iter_parse_timed_blocks(file)]
+    def parse(block):
+        lines = block.split('\n')
+        if not lines:
+            raise ParseError('expected a timed-block consisting a timestamp followed by data lines')
+        try:
+            return (int(lines[0]), lines[1:])
+        except ValueError:
+            raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
+    blocks = file.read().decode('utf-8').split('\n\n')
+    return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
 def _parse_proc_ps_log(writer, file):
     """

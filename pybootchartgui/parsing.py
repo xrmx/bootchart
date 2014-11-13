@@ -256,7 +256,7 @@ def _iter_parse_timed_blocks(file):
     data = codecs.iterdecode(file, "utf-8")
     block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
     while block:
-	if block and not block[-1].endswith(" not running\n"):
+        if block and not block[-1].endswith(" not running\n"):
             yield parse(block)
         block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
 
@@ -285,7 +285,7 @@ def _parse_proc_ps_log(writer, file):
     """
     timed_blocks = _iter_parse_timed_blocks(file)
     try:
-        first_timed_block = timed_blocks.next()
+        first_timed_block = next(timed_blocks)
         startTime = first_timed_block[0]
     except StopIteration:
         return None

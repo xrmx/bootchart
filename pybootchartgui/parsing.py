@@ -16,7 +16,6 @@
 
 from __future__ import with_statement
 
-import codecs
 import itertools
 import os
 import string
@@ -236,7 +235,7 @@ def _parse_headers(file):
         return headers, last
     return reduce(parse, file.read().decode('utf-8').split('\n'), (defaultdict(str),''))[0]
 
-def _iter_parse_timed_blocks(file):
+def _iter_parse_timed_blocks(file, chunksize=0x100000):
     """Parses (ie., splits) a file into so-called timed-blocks.
 
     A timed-block consists of a timestamp on a line by itself followed
@@ -245,20 +244,61 @@ def _iter_parse_timed_blocks(file):
     Return an iterator over timed blocks, so there is no need to keep
     all the data in memory.
     """
-    def parse(block):
-        lines = block
-        if not lines:
-            raise ParseError('expected a timed-block consisting a timestamp followed by data lines')
+
+    # Iteration over a file line by line has large overhead on
+    # function calls: 2-3 times slowdown on my P4 3.2GHz in comparison
+    # to _parse_timed_blocks. To avoid such performance penalty using
+    # more complex algorithm that process file in relatively large
+    # chunks (1MiB by default). It limits performance penalty to a
+    # few percents while keeping constant memory footprint.
+
+    data = file.read(chunksize).decode("utf-8")
+    s, l = 0, len(data)
+    while s < l:
+
+        # Searching for next EOL.
+        # Try to read more data from file, if EOL was not found in buffer.
+        i = -1
+        while i < 0:
+            i = data.find("\n", s)
+            if i < 0:
+                newdata = file.read(chunksize).decode("utf-8")
+                if newdata:
+                    data = data[s:l] + newdata
+                    s, i, l = 0, -1, len(data)
+                else:
+                    i = l
+
+        time, s  = data[s:i], i + 1
         try:
-            return (int(lines[0]), lines[1:])
+            time = int(time)
         except ValueError:
-            raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-    data = codecs.iterdecode(file, "utf-8")
-    block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
-    while block:
-        if block and not block[-1].endswith(" not running\n"):
-            yield parse(block)
-        block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
+            raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % block[0])
+
+        body = []
+        while s < l:
+
+            # Searching for next EOL.
+            # Try to read more data from file, if EOL was not found in buffer.
+            i = -1
+            while i < 0:
+                i = data.find("\n", s)
+                if i < 0:
+                    newdata = file.read(chunksize).decode("utf-8")
+                    if newdata:
+                        data = data[s:l] + newdata
+                        s, i, l = 0, -1, len(data)
+                    else:
+                        i = l
+
+            line, s = data[s:i], i + 1
+            if line:
+                body.append(line)
+            else:
+                break
+
+        if body and not body[-1].endswith(u' not running\n'):
+            yield (time, body)
 
 def _parse_timed_blocks(file):
     """Parses (ie., splits) a file into so-called timed-blocks. A

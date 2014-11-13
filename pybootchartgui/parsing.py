@@ -460,7 +460,7 @@ def _parse_taskstats_log(writer, file):
 def _parse_proc_stat_log(file):
     samples = []
     ltimes = None
-    for time, lines in _parse_timed_blocks(file):
+    for time, lines in _iter_parse_timed_blocks(file):
         # skip emtpy lines
         if not lines:
             continue
@@ -499,7 +499,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 
     disk_stat_samples = []
 
-    for time, lines in _parse_timed_blocks(file):
+    for time, lines in _iter_parse_timed_blocks(file):
         sample = DiskStatSample(time)
         relevant_tokens = [linetokens for linetokens in map (lambda x: x.split(),lines) if is_relevant_line(linetokens)]
 
@@ -531,7 +531,7 @@ def _parse_proc_meminfo_log(file):
     mem_stats = []
     meminfo_re = re.compile(r'(MemTotal|MemFree|Buffers|Cached|SwapTotal|SwapFree):\s*(\d+).*')
 
-    for time, lines in _parse_timed_blocks(file):
+    for time, lines in _iter_parse_timed_blocks(file):
         sample = MemSample(time)
 
         for line in lines:

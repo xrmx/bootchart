@@ -23,8 +23,11 @@ netlink interface, amongst other new features.
 
 	After install, simply add these options to your kernel
 command-line, normally in /boot/grub/menu.lst:
-
-	initcall_debug printk.time=y quiet init=/sbin/bootchartd ...
+	open file  /etc/grub.d/10_linux with root privileges and add the line as bellow to the top of the file
+	
+		export GRUB_CMDLINE_LINUX_DEFAULT="initcall_debug printk.time=y quiet init=/sbin/bootchartd"
+	After Adding the line update the grub as bellow command with root privileges
+		sudo update-grub	
 
 	Then - after bootup, run 'pybootchartgui -i' to get an interactive
 chart rendering tool. If you want to chart the initrd, add

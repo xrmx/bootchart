@@ -45,6 +45,7 @@ AUTO_RENDER_FORMAT="png"
 # The processes we have to wait for
 EXIT_PROC="compiz \
 	enlightenment \
+	fluxbox \
 	gnome-shell \
 	gnome-terminal \
 	icewm-session \

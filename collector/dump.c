@@ -176,7 +176,8 @@ static void dump_buffers (DumpState *s)
 		Chunk *c = (Chunk *)&buffer;
 		size_t addr = (size_t) s->map.chunks[i];
 
-		pread (s->mem, &buffer, CHUNK_SIZE, addr);
+		lseek (s->mem, addr, SEEK_SET);
+		read (s->mem, &buffer, CHUNK_SIZE);
 		/*      log ("type: '%s' len %d\n",
 			c->dest_stream, (int)c->length); */
 

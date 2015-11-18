@@ -10,6 +10,9 @@
 #define PREFIX				"[bootchart] "
 #ifdef CONFIG_DEBUG
 #include <stdlib.h>
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 #define log_debug(fmt,...)		fprintf(stderr, PREFIX "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define assert_debug(expr)				\
 	do {						\

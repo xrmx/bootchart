@@ -98,9 +98,20 @@ open_pid (int pid)
 {
 	char name[1024];
 	DumpState *s;
+	int status;
 
 	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
 		log ("cannot ptrace %d: %s\n", pid, strerror (errno));
+		return NULL;
+	}
+	if (waitpid (pid, &status, 0) < 0) {
+		log ("waitpid(%d) failed: %s\n", pid, strerror (errno));
+		ptrace (PTRACE_DETACH, pid, 0, 0);
+		return NULL;
+	}
+	if (!WIFSTOPPED(status)) {
+		log ("waitpid(%d) returned unexpected status %d\n", pid, status);
+		ptrace (PTRACE_DETACH, pid, 0, 0);
 		return NULL;
 	}
 

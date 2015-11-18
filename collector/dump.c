@@ -170,7 +170,7 @@ static void dump_buffers (DumpState *s)
 	   to parse, due to dis-continuous data, discard it */
 	max_chunk = MIN (s->map.max_chunk, sizeof (s->map.chunks)/sizeof(s->map.chunks[0]) - 1);
   
-	log ("reading %d chunks (of %d) ... ", max_chunk, s->map.max_chunk);
+	log ("reading %d chunks (of %d) ...\n", max_chunk, s->map.max_chunk);
 	for (i = 0; i < max_chunk; i++) {
 		FILE *output;
 		char buffer[CHUNK_SIZE];

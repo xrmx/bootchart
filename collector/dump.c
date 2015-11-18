@@ -111,6 +111,7 @@ open_pid (int pid)
 	if (s->mem < 0) {
 		log ("Failed to open memory map\n"); 
 		free (s);
+		ptrace (PTRACE_DETACH, pid, 0, 0);
 		return NULL;
 	}
 

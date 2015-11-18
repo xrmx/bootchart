@@ -199,7 +199,7 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	int i, pid, ret = 0;
 	DumpState *state;
 
-	assert (chdir (output_path));
+	assert (!chdir (output_path));
 
 	pid = bootchart_find_running_pid (remote_args);
 	if (pid < 0) {

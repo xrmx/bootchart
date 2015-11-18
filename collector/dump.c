@@ -67,7 +67,7 @@ find_chunks (DumpState *s)
 		toread = end - start;
 		copy = malloc (toread);
 		for (read_bytes = 0; read_bytes < toread;) {
-			ssize_t count = pread (s->mem, copy + read_bytes, toread, start);
+			ssize_t count = pread (s->mem, copy + read_bytes, toread, start + read_bytes);
 			if (count < 0) {
 				if (errno == EINTR || errno == EAGAIN)
 					continue;

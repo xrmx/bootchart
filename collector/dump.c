@@ -100,7 +100,7 @@ open_pid (int pid)
 	DumpState *s;
 
 	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
-		log ("cannot ptrace %d\n", pid);
+		log ("cannot ptrace %d: %s\n", pid, strerror (errno));
 		return NULL;
 	}
 

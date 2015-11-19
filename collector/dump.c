@@ -67,7 +67,7 @@ find_chunks (DumpState *s)
 		toread = end - start;
 		copy = malloc (toread);
 		for (read_bytes = 0; read_bytes < toread;) {
-			ssize_t count = pread (s->mem, copy + read_bytes, toread, start);
+			ssize_t count = pread (s->mem, copy + read_bytes, toread, start + read_bytes);
 			if (count < 0) {
 				if (errno == EINTR || errno == EAGAIN)
 					continue;
@@ -98,9 +98,20 @@ open_pid (int pid)
 {
 	char name[1024];
 	DumpState *s;
+	int status;
 
 	if (ptrace (PTRACE_ATTACH, pid, 0, 0)) {
-		log ("cannot ptrace %d\n", pid);
+		log ("cannot ptrace %d: %s\n", pid, strerror (errno));
+		return NULL;
+	}
+	if (waitpid (pid, &status, 0) < 0) {
+		log ("waitpid(%d) failed: %s\n", pid, strerror (errno));
+		ptrace (PTRACE_DETACH, pid, 0, 0);
+		return NULL;
+	}
+	if (!WIFSTOPPED(status)) {
+		log ("waitpid(%d) returned unexpected status %d\n", pid, status);
+		ptrace (PTRACE_DETACH, pid, 0, 0);
 		return NULL;
 	}
 
@@ -111,6 +122,7 @@ open_pid (int pid)
 	if (s->mem < 0) {
 		log ("Failed to open memory map\n"); 
 		free (s);
+		ptrace (PTRACE_DETACH, pid, 0, 0);
 		return NULL;
 	}
 
@@ -169,7 +181,7 @@ static void dump_buffers (DumpState *s)
 	   to parse, due to dis-continuous data, discard it */
 	max_chunk = MIN (s->map.max_chunk, sizeof (s->map.chunks)/sizeof(s->map.chunks[0]) - 1);
   
-	log ("reading %d chunks (of %d) ... ", max_chunk, s->map.max_chunk);
+	log ("reading %d chunks (of %d) ...\n", max_chunk, s->map.max_chunk);
 	for (i = 0; i < max_chunk; i++) {
 		FILE *output;
 		char buffer[CHUNK_SIZE];
@@ -198,7 +210,7 @@ buffers_extract_and_dump (const char *output_path, Arguments *remote_args)
 	int i, pid, ret = 0;
 	DumpState *state;
 
-	assert (chdir (output_path));
+	assert (!chdir (output_path));
 
 	pid = bootchart_find_running_pid (remote_args);
 	if (pid < 0) {

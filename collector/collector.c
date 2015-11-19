@@ -839,11 +839,10 @@ int main (int argc, char *argv[])
 
 	setup_sigaction(SIGTERM);
 
-	log ("bootchart-collector started as pid %d with %d args: ",
+	log ("bootchart-collector started as pid %d with %d args:\n",
 		 (int) getpid(), argc - 1);
 	for (i = 1; i < argc; i++)
-		log ("'%s' ", argv[i]);
-	log ("\n");
+		log (" '%s'\n", argv[i]);
 
 	if (args.dump_path) {
 		Arguments remote_args;

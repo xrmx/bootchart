@@ -1,3 +1,10 @@
+bootchart2 UNRELEASED:
+    + bootchartd
+        + misc collector fixes (mephi42)
+        + fix for sparc (Eric Saint Etienne)
+    + pybootchartgui
+        + Use half the memory when parsing files (Andrey Bondarenko)
+
 bootchart2 0.14.7:
 	+ bootchartd
 		+ Use /bin/sh instead of bash (Robert Yang)

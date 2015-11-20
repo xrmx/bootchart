@@ -1,7 +1,7 @@
 bootchart2 UNRELEASED:
     + bootchartd
         + misc collector fixes (mephi42)
-        + fix for sparc (Eric Saint Etienne)
+        + fix for sparc (Eric Saint Etienne - Oracle)
     + pybootchartgui
         + Use half the memory when parsing files (Andrey Bondarenko)
 

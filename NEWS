@@ -1,4 +1,4 @@
-bootchart2 UNRELEASED:
+bootchart2 0.14.8:
     + bootchartd
         + misc collector fixes (mephi42)
         + fix for sparc (Eric Saint Etienne - Oracle)

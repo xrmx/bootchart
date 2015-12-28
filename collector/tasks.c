@@ -29,9 +29,12 @@ was_known_pid (PidMap *map, pid_t p)
 	int was_known;
 
 	if (map->len <= offset) {
-		map->len += 512;
+		int grow = offset - map->len + 1;
+		if (grow < 512)
+			grow = 512;
+		map->len += grow;
 		map->pids = realloc (map->pids, map->len);
-		memset (map->pids + map->len - 512, 0, 512);
+		memset (map->pids + map->len - grow, 0, grow);
 	}
 
 	was_known = map->pids[offset] & (1 << bit);

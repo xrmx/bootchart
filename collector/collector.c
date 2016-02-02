@@ -731,16 +731,21 @@ term_handler (int sig)
 }
 
 static void
-setup_sigaction(int sig)
+setup_sigaction (int sig)
 {
+	sigset_t unblock_mask;
 	struct sigaction sa;
 	sigset_t block_mask;
 
-	sigemptyset(&block_mask);
+	sigemptyset (&unblock_mask);
+	sigaddset (&unblock_mask, sig);
+	sigprocmask (SIG_UNBLOCK, &unblock_mask, NULL);
+
+	sigemptyset (&block_mask);
 	sa.sa_handler = term_handler;
 	sa.sa_mask = block_mask;
 	sa.sa_flags = 0;
-	sigaction(sig, &sa, NULL);
+	sigaction (sig, &sa, NULL);
 }
 
 static void

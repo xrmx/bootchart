@@ -8,6 +8,7 @@
 #define _XOPEN_SOURCE 800
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 #define _ATFILE_SOURCE
 #define _GNU_SOURCE

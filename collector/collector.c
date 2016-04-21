@@ -33,6 +33,7 @@
 #include "common.h"
 
 #include <sys/mount.h>
+#include <sys/sysmacros.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>

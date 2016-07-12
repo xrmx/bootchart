@@ -184,12 +184,12 @@ static void dump_buffers (DumpState *s)
 	log ("reading %d chunks (of %d) ...\n", max_chunk, s->map.max_chunk);
 	for (i = 0; i < max_chunk; i++) {
 		FILE *output;
-		char buffer[CHUNK_SIZE];
-		Chunk *c = (Chunk *)&buffer;
+		char *buffer = malloc(CHUNK_SIZE);
+		Chunk *c = (Chunk *)buffer;
 		size_t addr = (size_t) s->map.chunks[i];
 
 		lseek (s->mem, addr, SEEK_SET);
-		read (s->mem, &buffer, CHUNK_SIZE);
+		read (s->mem, buffer, CHUNK_SIZE);
 		/*      log ("type: '%s' len %d\n",
 			c->dest_stream, (int)c->length); */
 
@@ -197,6 +197,7 @@ static void dump_buffers (DumpState *s)
 		fwrite (c->data, 1, c->length, output);
 		bytes_dumped += c->length;
 		fclose (output);
+                free(buffer);
 	}
 	log ("wrote %ld kb\n", (long)(bytes_dumped+1023)/1024);
 }

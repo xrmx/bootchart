@@ -202,7 +202,7 @@ def draw_box_ticks(ctx, rect, sec_w):
 
 	ctx.set_line_cap(cairo.LINE_CAP_BUTT)
 
-def draw_annotations(ctx, proc_tree, times, rect):
+def draw_annotations(ctx, proc_tree, times, notes, rect):
     ctx.set_line_cap(cairo.LINE_CAP_SQUARE)
     ctx.set_source_rgba(*ANNOTATION_COLOR)
     ctx.set_dash([4, 4])
@@ -214,6 +214,8 @@ def draw_annotations(ctx, proc_tree, times, rect):
             ctx.move_to(rect[0] + x, rect[1] + 1)
             ctx.line_to(rect[0] + x, rect[1] + rect[3] - 1)
             ctx.stroke()
+            if notes is not None and time in notes:
+                draw_text(ctx, notes[time], ANNOTATION_COLOR, x, rect[1] - 15)
 
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
@@ -307,7 +309,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	chart_rect = (off_x, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
 		draw_box_ticks (ctx, chart_rect, sec_w)
-		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+		draw_annotations (ctx, proc_tree, trace.times, None, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.user + sample.sys + sample.io) for sample in trace.cpu_stats], \
 			    proc_tree, None)
@@ -326,7 +328,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 	chart_rect = (off_x, curr_y+30, w, bar_h)
 	if clip_visible (clip, chart_rect):
 		draw_box_ticks (ctx, chart_rect, sec_w)
-		draw_annotations (ctx, proc_tree, trace.times, chart_rect)
+		draw_annotations (ctx, proc_tree, trace.times, None, chart_rect)
 		draw_chart (ctx, IO_COLOR, True, chart_rect, \
 			    [(sample.time, sample.util) for sample in trace.disk_stats], \
 			    proc_tree, None)
@@ -360,7 +362,7 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
 				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
 		draw_box_ticks(ctx, chart_rect, sec_w)
-		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
+		draw_annotations(ctx, proc_tree, trace.times, None, chart_rect)
 		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
 			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
 			   proc_tree, [0, mem_scale])
@@ -415,7 +417,7 @@ def render(ctx, options, xscale, trace):
 	if proc_tree.taskstats and options.cumulative:
 		proc_height -= CUML_HEIGHT
 
-	draw_process_bar_chart(ctx, clip, options, proc_tree, trace.times,
+	draw_process_bar_chart(ctx, clip, options, proc_tree, trace.times, trace.notes,
 			       curr_y, w, proc_height, sec_w)
 
 	curr_y = proc_height
@@ -434,7 +436,7 @@ def render(ctx, options, xscale, trace):
 		if clip_visible (clip, cuml_rect):
 			draw_cuml_graph(ctx, proc_tree, cuml_rect, duration, sec_w, STAT_TYPE_IO)
 
-def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, sec_w):
+def draw_process_bar_chart(ctx, clip, options, proc_tree, times, notes, curr_y, w, h, sec_w):
 	header_size = 0
 	if not options.kernel_only:
 		draw_legend_box (ctx, "Running (%cpu)",
@@ -457,7 +459,7 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 	else:
 		nsec = 5
 	draw_sec_labels (ctx, chart_rect, sec_w, nsec)
-	draw_annotations (ctx, proc_tree, times, chart_rect)
+	draw_annotations (ctx, proc_tree, times, notes, chart_rect)
 
 	y = curr_y + 60
 	for root in proc_tree.process_tree:

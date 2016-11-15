@@ -840,6 +840,8 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
+	signal(SIGHUP, SIG_IGN);
+
 	if (enter_environment (args.console_debug))
 		return 1;
 

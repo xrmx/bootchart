@@ -645,7 +645,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 
 	# all the sample times
 	times = sorted(time_hash)
-	if len (times) < 2:
+	if len (times) < 2 or total_time == 0:
 		print("degenerate boot chart")
 		return
 

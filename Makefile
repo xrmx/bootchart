@@ -82,7 +82,7 @@ bootchartd: bootchartd.in
 	$(substitute_variables) $^ > $@
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -pthread -Icollector -o $@ $^
 
 pybootchartgui/main.py: pybootchartgui/main.py.in
 	$(substitute_variables) $^ > $@

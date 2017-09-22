@@ -136,3 +136,6 @@ test: pybootchartgui/tests
 		echo "Testing $$f...";\
 		$(PYTHON) "$$f";\
 	done
+
+docker-init: all
+	docker build -t svendowideit/bootchart:init -f Dockerfile.init .

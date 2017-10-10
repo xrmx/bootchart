@@ -139,3 +139,6 @@ test: pybootchartgui/tests
 
 docker-init: all
 	docker build -t svendowideit/bootchart:init -f Dockerfile.init .
+
+docker-py: all
+	docker build -t svendowideit/bootchart:pybootchartgui -f Dockerfile.pybootchartgui .

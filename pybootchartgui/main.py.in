@@ -30,8 +30,10 @@ def _mk_options_parser():
 	usage = "%prog [options] PATH, ..., PATH"
 	version = "%prog v@VER@"
 	parser = optparse.OptionParser(usage, version=version)
-	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
-			  help="start in active mode")
+	# PostmarketOS: Remove interactive mode. gui.py would need changes for compatibility
+	# with the py3-gobject3 package.
+	# parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
+	#		  help="start in active mode")
 	parser.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
 			  help="image format (png, svg, pdf); default format png")
 	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
@@ -123,10 +125,12 @@ def main(argv=None):
 
 		trace = parsing.Trace(writer, args, options)
 
-		if options.interactive:
-			from . import gui
-			gui.show(trace, options)
-		elif options.boottime:
+		# PostmarketOS: Remove interactive mode
+		# if options.interactive:
+		#	from . import gui
+		#	gui.show(trace, options)
+		#elif options.boottime:
+		if options.boottime:
 			import math
 			proc_tree = trace.proc_tree
 			if proc_tree.idle:

@@ -32,7 +32,7 @@ def _mk_options_parser():
 	parser = optparse.OptionParser(usage, version=version)
 	# PostmarketOS: Remove interactive mode. gui.py would need changes for compatibility
 	# with the py3-gobject3 package.
-	# parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
+	# parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False,
 	#		  help="start in active mode")
 	parser.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
 			  help="image format (png, svg, pdf); default format png")

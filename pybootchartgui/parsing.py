@@ -23,7 +23,7 @@ import string
 import re
 import sys
 import tarfile
-from time import perf_counter 
+from time import perf_counter
 from collections import defaultdict
 from functools import reduce
 

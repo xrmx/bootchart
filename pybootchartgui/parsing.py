@@ -526,7 +526,7 @@ def _parse_dmesg(writer, file):
     processMap['k-boot'] = kernel
     base_ts = False
     max_ts = 0
-    for line in file.read().decode('utf-8').split('\n'):
+    for line in file.read().decode('utf-8', 'replace').split('\n'):
         t = timestamp_re.match (line)
         if t is None:
 #                       print "duff timestamp " + line

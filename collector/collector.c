@@ -39,6 +39,7 @@
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
 #include <signal.h>
+#include <sys/sysmacros.h>
 
 /* pid uniqifying code */
 typedef struct {

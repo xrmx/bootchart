@@ -3,8 +3,8 @@ PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
+CC = $(CROSS_COMPILE)gcc
 
-CC ?= $(CROSS_COMPILE)gcc
 CFLAGS ?= -g -Wall -O0
 CPPFLAGS ?=
 

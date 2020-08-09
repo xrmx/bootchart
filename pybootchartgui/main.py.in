@@ -25,13 +25,17 @@ import optparse
 from . import parsing
 from . import batch
 
+
+PY2 = sys.version_info[0] == 2
+
 def _mk_options_parser():
 	"""Make an options parser."""
 	usage = "%prog [options] PATH, ..., PATH"
 	version = "%prog v@VER@"
 	parser = optparse.OptionParser(usage, version=version)
-	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False, 
-			  help="start in active mode")
+	if PY2:
+		parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False,
+				  help="start in active mode")
 	parser.add_option("-f", "--format", dest="format", default="png", choices=["png", "svg", "pdf"],
 			  help="image format (png, svg, pdf); default format png")
 	parser.add_option("-o", "--output", dest="output", metavar="PATH", default=None,
@@ -123,7 +127,7 @@ def main(argv=None):
 
 		trace = parsing.Trace(writer, args, options)
 
-		if options.interactive:
+		if getattr(options, 'interactive', False):
 			from . import gui
 			gui.show(trace, options)
 		elif options.boottime:

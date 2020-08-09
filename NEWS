@@ -1,4 +1,4 @@
-bootchart2 UNRELEASED:
+bootchart2 0.14.9:
 	+ bootchartd
 		+ Fix memory corruption (mephi42)
 		+ Unblock SIGTERM (mephi42)

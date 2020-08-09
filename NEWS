@@ -1,3 +1,21 @@
+bootchart2 UNRELEASED:
+	+ bootchartd
+		+ Fix memory corruption (mephi42)
+		+ Unblock SIGTERM (mephi42)
+		+ Fix compilation with gcc-6 (Riccardo)
+		+ Fix BOOTLOG_DEST default value (Steffen Pankratz)
+		+ Add missing include (Mike Frysinger)
+		+ Add sddm-helper to EXIT_PROC (arucard21)
+		+ Ignore SIGHUP when starting as PID 1 (mephi42)
+		+ Add missing include (Georges Savoundararadj)
+		+ make python3 the default Python (Riccardo)
+	+ pybootchartgui
+		+ Avoid division by zero (mephi42)
+		+ Make parsing more robust against non utf-8 bytes (AzureCrimson)
+		+ Make it work with Python3.8 (Pops Dylan)
+		+ Hide interactive option on Python3 (Riccardo)
+		* Fix tests warnings (Riccardo)
+
 bootchart2 0.14.8:
     + bootchartd
         + misc collector fixes (mephi42)

@@ -19,7 +19,7 @@ PROGRAM_SUFFIX ?=
 EARLY_PREFIX ?=
 
 BINDIR ?= /usr/bin
-PYTHON ?= python
+PYTHON ?= python3
 DOCDIR ?= /usr/share/docs/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)
 MANDIR ?= /usr/share/man/man1
 # never contains /usr; typically /lib, /lib64 or e.g. /lib/x86_64-linux-gnu

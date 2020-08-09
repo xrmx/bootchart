@@ -76,9 +76,9 @@ class TestBCParser(unittest.TestCase):
 				print('-------------------')
 			
 			self.assertEqual(tokens[0], str(sample.time))
-			self.assert_(floatEq(float(tokens[1]), sample.read))
-			self.assert_(floatEq(float(tokens[2]), sample.write))
-			self.assert_(floatEq(float(tokens[3]), sample.util))
+			self.assertTrue(floatEq(float(tokens[1]), sample.read))
+			self.assertTrue(floatEq(float(tokens[2]), sample.write))
+			self.assertTrue(floatEq(float(tokens[3]), sample.util))
 		diskstats_data.close()
 	
 	def testparseProcStatLog(self):
@@ -94,10 +94,10 @@ class TestBCParser(unittest.TestCase):
 				print(line.rstrip())
 				print(sample)
 				print('-------------------')
-			self.assert_(floatEq(float(tokens[0]), sample.time))
-			self.assert_(floatEq(float(tokens[1]), sample.user))
-			self.assert_(floatEq(float(tokens[2]), sample.sys))
-			self.assert_(floatEq(float(tokens[3]), sample.io))
+			self.assertTrue(floatEq(float(tokens[0]), sample.time))
+			self.assertTrue(floatEq(float(tokens[1]), sample.user))
+			self.assertTrue(floatEq(float(tokens[2]), sample.sys))
+			self.assertTrue(floatEq(float(tokens[3]), sample.io))
 		stat_data.close()
 
 if __name__ == '__main__':

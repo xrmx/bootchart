@@ -46,7 +46,7 @@ class TestProcessTree(unittest.TestCase):
             self.assertEqual(int(tokens[0]), actual.pid // 1000)
             self.assertEqual(tokens[1], actual.cmd)
             self.assertEqual(long(tokens[2]), 10 * actual.start_time)
-            self.assert_(long(tokens[3]) - 10 * actual.duration < 5, "duration")
+            self.assertTrue(long(tokens[3]) - 10 * actual.duration < 5, "duration")
             self.assertEqual(int(tokens[4]), len(actual.child_list))
             self.assertEqual(int(tokens[5]), len(actual.samples))
         test_data.close()

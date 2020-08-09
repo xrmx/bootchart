@@ -1,0 +1,12 @@
+FROM alpine
+
+RUN apk add --no-cache python py2-cairo
+
+WORKDIR /bootchart/
+
+ADD pybootchartgui /bootchart/pybootchartgui/
+ADD pybootchartgui.py /bootchart/
+ADD pybootchartgui.1 /bootchart/
+
+ENTRYPOINT ["./pybootchartgui.py", "--output", "/var/log/", "--show-all", "--format", "svg"]
+#, "--no-prune"]

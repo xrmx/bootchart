@@ -3,8 +3,8 @@ PKG_NAME=bootchart2
 PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
 
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
+CC = $(CROSS_COMPILE)gcc
 
-CC ?= $(CROSS_COMPILE)gcc
 CFLAGS ?= -g -Wall -O0
 CPPFLAGS ?=
 
@@ -82,7 +82,7 @@ bootchartd: bootchartd.in
 	$(substitute_variables) $^ > $@
 
 bootchart-collector: $(COLLECTOR)
-	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -pthread -Icollector -o $@ $^
 
 pybootchartgui/main.py: pybootchartgui/main.py.in
 	$(substitute_variables) $^ > $@
@@ -136,3 +136,9 @@ test: pybootchartgui/tests
 		echo "Testing $$f...";\
 		$(PYTHON) "$$f";\
 	done
+
+docker-init: all
+	docker build -t svendowideit/bootchart:init -f Dockerfile.init .
+
+docker-py: all
+	docker build -t svendowideit/bootchart:pybootchartgui -f Dockerfile.pybootchartgui .

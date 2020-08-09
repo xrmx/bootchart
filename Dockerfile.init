@@ -1,0 +1,10 @@
+
+# Build a LinuxKit rootfs for the bootchartd
+
+FROM scratch
+
+
+ADD bootchartd /sbin/
+ADD bootchartd.conf /etc/
+ADD bootchart-collector /lib/bootchart/
+

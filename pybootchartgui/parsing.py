@@ -23,7 +23,7 @@ import string
 import re
 import sys
 import tarfile
-from time import clock
+from time import perf_counter
 from collections import defaultdict
 from functools import reduce
 
@@ -658,7 +658,7 @@ def get_num_cpus(headers):
 
 def _do_parse(writer, state, name, file):
     writer.status("parsing '%s'" % name)
-    t1 = clock()
+    t1 = perf_counter()
     if name == "header":
         state.headers = _parse_headers(file)
     elif name == "proc_diskstats.log":
@@ -680,7 +680,7 @@ def _do_parse(writer, state, name, file):
         state.ps_stats = _parse_proc_ps_log(writer, file)
     elif name == "kernel_pacct": # obsoleted by PROC_EVENTS
         state.parent_map = _parse_pacct(writer, file)
-    t2 = clock()
+    t2 = perf_counter()
     writer.info("  %s seconds" % str(t2-t1))
     return state
 

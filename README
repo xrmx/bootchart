@@ -36,8 +36,8 @@ these we are slower, less accurate, and produce an uglier task
 hierarchy.
 
 	If you want to start bootchart2 in a dracut (version >= 008)
-initramfs, you have to change "init=/sbin/bootchartd" to 
-"rdinit=/sbin/bootchartd" and regenerate the initramfs with bootchart support
+initramfs, you have to change "init=/sbin/bootchartd2" to 
+"rdinit=/sbin/bootchartd2" and regenerate the initramfs with bootchart support
 with "# dracut -f -a bootchart".
 
 			    Why bootchart2 ?

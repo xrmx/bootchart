@@ -455,7 +455,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
 
     # this gets called an awful lot.
     def is_relevant_line(linetokens):
-        if len(linetokens) != 14:
+        if len(linetokens) < 14:
             return False
         disk = linetokens[2]
         return disk_regex_re.match(disk)

@@ -29,6 +29,7 @@ except ImportError:
     from time import clock as perf_counter
 from collections import defaultdict
 from functools import reduce
+from datetime import datetime
 
 from .samples import *
 from .process_tree import ProcessTree
@@ -51,6 +52,7 @@ class Trace:
         self.filename = None
         self.parent_map = None
         self.mem_stats = None
+        self.notes = {}
 
         parse_paths (writer, self, paths)
         if not self.valid():
@@ -67,28 +69,56 @@ class Trace:
         else:
             idle = None
 
-        # Annotate other times as the first start point of given process lists
-        self.times = [ idle ]
-        if options.annotate:
-            for procnames in options.annotate:
-                names = [x[:15] for x in procnames.split(",")]
-                for proc in self.ps_stats.process_map.values():
-                    if proc.cmd in names:
-                        self.times.append(proc.start_time)
-                        break
-                    else:
-                        self.times.append(None)
-
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
                                      self.ps_stats.sample_period,
                                      self.headers.get("profile.process"),
                                      options.prune, idle, self.taskstats,
                                      self.parent_map is not None)
 
+        # Annotate other times as the first start point of given process lists
+        self.times = [ idle ]
+        if options.annotate:
+            if os.path.isfile(options.annotate[0]):
+                self.addAnnotationsFromFile(options)
+            else:
+                for procnames in options.annotate:
+                    try:
+                        self.times.append(self.convertTimeToCoord(procnames))
+                    except ValueError:
+                        names = [x[:15] for x in procnames.split(",")]
+                        for proc in self.ps_stats.process_map.values():
+                            if proc.cmd in names:
+                                self.times.append(proc.start_time)
+                                break
+                            else:
+                                self.times.append(None)
+
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
                                            self.headers.get("profile.process"),
                                            False, None, None, True)
+
+    def addAnnotationsFromFile(self, options):
+        labels = []
+        times = []
+        with open(options.annotate[0]) as f:
+            for line in f:
+                labels.append(line.split('\t')[0].strip())
+                times.append(line.split('\t')[1].strip())
+        for (l, t) in zip(labels, times):
+            time = self.convertTimeToCoord(t)
+            if time not in self.times:
+                self.times.append(time)
+            if time not in self.notes:
+                self.notes[time] = l
+            else:
+                self.notes[time] = self.notes[time] + '/' + l
+
+    def convertTimeToCoord(self, time):
+        title = re.search(r'\d{2}:\d{2}:\d{2}', self.headers.get("title")).group()
+        endCoord = datetime.strptime(title, '%H:%M:%S')
+        startCoord = datetime.strptime(time, '%H:%M:%S')
+        return self.proc_tree.duration - (endCoord - startCoord).seconds * 100
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \

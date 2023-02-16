@@ -451,7 +451,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
     not sda1, sda2 etc. The format of relevant lines should be:
     {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
     """
-    disk_regex_re = re.compile ('^([hsv]d.|mtdblock\d|mmcblk\d|cciss/c\d+d\d+.*)$')
+    disk_regex_re = re.compile ('^([hsv]d.|mtdblock\d|mmcblk\d|cciss/c\d+d\d+.*|nvme\d+n\d+)$')
 
     # this gets called an awful lot.
     def is_relevant_line(linetokens):

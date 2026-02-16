@@ -11,11 +11,11 @@ a shell script, a collector and a visualisation tool.
 Please also see the manual pages referred to in the \fBSEE ALSO\fR
 section.
 .SH CONFIGURATION
-After install simply add these options to your kernel command line, normally in \fI/boot/grub/menu.lst:
+After install simply add these options to your kernel command line, normally in \fI/etc/default/grub:
 .in +4n
 .nf
 
-.B "initcall_debug printk.time=y quiet init=/sbin/bootchartd ..."
+.B GRUB_CMDLINE_LINUX_DEFAULT="quiet init=/sbin/bootchartd"
 
 .fi
 .in

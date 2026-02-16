@@ -183,7 +183,6 @@ if [ $$ -eq 1 ]; then
 	else # running inside the main system
 		echo "bootchart: no initrd used; starting"
 		start &
-		wait_boot &
 		# wait a little, until the collector is going, before allowing
 		# the rest of the system to charge ahead, so we catch it
 		$USLEEP 250000

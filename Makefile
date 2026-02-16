@@ -100,7 +100,7 @@ install-chroot:
 
 install-collector: all install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)$(EARLY_PREFIX)/sbin/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX)
-	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).conf
+	install -m 644 -D bootchartd.conf $(DESTDIR)$(EARLY_PREFIX)/etc/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).conf
 	install -m 755 -D bootchart-collector $(DESTDIR)$(PKGLIBDIR)/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)-collector
 
 install-docs:

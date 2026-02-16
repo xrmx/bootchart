@@ -107,9 +107,9 @@ install-docs:
 	install -m 644 -D README $(DESTDIR)$(DOCDIR)/README
 	install -m 644 -D README.pybootchart $(DESTDIR)$(DOCDIR)/README.pybootchart
 	mkdir -p $(DESTDIR)$(MANDIR)
-	gzip -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
-	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
-	gzip -c pybootchartgui.1 > $(DESTDIR)$(MANDIR)/pybootchartgui.1.gz
+	gzip -n -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
+	gzip -n -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
+	gzip -n -c pybootchartgui.1 > $(DESTDIR)$(MANDIR)/pybootchartgui.1.gz
 
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)

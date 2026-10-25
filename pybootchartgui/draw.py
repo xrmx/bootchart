@@ -218,7 +218,8 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range,
+               base = None):
 	ctx.set_line_width(0.5)
 	x_shift = proc_tree.start_time
 
@@ -257,8 +258,16 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 		ctx.line_to(x, y)
 	if fill:
 		ctx.stroke_preserve()
-		ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
-		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
+		if base:
+			# Stacked chart: close the area along the base line instead of
+			# along the bottom of the chart.
+			for point in reversed(base):
+				x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
+							       chart_bounds[0], chart_bounds[1])
+				ctx.line_to(x, y)
+		else:
+			ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
+			ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], first[1])
 		ctx.fill()
 	else:

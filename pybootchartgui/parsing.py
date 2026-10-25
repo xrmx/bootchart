@@ -555,7 +555,10 @@ def _parse_proc_meminfo_log(file):
     The format of relevant lines should be: ^key: value( unit)?
     """
     mem_stats = []
-    meminfo_re = re.compile(r'(MemTotal|MemFree|Buffers|Cached|SwapTotal|SwapFree):\s*(\d+).*')
+    # MemAvailable needs Linux 3.14 and SReclaimable Linux 2.6.19; both are
+    # optional so that older logs still parse.
+    meminfo_re = re.compile(r'(MemTotal|MemFree|MemAvailable|Buffers|Cached'
+                            r'|SReclaimable|SwapTotal|SwapFree):\s*(\d+).*')
 
     for time, lines in _parse_timed_blocks(file):
         sample = MemSample(time)

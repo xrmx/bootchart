@@ -74,8 +74,8 @@ FILE_OPEN_COLOR = (0.20, 0.71, 0.71, 1.0)
 MEM_CACHED_COLOR = CPU_COLOR
 # Mem used color
 MEM_USED_COLOR = IO_COLOR
-# Buffers color
-MEM_BUFFERS_COLOR = (0.4, 0.4, 0.4, 0.3)
+# Mem free color
+MEM_FREE_COLOR = (0.94, 0.94, 0.94, 1.0)
 # Swap color
 MEM_SWAP_COLOR = DISK_TPUT_COLOR
 
@@ -218,7 +218,8 @@ def draw_annotations(ctx, proc_tree, times, rect):
     ctx.set_line_cap(cairo.LINE_CAP_BUTT)
     ctx.set_dash([])
 
-def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
+def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range,
+               base = None):
 	ctx.set_line_width(0.5)
 	x_shift = proc_tree.start_time
 
@@ -257,8 +258,16 @@ def draw_chart(ctx, color, fill, chart_bounds, data, proc_tree, data_range):
 		ctx.line_to(x, y)
 	if fill:
 		ctx.stroke_preserve()
-		ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
-		ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
+		if base:
+			# Stacked chart: close the area along the base line instead of
+			# along the bottom of the chart.
+			for point in reversed(base):
+				x, y = transform_point_coords (point, x_shift, ybase, xscale, yscale, \
+							       chart_bounds[0], chart_bounds[1])
+				ctx.line_to(x, y)
+		else:
+			ctx.line_to(last[0], chart_bounds[1]+chart_bounds[3])
+			ctx.line_to(first[0], chart_bounds[1]+chart_bounds[3])
 		ctx.line_to(first[0], first[1])
 		ctx.fill()
 	else:
@@ -393,30 +402,66 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
 	curr_y = curr_y + 30 + bar_h
 
-	# render mem usage
+	# Render memory usage as a partition, like the memory meters in htop
+	# and netdata:
+	#   used       = MemTotal - MemFree - Buffers - Cached - SReclaimable
+	#   buff/cache = Buffers + Cached + SReclaimable
+	#   free       = MemFree
+	# The three areas add up to MemTotal.  free(1) uses the same fields but
+	# reports "used" as MemTotal - MemAvailable, which overlaps with
+	# buff/cache and can not be drawn as a stack.  The Y scale is fixed to
+	# MemTotal, so the top of the chart is the memory the machine has.
 	chart_rect = (off_x, curr_y+30, w, meminfo_bar_h)
 	mem_stats = trace.mem_stats
 	if mem_stats and clip_visible (clip, chart_rect):
-		mem_scale = max(sample.records['MemTotal'] - sample.records['MemFree'] for sample in mem_stats)
-		draw_legend_box(ctx, "Mem cached (scale: %u MiB)" % (float(mem_scale) / 1024), MEM_CACHED_COLOR, off_x, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Used", MEM_USED_COLOR, off_x + 240, curr_y+20, leg_s)
-		draw_legend_box(ctx, "Buffers", MEM_BUFFERS_COLOR, off_x + 360, curr_y+20, leg_s)
-		draw_legend_line(ctx, "Swap (scale: %u MiB)" % max([(sample.records['SwapTotal'] - sample.records['SwapFree'])/1024 for sample in mem_stats]), \
-				 MEM_SWAP_COLOR, off_x + 480, curr_y+20, leg_s)
+		mem_total = max(sample.records['MemTotal'] for sample in mem_stats)
+		swap_total = max(sample.records['SwapTotal'] for sample in mem_stats)
+
+		used = []
+		buffcache = []
+		full = []
+		swap = []
+		for sample in mem_stats:
+			# free(1) counts Cached + SReclaimable as "cache"; SReclaimable
+			# is missing from logs produced by very old kernels.
+			cache = sample.records['Cached'] + sample.records.get('SReclaimable', 0)
+			used.append((sample.time,
+				     sample.records['MemTotal'] - sample.records['MemFree']
+				     - sample.records['Buffers'] - cache))
+			buffcache.append((sample.time, sample.records['Buffers'] + cache))
+			full.append((sample.time, sample.records['MemTotal']))
+			swap.append((sample.time,
+				     float(sample.records['SwapTotal'] - sample.records['SwapFree'])))
+
+		mem_mib = round(float(mem_total) / 1024)
+		swap_mib = round(float(swap_total) / 1024)
+		draw_legend_box(ctx, "Used (of %d MiB)" % mem_mib, MEM_USED_COLOR,
+				off_x, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Buff/cache", MEM_CACHED_COLOR,
+				off_x + 160, curr_y+20, leg_s)
+		draw_legend_box(ctx, "Free", MEM_FREE_COLOR,
+				off_x + 300, curr_y+20, leg_s)
+		draw_legend_line(ctx, "Swap (scale: %d MiB)" % swap_mib,
+				 MEM_SWAP_COLOR, off_x + 390, curr_y+20, leg_s)
+		available = [sample.records.get('MemAvailable') for sample in mem_stats]
+		if available and None not in available:
+			avail_mib = round(min(available) / 1024)
+			draw_text(ctx, "Available (min): %d MiB" % avail_mib,
+				  TEXT_COLOR, off_x + 560, curr_y + 20)
+
+		# Paint the whole frame first: the top of the chart is MemTotal, so
+		# whatever is not used or cached is free memory.
+		draw_chart(ctx, MEM_FREE_COLOR, True, chart_rect, full, \
+			   proc_tree, [0, mem_total])
 		draw_box_ticks(ctx, chart_rect, sec_w)
 		draw_annotations(ctx, proc_tree, trace.times, chart_rect)
-		draw_chart(ctx, MEM_BUFFERS_COLOR, True, chart_rect, \
-			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree']) for sample in trace.mem_stats], \
-			   proc_tree, [0, mem_scale])
-		draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, \
-			   [(sample.time, sample.records['MemTotal'] - sample.records['MemFree'] - sample.records['Buffers']) for sample in mem_stats], \
-			   proc_tree, [0, mem_scale])
+		draw_chart(ctx, MEM_USED_COLOR, True, chart_rect, used, \
+			   proc_tree, [0, mem_total])
 		draw_chart(ctx, MEM_CACHED_COLOR, True, chart_rect, \
-			   [(sample.time, sample.records['Cached']) for sample in mem_stats], \
-			   proc_tree, [0, mem_scale])
-		draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, \
-			   [(sample.time, float(sample.records['SwapTotal'] - sample.records['SwapFree'])) for sample in mem_stats], \
-			   proc_tree, None)
+			   [(u[0], u[1] + b[1]) for u, b in zip(used, buffcache)], \
+			   proc_tree, [0, mem_total], base = used)
+		draw_chart(ctx, MEM_SWAP_COLOR, False, chart_rect, swap, \
+			   proc_tree, [0, max(swap_total, 1)])
 
 		curr_y = curr_y + meminfo_bar_h
 

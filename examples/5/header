@@ -1,0 +1,7 @@
+version = Android init 0.8
+title = Boot chart for Android (2026-10-25 11:50:50)
+system.uname = Linux 6.12.74-android16-6-maybe-dirty #1 SMP PREEMPT Thu Jan  1 00:00:00 UTC 1970 x86_64
+system.release = generic/aosp_cf_x86_64_only_phone/vsoc_x86_64_only:17/CP2A.260605.016/16644040:userdebug/test-keys
+system.cpu = x86_64
+system.kernel.options = vmw_vsock_virtio_transport_common.virtio_transport_max_vsock_pkt_buf_size=16384 console=ttynull stack_depot_disable=on cgroup_disable=pressure bootconfig  printk.devkmsg=on audit=1 panic=-1 8250.nr_uarts=1 binder.impl=rust cma=0 firmware_class.path=/vendor/etc/ loop.max_part=7 init=/init bootconfig panic=-1 console=hvc0 earlycon=uart8250,io,0x3f8 ramoops.mem_address=0x138000000 ramoops.mem_size=0x200000 binder.impl=c
+
